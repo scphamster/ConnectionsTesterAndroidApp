@@ -15,9 +15,11 @@ interface SimpleBluetoothDeviceInterface {
      * @param messageSentListener Send message callback (indicates that a message was successfully sent)
      * @param errorListener Error callback
      */
-    fun setListeners(messageReceivedListener: OnMessageReceivedListener?,
-                     messageSentListener: OnMessageSentListener?,
-                     errorListener: OnErrorListener?)
+    fun setListeners(
+        messageReceivedListener: OnMessageReceivedListener?,
+        messageSentListener: OnMessageSentListener?,
+        errorListener: OnErrorListener?
+    )
 
     /**
      * Set the message received listener
@@ -40,15 +42,15 @@ interface SimpleBluetoothDeviceInterface {
      */
     fun setErrorListener(listener: OnErrorListener?)
 
-    interface OnMessageReceivedListener {
+    fun interface OnMessageReceivedListener {
         fun onMessageReceived(message: String)
     }
 
-    interface OnMessageSentListener {
+    fun interface OnMessageSentListener {
         fun onMessageSent(message: String)
     }
 
-    interface OnErrorListener {
+    fun interface OnErrorListener {
         fun onError(error: Throwable)
     }
 }
