@@ -15,8 +15,10 @@ import androidx.lifecycle.ViewModelProviders
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.ViewHolder
-import kotlinx.android.synthetic.main.activity_main.*
-import kotlinx.android.synthetic.main.list_item.*
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+
+//import kotlinx.android.synthetic.main.activity_main.*
+//import kotlinx.android.synthetic.main.list_item.*
 
 class MainActivity : AppCompatActivity() {
     private var viewModel: MainActivityViewModel? = null
@@ -35,8 +37,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Setup our Views
-        val deviceList = main_devices;
-        val swipeRefreshLayout = main_swiperefresh;
+        val deviceList = findViewById<RecyclerView>(R.id.main_devices)
+        val swipeRefreshLayout = findViewById<SwipeRefreshLayout>(R.id.main_swiperefresh)
 
         // Setup the RecyclerView
         deviceList.layoutManager = LinearLayoutManager(this)
@@ -89,9 +91,9 @@ class MainActivity : AppCompatActivity() {
         private val deviceAddress: TextView
 
         init {
-            layout = findViewById(R.id.list_item);
-            deviceName = findViewById(R.id.bluetooth_item_Name)
-            deviceAddress = findViewById(R.id.bluetooth_item_Adress)
+            layout = view.findViewById(R.id.list_item);
+            deviceName = view.findViewById(R.id.bluetooth_item_Name)
+            deviceAddress = view.findViewById(R.id.bluetooth_item_Adress)
 
 //            layout = list_item
 //            deviceName = bluetooth_item_Name
