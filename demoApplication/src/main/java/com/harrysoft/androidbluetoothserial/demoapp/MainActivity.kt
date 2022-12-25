@@ -16,18 +16,21 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.ViewHolder
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import com.harrysoft.androidbluetoothserial.demoapp.databinding.ActivityMainBinding
+import kotlinx.android.synthetic.main.activity_main.view.*
 
 //import kotlinx.android.synthetic.main.activity_main.*
 //import kotlinx.android.synthetic.main.list_item.*
 
 class MainActivity : AppCompatActivity() {
     private var viewModel: MainActivityViewModel? = null
+    private lateinit var binding:ActivityMainBinding
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Setup our activity
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        //test
+        binding = ActivityMainBinding.inflate(layoutInflater)
 
-        // Setup our ViewModel
+        setContentView(binding.root)
         viewModel = ViewModelProviders.of(this).get(MainActivityViewModel::class.java)
 
         // This method return false if there is an error, so if it does, we should close.
@@ -37,7 +40,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Setup our Views
-        val deviceList = findViewById<RecyclerView>(R.id.main_devices)
+//        val deviceList = findViewById<RecyclerView>(R.id.main_devices)
+        val deviceList = binding.mainDevices.main_devices
         val swipeRefreshLayout = findViewById<SwipeRefreshLayout>(R.id.main_swiperefresh)
 
         // Setup the RecyclerView

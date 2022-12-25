@@ -14,13 +14,13 @@ android {
     }
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
-//    buildFeatures{
-//        viewBinding = true
-//    }
+    buildFeatures{
+        viewBinding = true
+    }
     compileOptions {
         targetCompatibility 1.8
         sourceCompatibility 1.8
@@ -50,6 +50,8 @@ dependencies {
     // Bluetooth library
     implementation project(path: ':androidBluetoothSerial')
 
+    // Theme
+    implementation 'com.google.android.material:material:1.2.1'
 
     // Testing
     testImplementation 'junit:junit:4.12'
