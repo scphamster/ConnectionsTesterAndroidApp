@@ -20,13 +20,11 @@ class CommunicateActivity : AppCompatActivity() {
     private var viewModel: CommunicateViewModel? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Setup our activity
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_communicate)
+
         // Enable the back button in the action bar if possible
-        if (supportActionBar != null) {
-            supportActionBar!!.setDisplayHomeAsUpEnabled(true)
-        }
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         // Setup our ViewModel
         viewModel = ViewModelProviders.of(this).get(CommunicateViewModel::class.java)
@@ -119,6 +117,7 @@ class CommunicateActivity : AppCompatActivity() {
     }
 
     // Called when the user presses the back button
+//    @Deprecated
     override fun onBackPressed() {
         // Close the activity
         finish()

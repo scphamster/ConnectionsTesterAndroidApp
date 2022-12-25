@@ -1,5 +1,6 @@
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-android-extensions'
 
 android {
     compileSdkVersion 33
@@ -17,6 +18,9 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+//    buildFeatures{
+//        viewBinding = true
+//    }
     compileOptions {
         targetCompatibility 1.8
         sourceCompatibility 1.8
@@ -45,6 +49,7 @@ dependencies {
 
     // Bluetooth library
     implementation project(path: ':androidBluetoothSerial')
+
 
     // Testing
     testImplementation 'junit:junit:4.12'

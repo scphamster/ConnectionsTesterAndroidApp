@@ -74,8 +74,8 @@ interface BluetoothManager : AutoCloseable {
          * @return A BluetoothManager instance if the device
          * has Bluetooth or null otherwise.
          */
-        @JvmStatic
         val instance: BluetoothManager? by lazy {
+            //todo: replace deprecated function
             val bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
             if (bluetoothAdapter != null) {
                 BluetoothManagerImpl(bluetoothAdapter)

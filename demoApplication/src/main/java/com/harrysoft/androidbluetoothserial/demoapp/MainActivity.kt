@@ -9,12 +9,14 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.RelativeLayout
 import android.widget.TextView
+//import android.support.design.widget.Snackbar
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProviders
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.ViewHolder
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import kotlinx.android.synthetic.main.activity_main.*
+import kotlinx.android.synthetic.main.list_item.*
 
 class MainActivity : AppCompatActivity() {
     private var viewModel: MainActivityViewModel? = null
@@ -33,8 +35,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Setup our Views
-        val deviceList = findViewById<RecyclerView>(R.id.main_devices)
-        val swipeRefreshLayout = findViewById<SwipeRefreshLayout>(R.id.main_swiperefresh)
+        val deviceList = main_devices;
+        val swipeRefreshLayout = main_swiperefresh;
 
         // Setup the RecyclerView
         deviceList.layoutManager = LinearLayoutManager(this)
@@ -48,29 +50,18 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Start observing the data sent to us by the ViewModel
-        viewModel!!.pairedDeviceList.observe(this@MainActivity) { deviceList: Collection<BluetoothDevice?> ->
+        viewModel?.pairedDeviceList?.observe(this@MainActivity) { deviceList: Collection<BluetoothDevice?> ->
             adapter.updateList(
                 deviceList
             )
         }
 
-        // Immediately refresh the paired devices list
-        viewModel!!.refreshPairedDevices()
+        viewModel?.refreshPairedDevices()
     }
 
-    // Called when clicking on a device entry to start the CommunicateActivity
-    fun openCommunicationsActivity(deviceName: String?, macAddress: String?) {
-        val intent = Intent(this, CommunicateActivity::class.java)
-        intent.putExtra("device_name", deviceName)
-        intent.putExtra("device_mac", macAddress)
-        startActivity(intent)
-    }
-
-    // Called when a button in the action bar is pressed
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             android.R.id.home -> {
-                // If the back button was pressed, handle it the normal way
                 onBackPressed()
                 true
             }
@@ -79,30 +70,43 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // Called when the user presses the back button
     override fun onBackPressed() {
-        // Close the activity
         finish()
+    }
+
+    // Called when clicking on a device entry to start the CommunicateActivity
+    fun startCommunicationsWithDevice(deviceName: String?, macAddress: String?) {
+        val intent = Intent(this, CommunicateActivity::class.java)
+        intent.putExtra("device_name", deviceName)
+        intent.putExtra("device_mac", macAddress)
+        startActivity(intent)
     }
 
     // A class to hold the data in the RecyclerView
     private inner class DeviceViewHolder internal constructor(view: View) : ViewHolder(view) {
         private val layout: RelativeLayout
-        private val text1: TextView
-        private val text2: TextView
+        private val deviceName: TextView
+        private val deviceAddress: TextView
 
         init {
-            layout = view.findViewById(R.id.list_item)
-            text1 = view.findViewById(R.id.list_item_text1)
-            text2 = view.findViewById(R.id.list_item_text2)
+            layout = findViewById(R.id.list_item);
+            deviceName = findViewById(R.id.bluetooth_item_Name)
+            deviceAddress = findViewById(R.id.bluetooth_item_Adress)
+
+//            layout = list_item
+//            deviceName = bluetooth_item_Name
+//            deviceAddress = bluetooth_item_Adress
         }
 
         fun setupView(device: BluetoothDevice?) {
-            text1.text = device!!.name
-            text2.text = device.address
+            if (device != null) {
+                deviceName.text = device.name
+                deviceAddress.text = device.address
+            }
+
             layout.setOnClickListener { view: View? ->
-                openCommunicationsActivity(
-                    device.name, device.address
+                startCommunicationsWithDevice(
+                    device?.name, device?.address
                 )
             }
         }

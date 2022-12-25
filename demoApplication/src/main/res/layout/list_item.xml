@@ -11,19 +11,19 @@
     android:background="?android:attr/selectableItemBackground" >
 
     <TextView
-        android:id="@+id/list_item_text1"
+        android:id="@+id/bluetooth_item_Name"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:textAppearance="?android:attr/textAppearanceListItem" />
 
     <TextView
-        android:id="@+id/list_item_text2"
+        android:id="@+id/bluetooth_item_Adress"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@id/list_item_text1"
+        android:layout_below="@id/bluetooth_item_Name"
         android:layout_marginBottom="8dp"
-        android:layout_alignStart="@id/list_item_text1"
+        android:layout_alignStart="@id/bluetooth_item_Name"
         android:textAppearance="?android:attr/textAppearanceListItemSecondary" />
 
 </RelativeLayout>

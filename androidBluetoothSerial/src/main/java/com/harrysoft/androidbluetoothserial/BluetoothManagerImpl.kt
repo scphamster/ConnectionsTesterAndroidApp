@@ -10,7 +10,7 @@ import java.util.*
 /**
  * Implementation of BluetoothManager, package-private
  */
-internal class BluetoothManagerImpl(private val adapter: BluetoothAdapter) : BluetoothManager {
+internal class BluetoothManagerImpl (private val adapter: BluetoothAdapter) : BluetoothManager {
     private val devices: MutableMap<String, BluetoothSerialDeviceImpl> = mutableMapOf()
 
     override val pairedDevices: Collection<BluetoothDevice>

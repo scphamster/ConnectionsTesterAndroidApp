@@ -6,27 +6,27 @@
     android:layout_width="match_parent" >
 
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical">
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
 
         <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/paired_devices"
-            android:textSize="@dimen/title"
-            android:layout_marginBottom="@dimen/margin"
-            android:layout_marginTop="@dimen/margin"
-            android:layout_marginLeft="@dimen/margin"
-            android:layout_marginRight="@dimen/margin" />
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/paired_devices"
+                android:textSize="@dimen/title"
+                android:layout_marginBottom="@dimen/margin"
+                android:layout_marginTop="@dimen/margin"
+                android:layout_marginLeft="@dimen/margin"
+                android:layout_marginRight="@dimen/margin" android:id="@+id/paired_devices"/>
 
         <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/main_devices"
-            android:scrollbars="vertical"
-            android:fadeScrollbars="true"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
+                android:id="@+id/main_devices"
+                android:scrollbars="vertical"
+                android:fadeScrollbars="true"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"/>
 
     </LinearLayout>
 

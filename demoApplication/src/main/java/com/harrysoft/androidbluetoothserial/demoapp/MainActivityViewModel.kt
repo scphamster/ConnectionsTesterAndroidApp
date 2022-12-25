@@ -9,23 +9,18 @@ import androidx.lifecycle.MutableLiveData
 import com.harrysoft.androidbluetoothserial.BluetoothManager
 import com.harrysoft.androidbluetoothserial.BluetoothManager.Companion.instance
 
-class MainActivityViewModel  // Called by the system, this is just a constructor that matches AndroidViewModel.
-    (application: Application) : AndroidViewModel(application) {
-    // Our BluetoothManager!
+// Called by the system, this is just a constructor that matches AndroidViewModel.
+class MainActivityViewModel(application: Application) : AndroidViewModel(application) {
     private var bluetoothManager: BluetoothManager? = null
-
-    // The paired devices list tha the activity sees
     val pairedDeviceList = MutableLiveData<Collection<BluetoothDevice>>()
-
-    // A variable to help us not setup twice
-    private var viewModelSetup = false
+    private var isInitialized = false
 
     // Called in the activity's onCreate(). Checks if it has been called before, and if not, sets up the data.
     // Returns true if everything went okay, or false if there was an error and therefore the activity should finish.
     fun setupViewModel(): Boolean {
         // Check we haven't already been called
-        if (!viewModelSetup) {
-            viewModelSetup = true
+        if (!isInitialized) {
+            isInitialized = true
 
             // Setup our BluetoothManager
             bluetoothManager = instance
