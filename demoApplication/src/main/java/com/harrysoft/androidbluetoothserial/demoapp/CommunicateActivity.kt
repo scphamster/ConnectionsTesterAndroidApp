@@ -36,28 +36,31 @@ class CommunicateActivity : AppCompatActivity() {
         }
 
         // Setup our Views
-        connectionText = findViewById(R.id.communicate_connection_text)
-        messagesView = findViewById(R.id.communicate_messages)
-        messageBox = findViewById(R.id.communicate_message)
-        sendButton = findViewById(R.id.communicate_send)
-        connectButton = findViewById(R.id.communicate_connect)
+        connectionText = findViewById(R.id.terminal_connection_status)
+        messagesView = findViewById(R.id.terminal_messages)
+        messageBox = findViewById(R.id.terminal_msg_box)
+        sendButton = findViewById(R.id.terminal_send_button)
+        connectButton = findViewById(R.id.terminal_connect_button)
 
         // Start observing the data sent to us by the ViewModel
-        viewModel!!.connectionStatus.observe(this) { connectionStatus: ConnectionStatus ->
-            onConnectionStatus(
-                connectionStatus
-            )
+        viewModel?.connectionStatus?.observe(this) { connectionStatus: ConnectionStatus ->
+            onConnectionStatus(connectionStatus)
         }
-        viewModel!!.getDeviceName()
-            .observe(this) { name: String? -> title = getString(R.string.device_name_format, name) }
-        viewModel!!.getMessages().observe(this) { message: String? ->
+        viewModel?.getDeviceName()
+            ?.observe(this) { name: String? -> title = getString(R.string.device_name_format, name) }
+
+        viewModel?.getMessages()?.observe(this) { message: String? ->
             var message = message
-            if (TextUtils.isEmpty(message)) {
-                message = getString(R.string.no_messages)
+
+            if (message != null) {
+                if (message.isEmpty()) {
+                    message = getString(R.string.no_messages)
+                }
             }
+
             messagesView?.setText(message)
         }
-        viewModel!!.message.observe(this) { message: String? ->
+        viewModel?.message?.observe(this) { message: String? ->
             // Only update the message if the ViewModel is trying to reset it
             if (TextUtils.isEmpty(message)) {
                 messageBox?.setText(message)
@@ -65,23 +68,21 @@ class CommunicateActivity : AppCompatActivity() {
         }
 
         // Setup the send button click action
-        sendButton?.setOnClickListener(View.OnClickListener { v: View? ->
-            viewModel!!.sendMessage(
-                messageBox?.getText().toString()
-            )
-        })
+        sendButton?.setOnClickListener { v: View? ->
+            viewModel?.sendMessage(messageBox?.getText().toString())
+        }
     }
 
     // Called when the ViewModel updates us of our connectivity status
     private fun onConnectionStatus(connectionStatus: ConnectionStatus) {
         when (connectionStatus) {
             ConnectionStatus.CONNECTED -> {
-                connectionText!!.setText(R.string.status_connected)
-                messageBox!!.isEnabled = true
-                sendButton!!.isEnabled = true
-                connectButton!!.isEnabled = true
-                connectButton!!.setText(R.string.disconnect)
-                connectButton!!.setOnClickListener { v: View? -> viewModel!!.disconnect() }
+                connectionText?.setText(R.string.status_connected)
+                messageBox?.isEnabled = true
+                sendButton?.isEnabled = true
+                connectButton?.isEnabled = true
+                connectButton?.setText(R.string.disconnect)
+                connectButton?.setOnClickListener { v: View? -> viewModel?.disconnect() }
             }
 
             ConnectionStatus.CONNECTING -> {
@@ -98,12 +99,11 @@ class CommunicateActivity : AppCompatActivity() {
                 sendButton!!.isEnabled = false
                 connectButton!!.isEnabled = true
                 connectButton!!.setText(R.string.connect)
-                connectButton!!.setOnClickListener { v: View? -> viewModel!!.connect() }
+                connectButton!!.setOnClickListener { v: View? -> viewModel?.connect() }
             }
         }
     }
 
-    // Called when a button in the action bar is pressed
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             android.R.id.home -> {
@@ -116,8 +116,6 @@ class CommunicateActivity : AppCompatActivity() {
         }
     }
 
-    // Called when the user presses the back button
-//    @Deprecated
     override fun onBackPressed() {
         // Close the activity
         finish()

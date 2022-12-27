@@ -7,7 +7,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.harrysoft.androidbluetoothserial.BluetoothManager
-import com.harrysoft.androidbluetoothserial.BluetoothManager.Companion.instance
+import com.harrysoft.androidbluetoothserial.BluetoothManager.Companion.btm
 
 // Called by the system, this is just a constructor that matches AndroidViewModel.
 class MainActivityViewModel(application: Application) : AndroidViewModel(application) {
@@ -23,11 +23,11 @@ class MainActivityViewModel(application: Application) : AndroidViewModel(applica
             isInitialized = true
 
             // Setup our BluetoothManager
-            bluetoothManager = instance
+            bluetoothManager = btm
             if (bluetoothManager == null) {
-                // Bluetooth unavailable on this device :( tell the user
-                Toast.makeText(getApplication(), R.string.no_bluetooth, Toast.LENGTH_LONG).show()
-                // Tell the activity there was an error and to close
+                Toast.makeText(getApplication(), R.string.no_bluetooth, Toast.LENGTH_LONG)
+                        .show()
+
                 return false
             }
         }
@@ -37,12 +37,12 @@ class MainActivityViewModel(application: Application) : AndroidViewModel(applica
 
     // Called by the activity to request that we refresh the list of paired devices
     fun refreshPairedDevices() {
-        pairedDeviceList.postValue(bluetoothManager!!.pairedDevices)
+        pairedDeviceList.postValue(bluetoothManager?.pairedDevices)
     }
 
     // Called when the activity finishes - clear up after ourselves.
     override fun onCleared() {
-        if (bluetoothManager != null) bluetoothManager!!.close()
+        if (bluetoothManager != null) bluetoothManager?.close()
     }
 
     // Getter method for the activity to use.

@@ -13,7 +13,7 @@
             android:layout_marginRight="@dimen/margin">
 
         <TextView
-                android:id="@+id/communicate_connection_text"
+                android:id="@+id/terminal_connection_status"
                 android:hint="@string/status_disconnected"
                 android:textSize="@dimen/text"
                 android:layout_width="0dp"
@@ -21,7 +21,7 @@
                 android:layout_height="wrap_content"/>
 
         <Button
-                android:id="@+id/communicate_connect"
+                android:id="@+id/terminal_connect_button"
                 android:text="@string/connect"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"/>
@@ -43,7 +43,7 @@
             android:layout_weight="1">
 
         <TextView
-                android:id="@+id/communicate_messages"
+                android:id="@+id/terminal_messages"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:textSize="@dimen/text"
@@ -63,14 +63,14 @@
         android:layout_marginRight="@dimen/margin" >
 
         <EditText
-                android:id="@+id/communicate_message"
+                android:id="@+id/terminal_msg_box"
                 android:hint="@string/message"
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:layout_height="60dp"
                 android:inputType="text" android:autofillHints=""/>
         <Button
-                android:id="@+id/communicate_send"
+                android:id="@+id/terminal_send_button"
                 android:text="@string/send"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"/>

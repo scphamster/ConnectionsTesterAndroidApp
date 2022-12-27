@@ -8,17 +8,14 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.harrysoft.androidbluetoothserial.BluetoothManager
-import com.harrysoft.androidbluetoothserial.BluetoothManager.Companion.instance
+import com.harrysoft.androidbluetoothserial.BluetoothManager.Companion.btm
 import com.harrysoft.androidbluetoothserial.BluetoothSerialDevice
 import com.harrysoft.androidbluetoothserial.SimpleBluetoothDeviceInterface
-import com.harrysoft.androidbluetoothserial.SimpleBluetoothDeviceInterface.OnMessageReceivedListener
-import com.harrysoft.androidbluetoothserial.SimpleBluetoothDeviceInterface.OnMessageSentListener
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
 
-class CommunicateViewModel  // Called by the system, this is just a constructor that matches AndroidViewModel.
-    (application: Application) : AndroidViewModel(application) {
+class CommunicateViewModel(application: Application) : AndroidViewModel(application) {
     // A CompositeDisposable that keeps track of all of our asynchronous tasks
     private val compositeDisposable = CompositeDisposable()
 
@@ -51,17 +48,17 @@ class CommunicateViewModel  // Called by the system, this is just a constructor 
     private var connectionAttemptedOrMade = false
 
     // A variable to help us not setup twice
-    private var viewModelSetup = false
+    private var isInitialized = false
 
     // Called in the activity's onCreate(). Checks if it has been called before, and if not, sets up the data.
     // Returns true if everything went okay, or false if there was an error and therefore the activity should finish.
     fun setupViewModel(deviceName: String, mac: String?): Boolean {
         // Check we haven't already been called
-        if (!viewModelSetup) {
-            viewModelSetup = true
+        if (!isInitialized) {
+            isInitialized = true
 
             // Setup our BluetoothManager
-            bluetoothManager = instance
+            bluetoothManager = btm
             if (bluetoothManager == null) {
                 // Bluetooth unavailable on this device :( tell the user
                 toast(R.string.bluetooth_unavailable)
@@ -73,7 +70,7 @@ class CommunicateViewModel  // Called by the system, this is just a constructor 
             this.deviceName = deviceName
             this.mac = mac
 
-            // Tell the activity the device name so it can set the title
+            // Tell the activity the device name, so it can set the title
             deviceNameData.postValue(deviceName)
             // Tell the activity we are disconnected.
             connectionStatusData.postValue(ConnectionStatus.DISCONNECTED)
@@ -89,13 +86,13 @@ class CommunicateViewModel  // Called by the system, this is just a constructor 
             // Connect asynchronously
             compositeDisposable.add(
                 bluetoothManager!!.openSerialDevice(mac!!)
-                    .subscribeOn(Schedulers.io())
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe({ device: BluetoothSerialDevice -> onConnected(device.toSimpleDeviceInterface()) }) { t: Throwable? ->
-                        toast(R.string.connection_failed)
-                        connectionAttemptedOrMade = false
-                        connectionStatusData.postValue(ConnectionStatus.DISCONNECTED)
-                    })
+                        .subscribeOn(Schedulers.io())
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe({ device: BluetoothSerialDevice -> onConnected(device.toSimpleDeviceInterface()) }) { t: Throwable? ->
+                            toast(R.string.connection_failed)
+                            connectionAttemptedOrMade = false
+                            connectionStatusData.postValue(ConnectionStatus.DISCONNECTED)
+                        })
             // Remember that we made a connection attempt.
             connectionAttemptedOrMade = true
             // Tell the activity that we are connecting.
@@ -134,7 +131,8 @@ class CommunicateViewModel  // Called by the system, this is just a constructor 
             // Reset the conversation
             messages = StringBuilder()
             messagesData.postValue(messages.toString())
-        } else {
+        }
+        else {
             // deviceInterface was null, so the connection failed
             toast(R.string.connection_failed)
             connectionStatusData.postValue(ConnectionStatus.DISCONNECTED)
@@ -143,15 +141,20 @@ class CommunicateViewModel  // Called by the system, this is just a constructor 
 
     // Adds a received message to the conversation
     private fun onMessageReceived(message: String) {
-        messages.append(deviceName).append(": ").append(message).append('\n')
+        messages.append(deviceName)
+                .append(": ")
+                .append(message)
+                .append('\n')
         messagesData.postValue(messages.toString())
     }
 
     // Adds a sent message to the conversation
     private fun onMessageSent(message: String) {
         // Add it to the conversation
-        messages.append(getApplication<Application>().getString(R.string.you_sent)).append(": ").append(message)
-            .append('\n')
+        messages.append(getApplication<Application>().getString(R.string.you_sent))
+                .append(": ")
+                .append(message)
+                .append('\n')
         messagesData.postValue(messages.toString())
         // Reset the message box
         messageData.postValue("")
@@ -175,7 +178,8 @@ class CommunicateViewModel  // Called by the system, this is just a constructor 
 
     // Helper method to create toast messages.
     private fun toast(@StringRes messageResource: Int) {
-        Toast.makeText(getApplication(), messageResource, Toast.LENGTH_LONG).show()
+        Toast.makeText(getApplication(), messageResource, Toast.LENGTH_LONG)
+                .show()
     }
 
     // Getter method for the activity to use.
@@ -193,7 +197,6 @@ class CommunicateViewModel  // Called by the system, this is just a constructor 
     }
 
     val message: LiveData<String>
-        // Getter method for the activity to use.
         get() = messageData
 
     // An enum that is passed to the activity to indicate the current connection status

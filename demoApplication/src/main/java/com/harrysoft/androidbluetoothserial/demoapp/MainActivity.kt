@@ -3,46 +3,47 @@ package com.harrysoft.androidbluetoothserial.demoapp
 import android.bluetooth.BluetoothDevice
 import android.content.Intent
 import android.os.Bundle
+
 import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+
 import android.widget.RelativeLayout
 import android.widget.TextView
-//import android.support.design.widget.Snackbar
+
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProviders
+
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.ViewHolder
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-import com.harrysoft.androidbluetoothserial.demoapp.databinding.ActivityMainBinding
-import kotlinx.android.synthetic.main.activity_main.view.*
 
-//import kotlinx.android.synthetic.main.activity_main.*
-//import kotlinx.android.synthetic.main.list_item.*
+import com.harrysoft.androidbluetoothserial.demoapp.databinding.ActivityMainBinding
+
+import android.util.Log
 
 class MainActivity : AppCompatActivity() {
     private var viewModel: MainActivityViewModel? = null
-    private lateinit var binding:ActivityMainBinding
+    private lateinit var binding: ActivityMainBinding
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         //test
         binding = ActivityMainBinding.inflate(layoutInflater)
 
         setContentView(binding.root)
-        viewModel = ViewModelProviders.of(this).get(MainActivityViewModel::class.java)
+
+        viewModel = ViewModelProviders.of(this)
+                .get(MainActivityViewModel::class.java)
 
         // This method return false if there is an error, so if it does, we should close.
-        if (!viewModel!!.setupViewModel()) {
+        if (!(viewModel!!.setupViewModel())) {
             finish()
             return
         }
 
-        // Setup our Views
-//        val deviceList = findViewById<RecyclerView>(R.id.main_devices)
-        val deviceList = binding.mainDevices.main_devices
-        val swipeRefreshLayout = findViewById<SwipeRefreshLayout>(R.id.main_swiperefresh)
+        val deviceList = binding.mainDevices
+        val swipeRefreshLayout = binding.mainSwiperefresh
 
         // Setup the RecyclerView
         deviceList.layoutManager = LinearLayoutManager(this)
@@ -51,18 +52,18 @@ class MainActivity : AppCompatActivity() {
 
         // Setup the SwipeRefreshLayout
         swipeRefreshLayout.setOnRefreshListener {
-            viewModel!!.refreshPairedDevices()
+            viewModel?.refreshPairedDevices()
             swipeRefreshLayout.isRefreshing = false
         }
 
         // Start observing the data sent to us by the ViewModel
         viewModel?.pairedDeviceList?.observe(this@MainActivity) { deviceList: Collection<BluetoothDevice?> ->
-            adapter.updateList(
-                deviceList
-            )
+            adapter.updateList(deviceList)
         }
 
         viewModel?.refreshPairedDevices()
+
+        Log.d(TAG, "on create")
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -81,28 +82,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     // Called when clicking on a device entry to start the CommunicateActivity
-    fun startCommunicationsWithDevice(deviceName: String?, macAddress: String?) {
-        val intent = Intent(this, CommunicateActivity::class.java)
-        intent.putExtra("device_name", deviceName)
-        intent.putExtra("device_mac", macAddress)
-        startActivity(intent)
+    fun startTerminalWithDevice(deviceName: String?, macAddress: String?) {
+        Intent(this, CommunicateActivity::class.java).also { intent ->
+            intent.putExtra("device_name", deviceName)
+            intent.putExtra("device_mac", macAddress)
+            startActivity(intent)
+        }
     }
 
     // A class to hold the data in the RecyclerView
     private inner class DeviceViewHolder internal constructor(view: View) : ViewHolder(view) {
-        private val layout: RelativeLayout
-        private val deviceName: TextView
-        private val deviceAddress: TextView
-
-        init {
-            layout = view.findViewById(R.id.list_item);
-            deviceName = view.findViewById(R.id.bluetooth_item_Name)
-            deviceAddress = view.findViewById(R.id.bluetooth_item_Adress)
-
-//            layout = list_item
-//            deviceName = bluetooth_item_Name
-//            deviceAddress = bluetooth_item_Adress
-        }
+        private val layout: RelativeLayout by lazy { view.findViewById(R.id.single_bt_device) }
+        private val deviceName: TextView by lazy { view.findViewById(R.id.bluetooth_item_Name) }
+        private val deviceAddress: TextView by lazy { view.findViewById(R.id.bluetooth_item_Adress) }
 
         fun setupView(device: BluetoothDevice?) {
             if (device != null) {
@@ -111,9 +103,18 @@ class MainActivity : AppCompatActivity() {
             }
 
             layout.setOnClickListener { view: View? ->
-                startCommunicationsWithDevice(
-                    device?.name, device?.address
-                )
+                startTerminalWithDevice(device?.name, device?.address)
+            }
+
+            layout.setOnLongClickListener{
+                Intent(this@MainActivity, DeviceControlActivity::class.java).also{
+                    intent ->
+                    intent.putExtra("name", deviceName.text)
+                    intent.putExtra("mac", deviceAddress.text)
+                    startActivity(intent)
+                }
+
+                false
             }
         }
     }
@@ -121,21 +122,21 @@ class MainActivity : AppCompatActivity() {
     // A class to adapt our list of devices to the RecyclerView
     private inner class DeviceAdapter : RecyclerView.Adapter<DeviceViewHolder>() {
         private var deviceList = arrayOfNulls<BluetoothDevice>(0)
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DeviceViewHolder {
-            return DeviceViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.list_item, parent, false))
-        }
 
-        override fun onBindViewHolder(holder: DeviceViewHolder, position: Int) {
-            holder.setupView(deviceList[position])
-        }
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DeviceViewHolder =
+            DeviceViewHolder(LayoutInflater.from(parent.context)
+                    .inflate(R.layout.list_item, parent, false))
 
-        override fun getItemCount(): Int {
-            return deviceList.size
-        }
+        override fun onBindViewHolder(holder: DeviceViewHolder, position: Int) = holder.setupView(deviceList[position])
+        override fun getItemCount(): Int = deviceList.size
 
         fun updateList(deviceList: Collection<BluetoothDevice?>) {
             this.deviceList = deviceList.toTypedArray()
             notifyDataSetChanged()
         }
+    }
+
+    companion object {
+        private const val TAG = "Main"
     }
 }
