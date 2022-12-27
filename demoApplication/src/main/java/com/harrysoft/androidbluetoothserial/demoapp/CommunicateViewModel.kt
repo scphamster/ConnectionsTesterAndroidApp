@@ -145,6 +145,7 @@ class CommunicateViewModel(application: Application) : AndroidViewModel(applicat
                 .append(": ")
                 .append(message)
                 .append('\n')
+
         messagesData.postValue(messages.toString())
     }
 

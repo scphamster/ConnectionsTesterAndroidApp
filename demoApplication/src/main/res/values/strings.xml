@@ -6,7 +6,7 @@
     <string name="paired_devices">Paired devices:</string>
     <string name="no_messages">No messages sent!</string>
     <string name="no_bluetooth">Bluetooth not available.</string>
-    <string name="device_name_format">Device: %1$s</string>
+    <string name="device_name_format">Device: %s</string>
     <string name="status_connecting">Status: Connecting</string>
     <string name="status_connected">Status: Connected</string>
     <string name="status_disconnected">Status: Disconnected</string>
@@ -17,4 +17,7 @@
     <string name="bluetooth_unavailable">Connection Failed.</string>
     <string name="message_send_error">Error sending message!</string>
     <string name="you_sent">You</string>
+    <string name="boards_connected_status">Boards found: %1$s</string>
+    <string name="cmd2_button_name">check all</string>
+    <string name="cmd1_button_name">set</string>
 </resources>

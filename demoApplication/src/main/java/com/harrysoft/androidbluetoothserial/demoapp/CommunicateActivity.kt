@@ -8,6 +8,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProviders
 import com.harrysoft.androidbluetoothserial.demoapp.CommunicateViewModel.ConnectionStatus
 
@@ -17,7 +18,12 @@ class CommunicateActivity : AppCompatActivity() {
     private var messageBox: EditText? = null
     private var sendButton: Button? = null
     private var connectButton: Button? = null
-    private var viewModel: CommunicateViewModel? = null
+
+    //    private val viewModel: CommunicateViewModel by lazy {ViewModelProviders.of(this).get(CommunicateViewModel::class.java)}
+    private val viewModel: CommunicateViewModel by lazy {
+        ViewModelProvider.AndroidViewModelFactory.getInstance(application)
+                .create(CommunicateViewModel::class.java)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,11 +32,8 @@ class CommunicateActivity : AppCompatActivity() {
         // Enable the back button in the action bar if possible
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
-        // Setup our ViewModel
-        viewModel = ViewModelProviders.of(this).get(CommunicateViewModel::class.java)
-
         // This method return false if there is an error, so if it does, we should close.
-        if (!viewModel!!.setupViewModel(intent.getStringExtra("device_name")!!, intent.getStringExtra("device_mac"))) {
+        if (!viewModel.setupViewModel(intent.getStringExtra("device_name")!!, intent.getStringExtra("device_mac"))) {
             finish()
             return
         }
@@ -43,24 +46,25 @@ class CommunicateActivity : AppCompatActivity() {
         connectButton = findViewById(R.id.terminal_connect_button)
 
         // Start observing the data sent to us by the ViewModel
-        viewModel?.connectionStatus?.observe(this) { connectionStatus: ConnectionStatus ->
+        viewModel.connectionStatus.observe(this) { connectionStatus: ConnectionStatus ->
             onConnectionStatus(connectionStatus)
         }
-        viewModel?.getDeviceName()
-            ?.observe(this) { name: String? -> title = getString(R.string.device_name_format, name) }
+        viewModel.getDeviceName()
+                .observe(this) { name: String? -> title = getString(R.string.device_name_format, name) }
 
-        viewModel?.getMessages()?.observe(this) { message: String? ->
-            var message = message
+        viewModel.getMessages()
+                .observe(this) { message: String? ->
+                    var message = message
 
-            if (message != null) {
-                if (message.isEmpty()) {
-                    message = getString(R.string.no_messages)
+                    if (message != null) {
+                        if (message.isEmpty()) {
+                            message = getString(R.string.no_messages)
+                        }
+                    }
+
+                    messagesView?.setText(message)
                 }
-            }
-
-            messagesView?.setText(message)
-        }
-        viewModel?.message?.observe(this) { message: String? ->
+        viewModel.message.observe(this) { message: String? ->
             // Only update the message if the ViewModel is trying to reset it
             if (TextUtils.isEmpty(message)) {
                 messageBox?.setText(message)
@@ -69,7 +73,8 @@ class CommunicateActivity : AppCompatActivity() {
 
         // Setup the send button click action
         sendButton?.setOnClickListener { v: View? ->
-            viewModel?.sendMessage(messageBox?.getText().toString())
+            viewModel.sendMessage(messageBox?.getText()
+                    .toString())
         }
     }
 
@@ -82,7 +87,7 @@ class CommunicateActivity : AppCompatActivity() {
                 sendButton?.isEnabled = true
                 connectButton?.isEnabled = true
                 connectButton?.setText(R.string.disconnect)
-                connectButton?.setOnClickListener { v: View? -> viewModel?.disconnect() }
+                connectButton?.setOnClickListener { v: View? -> viewModel.disconnect() }
             }
 
             ConnectionStatus.CONNECTING -> {
@@ -99,7 +104,7 @@ class CommunicateActivity : AppCompatActivity() {
                 sendButton!!.isEnabled = false
                 connectButton!!.isEnabled = true
                 connectButton!!.setText(R.string.connect)
-                connectButton!!.setOnClickListener { v: View? -> viewModel?.connect() }
+                connectButton!!.setOnClickListener { v: View? -> viewModel.connect() }
             }
         }
     }
@@ -107,8 +112,8 @@ class CommunicateActivity : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             android.R.id.home -> {
-                // If the back button was pressed, handle it the normal way
                 onBackPressed()
+                // If the back button was pressed, handle it the normal way
                 true
             }
 
