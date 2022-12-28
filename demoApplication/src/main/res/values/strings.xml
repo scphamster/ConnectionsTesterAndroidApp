@@ -20,4 +20,8 @@
     <string name="boards_connected_status">Boards found: %1$s</string>
     <string name="cmd2_button_name">check all</string>
     <string name="cmd1_button_name">set</string>
+    <string name="set_pin_cmd">set</string>
+    <string name="check_cmd">check</string>
+    <string name="check_all_cmd_special_argument">all</string>
+    <string name="set_output_voltage">voltage</string>
 </resources>
