@@ -23,5 +23,5 @@
     </LinearLayout>
     <androidx.recyclerview.widget.RecyclerView
             android:layout_width="match_parent"
-            android:layout_height="match_parent" android:layout_weight="0" android:id="@+id/check_result"/>
+            android:layout_height="match_parent" android:layout_weight="0" android:id="@+id/connectivity_results"/>
 </LinearLayout>

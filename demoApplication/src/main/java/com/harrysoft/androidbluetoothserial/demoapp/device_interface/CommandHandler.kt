@@ -29,7 +29,10 @@ class CommandHandler : CommandInterpreter {
             private set
         val pinCount = boardsCount * numberOfPinsOnSingleBoard
 
-        companion object{
+        var pinsConnections = MutableLiveData<MutableList<PinConnections>>()
+            private set
+
+        companion object {
             const val numberOfPinsOnSingleBoard = 32
         }
     }
@@ -49,7 +52,6 @@ class CommandHandler : CommandInterpreter {
     var numberOfConnectedBoards = MutableLiveData<BoardCountT>()
         private set
         get
-
     var messages = StringBuilder()
     var ioBoards = IOBoardState()
         private set
@@ -130,8 +132,20 @@ class CommandHandler : CommandInterpreter {
         }
 
         sendRawCommand(command + " " + command_argument)
+
+        //test
+        ioBoards.pinsConnections.postValue(mutableListOf(PinConnections(1, mutableListOf(5))))
+        logAllConnections()
     }
 
+    private fun logAllConnections() {
+        Log.d(Tag, "Printing all connections, number of pins: ${ioBoards.pinsConnections.value?.size}")
+
+        ioBoards.pinsConnections.value?.forEach { connection:PinConnections ->
+            Log.d(Tag, "Pin: ${connection.pin}, Connections: ${connection.connections.joinToString(" ")}")
+
+        }
+    }
     private fun sendRawCommand(cmd: String) {
         if (cmd.isEmpty()) {
             Log.e(Tag, "Empty command is not allowed")
@@ -140,7 +154,6 @@ class CommandHandler : CommandInterpreter {
         Log.d(Tag, "Sending command: " + cmd)
         deviceInterface?.sendMessage(cmd)
         Log.d(Tag, "Command sent")
-
     }
 
     private fun onConnected(bt_interface: SimpleBluetoothDeviceInterface) {
