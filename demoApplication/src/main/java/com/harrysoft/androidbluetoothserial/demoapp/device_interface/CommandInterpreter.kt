@@ -1,34 +1,28 @@
 package com.harrysoft.androidbluetoothserial.demoapp.device_interface
 
 typealias PinNumberT = Int
+typealias PinNumT = Int
 
-interface CommandInterpreter
-{
+interface CommandInterpreter {
     enum class VoltageLevel {
         Low, High
     }
 
-    fun setPin(pin: PinNumberT): String {
-        return "set $pin"
-    }
 
-    fun setVoltageLevel(voltage_level: VoltageLevel): String {
-        when (voltage_level) {
-            VoltageLevel.High -> {
-                return "voltage high"
+
+    abstract class Commands {
+        public class SetVoltageAtPin(val pin: PinNumT) {}
+        class SetOutputVoltageLevel(val level: VoltageLevel) {
+            enum class VoltageLevel(lvl: String) {
+                High("high"), Low("low")
             }
+        }
 
-            VoltageLevel.Low -> {
-                return "voltage low"
+        class CheckConnectivity(val pin: PinNumT = checkAllConnections) {
+            companion object {
+                const val checkAllConnections = -1
             }
         }
     }
-
-    fun getConnections(): String {
-        return "check all"
-    }
-
-    fun getConnections(for_pin: PinNumberT): String {
-        return "check $for_pin"
-    }
 }
+

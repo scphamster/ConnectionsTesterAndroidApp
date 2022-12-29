@@ -98,7 +98,7 @@ class CommandHandler : CommandInterpreter {
         numberOfConnectedBoards.postValue(100)
     }
 
-    fun sendCommand(cmd: Commands.SetVoltageAtPin) {
+    fun sendCommand(cmd: CommandInterpreter.Commands.SetVoltageAtPin) {
         val command: String
         val command_argument: String
 
@@ -108,7 +108,7 @@ class CommandHandler : CommandInterpreter {
         sendRawCommand(command + " " + command_argument)
     }
 
-    fun sendCommand(cmd: Commands.SetOutputVoltageLevel) {
+    fun sendCommand(cmd: CommandInterpreter.Commands.SetOutputVoltageLevel) {
         val command: String
         val command_argument: String
 
@@ -118,13 +118,13 @@ class CommandHandler : CommandInterpreter {
         sendRawCommand(command + " " + command_argument)
     }
 
-    fun sendCommand(cmd: Commands.CheckConnectivity) {
+    fun sendCommand(cmd: CommandInterpreter.Commands.CheckConnectivity) {
         val command: String
         val command_argument: String
 
         command = app.getString(R.string.check_cmd)
 
-        if (cmd.pin == Commands.CheckConnectivity.checkAllConnections) {
+        if (cmd.pin == CommandInterpreter.Commands.CheckConnectivity.checkAllConnections) {
             command_argument = app.getString(R.string.check_all_cmd_special_argument)
         }
         else {
@@ -134,18 +134,19 @@ class CommandHandler : CommandInterpreter {
         sendRawCommand(command + " " + command_argument)
 
         //test
-        ioBoards.pinsConnections.postValue(mutableListOf(PinConnections(1, mutableListOf(5))))
-        logAllConnections()
+//        ioBoards.pinsConnections.postValue(mutableListOf(PinConnections(1, mutableListOf(5))))
+//        logAllConnections()
     }
 
     private fun logAllConnections() {
         Log.d(Tag, "Printing all connections, number of pins: ${ioBoards.pinsConnections.value?.size}")
 
-        ioBoards.pinsConnections.value?.forEach { connection:PinConnections ->
+        ioBoards.pinsConnections.value?.forEach { connection: PinConnections ->
             Log.d(Tag, "Pin: ${connection.pin}, Connections: ${connection.connections.joinToString(" ")}")
 
         }
     }
+
     private fun sendRawCommand(cmd: String) {
         if (cmd.isEmpty()) {
             Log.e(Tag, "Empty command is not allowed")

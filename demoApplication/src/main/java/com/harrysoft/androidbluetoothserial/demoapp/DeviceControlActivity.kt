@@ -128,7 +128,7 @@ class DeviceControlActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.cmd2_button).setOnClickListener() {
-            model.commandHandler.sendCommand(Commands.CheckConnectivity())
+            model.commandHandler.sendCommand(CommandInterpreter.Commands.CheckConnectivity())
             Log.d(Tag, "Command sent: ${getString(R.string.set_pin_cmd)}")
         }
     }
