@@ -9,8 +9,9 @@ interface CommandInterpreter {
     enum class VoltageLevel {
         Low, High
     }
+
     enum class AnswerHeaders(val text: String) {
-        Connectivity("CON"), VoltageLevel("VOL"), PinConnectivity("PIN")
+        VoltageLevel("VOL"), PinConnectivity("PIN")
     }
 
     companion object {
@@ -24,7 +25,7 @@ interface CommandInterpreter {
 
         // -1 if not found
         var index_of_first_keyword: Int? = null
-        var found_header:String? = null
+        var found_header: String? = null
 
         for (header in AnswerHeaders.values()) {
             val header_position = msg.indexOf(header.text)
@@ -37,18 +38,60 @@ interface CommandInterpreter {
             }
         }
 
-        if (index_of_first_keyword == null) {
+        if (index_of_first_keyword == null || found_header == null) {
             Log.e(Tag, "No known header was found in message")
             return null
         }
 
         Log.d(Tag, "Message from controller with tag: $found_header")
 
-        val truncated_msg = msg.substring(index_of_first_keyword)
+        val truncated_msg = msg.substring(index_of_first_keyword + found_header.length + 1)
 
+        Log.d(Tag, "truncated msg: $truncated_msg")
 
+        var structured_answer: ControllerMessage
 
-        return null
+        when (found_header) {
+            AnswerHeaders.PinConnectivity.text -> {
+                val words = truncated_msg.split("\\s+".toRegex())
+
+                for (word in words) {
+                    Log.d(Tag, word)
+                }
+
+                val this_msg_is_about_pin = words.get(0)
+                        .toIntOrNull()
+
+                if (this_msg_is_about_pin == null) {
+                    Log.e(Tag, "Inappropriate format of controller msg, unknown pin number")
+                    return null
+                }
+
+                var connections = mutableListOf<PinNumT>()
+
+                for (word_number in 2 until words.size) {
+                    if (words[word_number] == "END") {
+                        break
+                    }
+
+                    val connection = words[word_number].toIntOrNull()
+                    if (connection == null) {
+                        Log.e(Tag, "Bad connections format!")
+                        return null
+                    }
+
+                    connections.add(connection)
+                }
+
+                structured_answer =
+                    ControllerMessage.ConnectionsDescription(this_msg_is_about_pin, connections.toTypedArray())
+
+                return structured_answer
+            }
+            else -> {
+                return null
+            }
+        }
     }
 
     sealed class ControllerMessage {

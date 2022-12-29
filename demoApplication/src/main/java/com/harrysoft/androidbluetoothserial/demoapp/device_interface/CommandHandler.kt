@@ -109,6 +109,7 @@ class CommandHandler : CommandInterpreter {
 
         sendRawCommand(command + " " + command_argument)
     }
+
     fun sendCommand(cmd: Commands.SetOutputVoltageLevel) {
         val command: String
         val command_argument: String
@@ -118,6 +119,7 @@ class CommandHandler : CommandInterpreter {
 
         sendRawCommand(command + " " + command_argument)
     }
+
     fun sendCommand(cmd: Commands.CheckConnectivity) {
         val command: String
         val command_argument: String
@@ -181,7 +183,30 @@ class CommandHandler : CommandInterpreter {
         messages.append(message)
                 .append('\n')
 
-        interpretControllerMessage(message)
+        val board_answer = interpretControllerMessage(message)
+        if (board_answer != null) {
+            when (board_answer) {
+                is CommandInterpreter.ControllerMessage.ConnectionsDescription -> {
+                    var current_connections = ioBoards.pinsConnections.value
+
+                    if (current_connections == null) {
+                        current_connections = mutableListOf<PinConnections>()
+                    }
+
+                    for (connection in current_connections) {
+                        if (connection.pin == board_answer.pin) {
+                            connection.connections = board_answer.connectedTo.toMutableList()
+
+                            ioBoards.pinsConnections.value = current_connections
+                            return
+                        }
+                    }
+
+                    current_connections.add(PinConnections(board_answer.pin, board_answer.connectedTo.toMutableList()))
+                    ioBoards.pinsConnections.value = current_connections
+                }
+            }
+        }
         //todo: implement parsing
     }
 
