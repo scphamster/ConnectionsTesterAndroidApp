@@ -15,6 +15,8 @@ import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
 
+import com.harrysoft.androidbluetoothserial.demoapp.device_interface.CommandInterpreter.Commands
+
 typealias CommandArgsT = Int
 
 class CommandHandler : CommandInterpreter {
@@ -98,7 +100,7 @@ class CommandHandler : CommandInterpreter {
         numberOfConnectedBoards.postValue(100)
     }
 
-    fun sendCommand(cmd: CommandInterpreter.Commands.SetVoltageAtPin) {
+    override fun sendCommand(cmd: Commands.SetVoltageAtPin) {
         val command: String
         val command_argument: String
 
@@ -107,8 +109,7 @@ class CommandHandler : CommandInterpreter {
 
         sendRawCommand(command + " " + command_argument)
     }
-
-    fun sendCommand(cmd: CommandInterpreter.Commands.SetOutputVoltageLevel) {
+    fun sendCommand(cmd: Commands.SetOutputVoltageLevel) {
         val command: String
         val command_argument: String
 
@@ -117,8 +118,7 @@ class CommandHandler : CommandInterpreter {
 
         sendRawCommand(command + " " + command_argument)
     }
-
-    fun sendCommand(cmd: CommandInterpreter.Commands.CheckConnectivity) {
+    fun sendCommand(cmd: Commands.CheckConnectivity) {
         val command: String
         val command_argument: String
 
@@ -181,6 +181,7 @@ class CommandHandler : CommandInterpreter {
         messages.append(message)
                 .append('\n')
 
+        interpretControllerMessage(message)
         //todo: implement parsing
     }
 
