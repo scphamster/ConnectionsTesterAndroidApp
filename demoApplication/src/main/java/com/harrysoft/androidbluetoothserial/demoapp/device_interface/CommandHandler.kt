@@ -3,6 +3,7 @@ package com.harrysoft.androidbluetoothserial.demoapp.device_interface
 import android.app.Application
 import android.util.Log
 import android.widget.Toast
+
 import androidx.lifecycle.MutableLiveData
 
 import com.harrysoft.androidbluetoothserial.BluetoothManager
@@ -16,6 +17,7 @@ import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
 
 import com.harrysoft.androidbluetoothserial.demoapp.device_interface.CommandInterpreter.Commands
+import java.lang.ref.WeakReference
 
 typealias CommandArgsT = Int
 
@@ -31,8 +33,10 @@ class CommandHandler : CommandInterpreter {
             private set
         val pinCount = boardsCount * numberOfPinsOnSingleBoard
 
-        var pinsConnections = MutableLiveData<MutableList<PinConnections>>()
-            private set
+        val _boardsCount = MutableLiveData<Int>()
+        val boards = MutableLiveData<MutableList<MutableLiveData<IoBoard>>>()
+        val pinsConnections = MutableLiveData<MutableList<Connections>>()
+//            private set
 
         companion object {
             const val numberOfPinsOnSingleBoard = 32
@@ -54,9 +58,10 @@ class CommandHandler : CommandInterpreter {
     var numberOfConnectedBoards = MutableLiveData<BoardCountT>()
         private set
         get
-    var messages = StringBuilder()
-    var ioBoards = IOBoardState()
-        private set
+    val boardsManager = IoBoardsManagerLive()
+
+//    var ioBoards = IOBoardState()
+//        private set
 
     init {
         if (BluetoothManager.btm != null) {
@@ -70,14 +75,15 @@ class CommandHandler : CommandInterpreter {
     fun connect() {
         if (connectionAttemptedOrMade) return
 
-        compositeDisposable.add(bluetoothManager!!.openSerialDevice(mac!!)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe({ device: BluetoothSerialDevice -> onConnected(device.toSimpleDeviceInterface()) }) { t: Throwable? ->
-                    toast(R.string.connection_failed.toString())
-                    connectionAttemptedOrMade = false
-                    connectionStatus.postValue(ConnectionStatus.DISCONNECTED)
-                })
+        compositeDisposable.add(bluetoothManager!!
+                                    .openSerialDevice(mac!!)
+                                    .subscribeOn(Schedulers.io())
+                                    .observeOn(AndroidSchedulers.mainThread())
+                                    .subscribe({ device: BluetoothSerialDevice -> onConnected(device.toSimpleDeviceInterface()) }) { t: Throwable? ->
+                                        toast(R.string.connection_failed.toString())
+                                        connectionAttemptedOrMade = false
+                                        connectionStatus.postValue(ConnectionStatus.DISCONNECTED)
+                                    })
 
         connectionAttemptedOrMade = true
         connectionStatus.postValue(ConnectionStatus.CONNECTING)
@@ -140,13 +146,32 @@ class CommandHandler : CommandInterpreter {
 //        logAllConnections()
     }
 
-    private fun logAllConnections() {
-        Log.d(Tag, "Printing all connections, number of pins: ${ioBoards.pinsConnections.value?.size}")
+    fun sendCommand(cmd: Commands.CheckHardware) {
+        //todo: make supervisor to watch for answer to happen, if answer will not be obtained - controller is unhealthy
+        sendRawCommand(app.getString(R.string.get_all_boads_online))
+    }
 
-        ioBoards.pinsConnections.value?.forEach { connection: PinConnections ->
-            Log.d(Tag, "Pin: ${connection.pin}, Connections: ${connection.connections.joinToString(" ")}")
+    private fun boardsInitializer(boards_id: Array<IoBoardIndexT>) {
+        val new_boards = mutableListOf<IoBoard>()
+        var boards_counter = 0
 
+        for (board in boards_id) {
+            val new_board = IoBoard(board)
+            val new_pin_group = PinGroup(boardsManager.nextUniqueBoardId)
+
+            for (pin_num in 0..(IoBoard.pinsCountOnSingleBoard - 1)) {
+                val descriptor = PinDescriptor(PinAffinityAndId(board, pin_num), group = new_pin_group)
+
+                val new_pin =
+                    Pin(descriptor, belongsToBoard = WeakReference(new_board))
+                new_board.pins.add(new_pin)
+            }
+
+            new_boards.add(new_board)
+            boards_counter++
         }
+
+        boardsManager.boards.value = new_boards
     }
 
     private fun sendRawCommand(cmd: String) {
@@ -168,8 +193,8 @@ class CommandHandler : CommandInterpreter {
 
 
             deviceInterface?.setListeners({ message: String -> onMessageReceived(message) },
-                { message: String -> onMessageSent(message) },
-                { error: Throwable -> toast(R.string.message_send_error.toString()) })
+                                          { Log.d(Tag, "command sent: $it") },
+                                          { error: Throwable -> toast(R.string.message_send_error.toString()) })
 
             toast(R.string.connected.toString())
         }
@@ -177,49 +202,49 @@ class CommandHandler : CommandInterpreter {
             toast(R.string.connection_failed.toString())
             connectionStatus.postValue(ConnectionStatus.DISCONNECTED)
         }
+
+        sendCommand(CommandInterpreter.Commands.CheckHardware())
     }
 
     private fun onMessageReceived(message: String) {
-        messages.append(message)
-                .append('\n')
+        var msg: String? = message
 
-        val board_answer = interpretControllerMessage(message)
-        if (board_answer != null) {
-            when (board_answer) {
-                is CommandInterpreter.ControllerMessage.ConnectionsDescription -> {
-                    var current_connections = ioBoards.pinsConnections.value
+        while (msg != null) {
+            val (controller_msg, rest) = parseAndSplitSingleCommandFromString(msg)
+            if (controller_msg == null) return
 
-                    if (current_connections == null) {
-                        current_connections = mutableListOf<PinConnections>()
-                    }
-
-                    for (connection in current_connections) {
-                        if (connection.pin == board_answer.pin) {
-                            connection.connections = board_answer.connectedTo.toMutableList()
-
-                            ioBoards.pinsConnections.value = current_connections
-                            return
-                        }
-                    }
-
-                    current_connections.add(PinConnections(board_answer.pin, board_answer.connectedTo.toMutableList()))
-                    ioBoards.pinsConnections.value = current_connections
-                }
-            }
+            msg = rest
+            handleControllerMsg(controller_msg)
         }
-        //todo: implement parsing
     }
 
-    private fun onMessageSent(message: String) {
-        messages.append(": ")
-                .append(message)
-                .append('\n')
+    private fun handleControllerMsg(msg: CommandInterpreter.ControllerMessage) {
+        when (msg) {
+            is CommandInterpreter.ControllerMessage.ConnectionsDescription -> {
+                if (boardsManager.boards.value == null) {
+                    Log.e(Tag, "Connections info arrived but boards are not initialized yet!")
+                    return
+                }
+
+                boardsManager.updatePinConnections(msg)
+            }
+
+            is CommandInterpreter.ControllerMessage.HardwareDescription -> {
+                Log.i(Tag, "Hardware description command arrived");
+                boardsInitializer(msg.boardsOnLine)
+            }
+
+            else -> {
+                return
+            }
+        }
     }
 
     lateinit var app: Application
     private fun toast(msg: String) {
-        Toast.makeText(app, msg, Toast.LENGTH_LONG)
-                .show()
+        Toast
+            .makeText(app, msg, Toast.LENGTH_LONG)
+            .show()
     }
 
     companion object {
