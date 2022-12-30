@@ -35,7 +35,12 @@ class DeviceControlActivity : AppCompatActivity() {
             else if (pin.descriptor.customIdx != null) pinNumber.text = pin.descriptor.customIdx.toString()
             else if (pin.descriptor.group != null) {
                 if (pin.descriptor.group.groupName != null) pinNumber.text = pin.descriptor.group.groupName
-                else pinNumber.text = pin.descriptor.group.groupId.toString()
+                else pinNumber.text =
+                    pin.descriptor.group.groupId.toString() + ':' + pin.descriptor.affinityAndId.idxOnBoard.toString()
+            }
+            else {
+                pinNumber.text =
+                    pin.descriptor.affinityAndId.boardAffinityId.toString() + ':' + pin.descriptor.affinityAndId.idxOnBoard.toString()
             }
 
             if (pin.isConnectedTo.isEmpty()) {
@@ -52,7 +57,8 @@ class DeviceControlActivity : AppCompatActivity() {
 
     private inner class ResultsAdapter : RecyclerView.Adapter<CheckResultViewHolder>() {
         val pins = mutableListOf<Pin>()
-        val itemsCount = pins.size
+        val itemsCount
+            get() = pins.size
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CheckResultViewHolder {
             return CheckResultViewHolder(LayoutInflater
@@ -82,13 +88,12 @@ class DeviceControlActivity : AppCompatActivity() {
                 counter++
             }
 
-            Log.e(Tag,
-                  """Pin ${pin_to_update.descriptor.affinityAndId.boardAffinityId}:
+            Log.e(Tag, """Pin ${pin_to_update.descriptor.affinityAndId.boardAffinityId}:
                       |${pin_to_update.descriptor.affinityAndId.idxOnBoard} 
                       |is not found in stored pins list!""".trimMargin())
         }
 
-        fun updatePinsFromBoards(boards: MutableList<IoBoard>) {
+        fun updatePinSet(boards: MutableList<IoBoard>) {
             if (boards.isEmpty()) {
                 Log.e(Tag, "Boards are empty!")
                 return
@@ -136,7 +141,7 @@ class DeviceControlActivity : AppCompatActivity() {
         connectivityResults.adapter = adapter
 
         model.commandHandler.boardsManager.boards.observe(this) {
-            adapter.updatePinsFromBoards(it)
+            adapter.updatePinSet(it)
         }
 
         model.commandHandler.boardsManager.pinChangeCallback = { adapter.updateSingle(it) }
