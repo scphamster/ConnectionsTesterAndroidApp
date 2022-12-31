@@ -142,7 +142,7 @@ class DeviceControlActivity : AppCompatActivity() {
 
         setupEntryViewState()
 
-        connectionsDisplay.layoutManager = GridLayoutManager(this, 2)
+        connectionsDisplay.layoutManager = LinearLayoutManager(this)
         val adapter = ResultsAdapter()
         connectionsDisplay.adapter = adapter
 
