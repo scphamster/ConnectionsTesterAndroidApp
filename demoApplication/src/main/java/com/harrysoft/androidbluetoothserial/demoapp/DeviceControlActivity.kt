@@ -1,18 +1,22 @@
 package com.harrysoft.androidbluetoothserial.demoapp
 
 //import android.R
+import android.icu.lang.UCharacter.VerticalOrientation
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.ProgressBar
 import android.widget.RelativeLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import com.harrysoft.androidbluetoothserial.demoapp.device_interface.*
 
 class DeviceControlActivity : AppCompatActivity() {
@@ -22,7 +26,7 @@ class DeviceControlActivity : AppCompatActivity() {
             .create(DeviceControlViewModel::class.java)
     }
     private val numberOfFoundBoards by lazy { findViewById<TextView>(R.id.number_of_found_boards_vw) }
-    private val connectivityResults by lazy { findViewById<RecyclerView>(R.id.connectivity_results) }
+    private val connectionsDisplay by lazy { findViewById<RecyclerView>(R.id.connectivity_results) }
 
     private inner class CheckResultViewHolder internal constructor(view: View) : RecyclerView.ViewHolder(view) {
         private val layout: RelativeLayout by lazy { view.findViewById(R.id.single_check_result) }
@@ -63,7 +67,7 @@ class DeviceControlActivity : AppCompatActivity() {
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CheckResultViewHolder {
             return CheckResultViewHolder(LayoutInflater
                                              .from(parent.context)
-                                             .inflate(R.layout.check_result_item, parent, false))
+                                             .inflate(R.layout.ctl_actty_recycler_view_item, parent, false))
         }
 
         override fun getItemCount() = itemsCount
@@ -128,19 +132,23 @@ class DeviceControlActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        setContentView(R.layout.actty_device_controll)
-
+        setContentView(R.layout.ctl_actty_device_controll)
         if (!model.setupViewModel(intent.getStringExtra("name")!!, intent.getStringExtra("mac"))) {
+            Log.e(Tag, "No arguments obtained in DeviceControlActivity onCreate method!")
+
             finish()
             return
         }
 
-        connectivityResults.layoutManager = LinearLayoutManager(this)
+        setupEntryViewState()
+
+        connectionsDisplay.layoutManager = GridLayoutManager(this, 2)
         val adapter = ResultsAdapter()
-        connectivityResults.adapter = adapter
+        connectionsDisplay.adapter = adapter
 
         model.commandHandler.boardsManager.boards.observe(this) {
+            numberOfFoundBoards.text =
+                getString(R.string.ctl_actty_number_of_connected_boards).format(model.commandHandler.boardsManager.getBoardsCount())
             adapter.updatePinSet(it)
         }
 
@@ -155,17 +163,26 @@ class DeviceControlActivity : AppCompatActivity() {
         finish()
     }
 
-    private fun setupAllListeners() {
-        model.commandHandler.numberOfConnectedBoards.observe(this) { boards_count: BoardCountT ->
-            numberOfFoundBoards.text = numberOfFoundBoards.text
-                .toString()
-                .format(boards_count)
-        }
+    private fun setupEntryViewState() {
+        supportActionBar?.setTitle(getString(R.string.ctl_actty_tittle_connecting).format(intent.getStringExtra("name") + "..."))
+        numberOfFoundBoards.text =
+            getString(R.string.ctl_actty_number_of_connected_boards).format(0)
 
+        val controller_search_progress = findViewById<ProgressBar>(R.id.searching_for_controller_progbar)
+        controller_search_progress.visibility = View.VISIBLE
+    }
+    private fun setupAllListeners() {
         model.commandHandler.connectionStatus.observe(this) { connection_status: CommandHandler.ConnectionStatus ->
             when (connection_status) {
                 CommandHandler.ConnectionStatus.CONNECTED -> {
-                    model.commandHandler.test1()
+                    val controller_search_progress = findViewById<ProgressBar>(R.id.searching_for_controller_progbar)
+
+                    if (controller_search_progress.visibility == View.VISIBLE) {
+                        controller_search_progress.visibility = View.INVISIBLE
+                    }
+
+                    supportActionBar?.setTitle(getString(R.string.ctl_actty_tittle_connected).format(intent.getStringExtra(
+                        "name")))
                 }
 
                 else -> {}

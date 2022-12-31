@@ -17,9 +17,14 @@
     <string name="bluetooth_unavailable">Connection Failed.</string>
     <string name="message_send_error">Error sending message!</string>
     <string name="you_sent">You</string>
-    <string name="boards_connected_status">Boards found: %1$s</string>
+
+    <string name="ctl_actty_tittle_connecting">Connecting to device: %s</string>
+    <string name="ctl_actty_tittle_connected">Connected to %s</string>
+    <string name="ctl_actty_number_of_connected_boards">Number of connected boards: %s</string>
+
     <string name="cmd2_button_name">check all</string>
     <string name="cmd1_button_name">set</string>
+
     <string name="set_pin_cmd">set</string>
     <string name="check_cmd">check</string>
     <string name="check_all_cmd_special_argument">all</string>

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                                                   xmlns:app="http://schemas.android.com/apk/res-auto"
+                                                   xmlns:tools="http://schemas.android.com/tools"
+                                                   android:layout_width="match_parent"
+                                                   android:layout_height="match_parent"
+                                                   android:id="@+id/linearLayout" android:layout_marginLeft="8dp"
+                                                   android:layout_marginRight="8dp"
+                                                   android:layout_marginBottom="10dp">
+    <ProgressBar
+            style="?android:attr/progressBarStyle"
+            android:layout_width="214dp"
+            android:layout_height="182dp"
+            android:id="@+id/searching_for_controller_progbar"
+            android:layout_gravity="center_horizontal|center_vertical"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            android:gravity="center"
+            app:layout_constraintTop_toTopOf="parent" android:rotationX="77"/>
+    <androidx.recyclerview.widget.RecyclerView
+            android:layout_height="wrap_content"
+            android:id="@+id/connectivity_results"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/linearLayout2"
+            app:layout_constraintVertical_bias="0.0"
+            android:scrollbars="horizontal|vertical"
+            android:scrollbarStyle="outsideInset"
+            android:scrollbarAlwaysDrawHorizontalTrack="true"
+            android:layout_width="0dp"
+            android:nestedScrollingEnabled="true" app:layout_constraintEnd_toEndOf="parent"/>
+    <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content" android:id="@+id/linearLayout3"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"
+    >
+        <TextView
+                android:text="@string/ctl_actty_number_of_connected_boards"
+                android:layout_width="199dp"
+                android:layout_height="wrap_content" android:id="@+id/number_of_found_boards_vw"
+        />
+    </LinearLayout>
+
+    <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/linearLayout2"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/linearLayout3">
+        <Button
+                android:text="@string/cmd1_button_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:id="@+id/cmd1_button" android:layout_weight="0"
+                style="?android:attr/buttonBarButtonStyle"/>
+        <Button
+                android:text="@string/cmd2_button_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:id="@+id/cmd2_button" android:layout_weight="0"
+                style="?android:attr/buttonBarButtonStyle"/>
+    </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
+

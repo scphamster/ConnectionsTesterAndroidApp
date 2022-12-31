@@ -13,7 +13,7 @@ class IoBoardsManagerLive {
     }
 
     val boards = MutableLiveData<MutableList<IoBoard>>()
-    val boardCount = boards.value?.size
+    private val boardsCount = MutableLiveData<Int>()
     var pinChangeCallback: ((Pin) -> Unit)? = null
     var nextUniqueBoardId = 0
         private set
@@ -64,7 +64,9 @@ class IoBoardsManagerLive {
 
         pinChangeCallback?.invoke(pin)
     }
-
+    fun getBoardsCount() : Int {
+        return boards.value?.size ?: 0
+    }
     private fun findPinByAffinityAndId(affinityAndId: PinAffinityAndId): WeakReference<Pin>? {
         val available_boards = boards.value
         if (available_boards == null) return null
