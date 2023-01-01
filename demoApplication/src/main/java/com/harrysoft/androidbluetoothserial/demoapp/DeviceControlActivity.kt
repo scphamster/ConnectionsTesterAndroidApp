@@ -153,9 +153,7 @@ class DeviceControlActivity : AppCompatActivity() {
         }
 
         model.commandHandler.boardsManager.pinChangeCallback = { adapter.updateSingle(it) }
-
         setupAllListeners()
-
         Log.d(Tag, "device control created")
     }
 
