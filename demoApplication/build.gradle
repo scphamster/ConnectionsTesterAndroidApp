@@ -51,6 +51,9 @@ dependencies {
     // Bluetooth library
     implementation project(path: ':androidBluetoothSerial')
 
+    //File explorer
+    implementation 'com.github.jaiselrahman:FilePicker:1.3.2'
+
     // Theme
     implementation 'com.google.android.material:material:1.2.1'
 

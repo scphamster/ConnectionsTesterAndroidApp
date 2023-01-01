@@ -3,30 +3,24 @@ package com.harrysoft.androidbluetoothserial.demoapp
 import android.bluetooth.BluetoothDevice
 import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
 import android.os.Bundle
-import android.os.PersistableBundle
-import android.preference.PreferenceManager
-
 import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
-
+import android.widget.Button
 import android.widget.RelativeLayout
 import android.widget.TextView
-
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProviders
-
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.ViewHolder
-
-import android.util.Log
-import androidx.core.content.ContextCompat
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-import java.security.Key
+import com.jaiselrahman.filepicker.activity.FilePickerActivity
+import com.jaiselrahman.filepicker.config.Configurations
+import com.jaiselrahman.filepicker.model.MediaFile
 
 class MainActivity : AppCompatActivity() {
     private inner class DeviceViewHolder internal constructor(view: View) : ViewHolder(view) {
@@ -87,6 +81,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val Tag = "Main"
+        private const val FILE_REQUEST_CODE = 1
 
         private enum class StateKey(val text: String) {
             LastUsedBluetoothDevice("last_bt_device")
@@ -95,15 +90,14 @@ class MainActivity : AppCompatActivity() {
 
     private var viewModel: MainActivityViewModel? = null
     private var lastUsedDeviceMacAddress: String? = null
-
+    private val buttonOpenConfigsJson: Button by lazy { findViewById(R.id.main_actty_button_open_json) }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val lastmc =
-            getPreferences(Context.MODE_PRIVATE).getString(StateKey.LastUsedBluetoothDevice.text, "")
-
-        lastUsedDeviceMacAddress = lastmc.toString()
-        Log.d(Tag, lastmc.toString())
+        lastUsedDeviceMacAddress
+        getPreferences(Context.MODE_PRIVATE)
+            .getString(StateKey.LastUsedBluetoothDevice.text, "")
+            .toString()
 
         setContentView(R.layout.activity_main)
         viewModel = ViewModelProviders
@@ -127,11 +121,37 @@ class MainActivity : AppCompatActivity() {
             swipeRefreshLayout.isRefreshing = false
         }
 
+        buttonOpenConfigsJson.setOnClickListener{
+            val intent = Intent(this, FilePickerActivity::class.java)
+            intent.putExtra(FilePickerActivity.CONFIGS,
+                            Configurations
+                                .Builder()
+                                .setCheckPermission(true)
+                                .setShowImages(false)
+                                .setShowVideos(false)
+                                .setShowFiles(true)
+                                .setSuffixes("json")
+                                .enableImageCapture(false)
+                                .setSkipZeroSizeFiles(true)
+                                .build())
+            startActivityForResult(intent, FILE_REQUEST_CODE)
+        }
+
         viewModel?.pairedDeviceList?.observe(this@MainActivity) { deviceList: Collection<BluetoothDevice?> ->
             adapter.updateList(deviceList)
         }
 
         viewModel?.refreshPairedDevices()
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == FILE_REQUEST_CODE && resultCode == RESULT_OK) {
+            val files: ArrayList<MediaFile> = data!!.getParcelableArrayListExtra(FilePickerActivity.MEDIA_FILES)!!
+            // Use the fileUri to access the selected file
+        }
+
     }
 
     override fun onSaveInstanceState(savedState: Bundle) {

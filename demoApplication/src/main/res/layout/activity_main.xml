@@ -10,6 +10,13 @@
             android:layout_height="match_parent"
             android:orientation="vertical">
 
+        <Button
+                android:text="@string/main_actty_button_name_connectors_cfg"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/main_actty_button_open_json"
+                />
+
         <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
