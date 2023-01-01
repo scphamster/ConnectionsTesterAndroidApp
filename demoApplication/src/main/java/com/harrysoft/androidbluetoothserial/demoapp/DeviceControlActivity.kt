@@ -142,7 +142,7 @@ class DeviceControlActivity : AppCompatActivity() {
 
         setupEntryViewState()
 
-        connectionsDisplay.layoutManager = GridLayoutManager(this, 2)
+        connectionsDisplay.layoutManager = LinearLayoutManager(this)
         val adapter = ResultsAdapter()
         connectionsDisplay.adapter = adapter
 
@@ -153,9 +153,7 @@ class DeviceControlActivity : AppCompatActivity() {
         }
 
         model.commandHandler.boardsManager.pinChangeCallback = { adapter.updateSingle(it) }
-
         setupAllListeners()
-
         Log.d(Tag, "device control created")
     }
 
