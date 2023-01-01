@@ -64,8 +64,8 @@ class CommandHandler : CommandInterpreter {
 //        private set
 
     init {
-        if (BluetoothManager.btm != null) {
-            bluetoothManager = BluetoothManager.btm
+        if (BluetoothManager.manager != null) {
+            bluetoothManager = BluetoothManager.manager
         }
         else {
             toast(R.string.bluetooth_unavailable.toString())

@@ -8,7 +8,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.harrysoft.androidbluetoothserial.BluetoothManager
-import com.harrysoft.androidbluetoothserial.BluetoothManager.Companion.btm
+import com.harrysoft.androidbluetoothserial.BluetoothManager.Companion.manager
 import com.harrysoft.androidbluetoothserial.BluetoothSerialDevice
 import com.harrysoft.androidbluetoothserial.SimpleBluetoothDeviceInterface
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -58,7 +58,7 @@ class CommunicateViewModel(application: Application) : AndroidViewModel(applicat
             isInitialized = true
 
             // Setup our BluetoothManager
-            bluetoothManager = btm
+            bluetoothManager = manager
             if (bluetoothManager == null) {
                 // Bluetooth unavailable on this device :( tell the user
                 toast(R.string.bluetooth_unavailable)
