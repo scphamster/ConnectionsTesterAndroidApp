@@ -171,20 +171,6 @@ class MainActivity : AppCompatActivity() {
             val inputStreamReader = InputStreamReader(inputStream, "utf-8")
             val csvReader = CSVReader(inputStreamReader)
 
-//
-//            val bufferedReader = BufferedReader(inputStreamReader)
-//            val stringBuilder = StringBuilder()
-//
-//            var line: String? = bufferedReader.readLine()
-//            while (line != null) {
-//                stringBuilder.append(line)
-//                line = bufferedReader.readLine()
-//            }
-//
-//            val jsonString = stringBuilder.toString()
-//            testJson = JSONObject(jsonString)
-
-
             csvList = csvReader.readAll()
 
         }

@@ -13,6 +13,8 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
+import androidx.preference.Preference
+import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.harrysoft.androidbluetoothserial.demoapp.device_interface.CommandHandler
@@ -142,6 +144,7 @@ class DeviceControlActivity : AppCompatActivity() {
             return
         }
 
+        applyPreferences()
         setupEntryViewState()
 
         connectionsDisplay.layoutManager = LinearLayoutManager(this)
@@ -219,6 +222,10 @@ class DeviceControlActivity : AppCompatActivity() {
             model.commandHandler.sendCommand(CommandInterpreter.Commands.CheckConnectivity())
             Log.d(Tag, "Command sent: ${getString(R.string.set_pin_cmd)}")
         }
+    }
+
+    private fun applyPreferences() {
+
     }
 
     companion object {

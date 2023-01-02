@@ -4,8 +4,14 @@
             android:key="pref_key_switch"
             android:title="Switch"
             android:defaultValue="true"/>
+    <PreferenceScreen
+            android:selectAllOnFocus="true"
+            android:singleLine="true"
+            android:title="@string/pref_pinout_descriptor_filename"
+            android:key="pref_pinout_descriptor"
+            android:defaultValue="@string/pref_pinout_descriptor_filename_defaultval"/>
 
-<!--    <ListPreference-->
+    <!--    <ListPreference-->
 <!--            android:key="pref_key_list"-->
 <!--            android:title="List"-->
 <!--            android:defaultValue="value1"/>-->
