@@ -1,31 +1,40 @@
 package com.harrysoft.androidbluetoothserial.demoapp
 
 import android.content.Intent
-import android.net.Uri
-import android.util.Log
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import androidx.preference.EditTextPreference
-import androidx.preference.Preference
-import androidx.preference.Preference.OnPreferenceClickListener
-import androidx.preference.PreferenceFragmentCompat
-import androidx.preference.PreferenceScreen
+import androidx.preference.*
 import com.jaiselrahman.filepicker.activity.FilePickerActivity
 import com.jaiselrahman.filepicker.config.Configurations
 import com.jaiselrahman.filepicker.model.MediaFile
-import com.opencsv.CSVReader
-import java.io.InputStreamReader
 
 class PreferencesFragment : PreferenceFragmentCompat() {
     companion object {
         const val Tag = "PreferencesFragment"
         private const val FILE_REQUEST_CODE = 1
+
+        const val PREF_PIN_CONFIG_FILE_URI = "pref_pin_config_file_uri"
+        const val PREF_PIN_CONFIG_FILE_NAME = "pref_pin_config_file_name"
     }
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.preferences, rootKey)
 
         val preference = findPreference<Preference>("pref_pinout_descriptor")
+
+        context?.let {
+            val pref_manager = PreferenceManager.getDefaultSharedPreferences(it)
+
+            val name_of_config_file = pref_manager.getString(PREF_PIN_CONFIG_FILE_NAME, "")
+            val file_uri = pref_manager.getString(PREF_PIN_CONFIG_FILE_URI, "")
+
+            if (name_of_config_file == "" || file_uri == "") {
+                preference?.summary = getString(R.string.pref_pinout_descriptor_filename_defaultval).toString()
+            }
+            else {
+                preference?.summary = name_of_config_file.toString()
+            }
+        }
 
         preference?.setOnPreferenceClickListener {
             val intent = Intent(context, FilePickerActivity::class.java)
@@ -42,7 +51,6 @@ class PreferencesFragment : PreferenceFragmentCompat() {
                                 .setSkipZeroSizeFiles(false)
                                 .build())
             startActivityForResult(intent, FILE_REQUEST_CODE)
-
 
             true
         }
@@ -61,6 +69,18 @@ class PreferencesFragment : PreferenceFragmentCompat() {
             val file = files.get(0)
             val this_preference = findPreference<PreferenceScreen>("pref_pinout_descriptor")
             this_preference?.summary = file.name.toString()
+
+            context?.let {
+                val pref_manager_editor = PreferenceManager
+                    .getDefaultSharedPreferences(it)
+                    .edit()
+
+                pref_manager_editor.let {
+                    it.putString(PREF_PIN_CONFIG_FILE_URI, file.uri.toString())
+                    it.putString(PREF_PIN_CONFIG_FILE_NAME, file.name.toString())
+                    it.apply()
+                }
+            }
         }
     }
 }

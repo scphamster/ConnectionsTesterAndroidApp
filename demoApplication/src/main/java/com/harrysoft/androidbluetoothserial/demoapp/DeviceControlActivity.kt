@@ -6,14 +6,12 @@ import android.os.Bundle
 import android.util.Log
 import android.view.*
 import android.widget.Button
-import android.widget.PopupMenu
 import android.widget.ProgressBar
 import android.widget.RelativeLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
-import androidx.preference.Preference
 import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -21,7 +19,6 @@ import com.harrysoft.androidbluetoothserial.demoapp.device_interface.CommandHand
 import com.harrysoft.androidbluetoothserial.demoapp.device_interface.CommandInterpreter
 import com.harrysoft.androidbluetoothserial.demoapp.device_interface.IoBoard
 import com.harrysoft.androidbluetoothserial.demoapp.device_interface.Pin
-import com.harrysoft.androidbluetoothserial.demoapp.PreferencesFragment
 
 class DeviceControlActivity : AppCompatActivity() {
     private val model by lazy {
@@ -31,7 +28,6 @@ class DeviceControlActivity : AppCompatActivity() {
     }
     private val numberOfFoundBoards by lazy { findViewById<TextView>(R.id.number_of_found_boards_vw) }
     private val connectionsDisplay by lazy { findViewById<RecyclerView>(R.id.connectivity_results) }
-
     private inner class CheckResultViewHolder internal constructor(view: View) : RecyclerView.ViewHolder(view) {
         private val layout: RelativeLayout by lazy { view.findViewById(R.id.single_check_result) }
         private val pinNumber: TextView by lazy { view.findViewById(R.id.pin_description) }
@@ -182,15 +178,13 @@ class DeviceControlActivity : AppCompatActivity() {
 
     private fun setupEntryViewState() {
         supportActionBar?.setTitle(getString(R.string.ctl_actty_tittle_connecting).format(intent.getStringExtra("name") + "..."))
-        numberOfFoundBoards.text =
-            getString(R.string.ctl_actty_number_of_connected_boards).format(0)
+        numberOfFoundBoards.text = getString(R.string.ctl_actty_number_of_connected_boards).format(0)
 
         val controller_search_progress = findViewById<ProgressBar>(R.id.searching_for_controller_progbar)
         controller_search_progress.visibility = View.VISIBLE
 
         //todo: use theme instead of manual setup
-        window.statusBarColor = ContextCompat.getColor(this@DeviceControlActivity,
-                                                       R.color.ctl_actty_status_bar)
+        window.statusBarColor = ContextCompat.getColor(this@DeviceControlActivity, R.color.ctl_actty_status_bar)
     }
 
     private fun setupAllListeners() {
@@ -225,7 +219,6 @@ class DeviceControlActivity : AppCompatActivity() {
     }
 
     private fun applyPreferences() {
-
     }
 
     companion object {
