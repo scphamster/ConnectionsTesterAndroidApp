@@ -1,23 +1,25 @@
 package com.harrysoft.androidbluetoothserial.demoapp
 
 //import android.R
-import android.icu.lang.UCharacter.VerticalOrientation
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import android.widget.Button
+import android.widget.PopupMenu
 import android.widget.ProgressBar
 import android.widget.RelativeLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
-import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import androidx.recyclerview.widget.StaggeredGridLayoutManager
-import com.harrysoft.androidbluetoothserial.demoapp.device_interface.*
+import com.harrysoft.androidbluetoothserial.demoapp.device_interface.CommandHandler
+import com.harrysoft.androidbluetoothserial.demoapp.device_interface.CommandInterpreter
+import com.harrysoft.androidbluetoothserial.demoapp.device_interface.IoBoard
+import com.harrysoft.androidbluetoothserial.demoapp.device_interface.Pin
+import com.harrysoft.androidbluetoothserial.demoapp.PreferencesFragment
 
 class DeviceControlActivity : AppCompatActivity() {
     private val model by lazy {
@@ -157,6 +159,20 @@ class DeviceControlActivity : AppCompatActivity() {
         Log.d(Tag, "device control created")
     }
 
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.ctl_actty_menu, menu)
+        Log.d(Tag, "Menu button created!")
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+
+        val intent = Intent(this, PreferencesActty::class.java)
+        startActivity(intent)
+
+        return super.onOptionsItemSelected(item)
+    }
+
     override fun onBackPressed() {
         finish()
     }
@@ -168,7 +184,12 @@ class DeviceControlActivity : AppCompatActivity() {
 
         val controller_search_progress = findViewById<ProgressBar>(R.id.searching_for_controller_progbar)
         controller_search_progress.visibility = View.VISIBLE
+
+        //todo: use theme instead of manual setup
+        window.statusBarColor = ContextCompat.getColor(this@DeviceControlActivity,
+                                                       R.color.ctl_actty_status_bar)
     }
+
     private fun setupAllListeners() {
         model.commandHandler.connectionStatus.observe(this) { connection_status: CommandHandler.ConnectionStatus ->
             when (connection_status) {
@@ -179,8 +200,10 @@ class DeviceControlActivity : AppCompatActivity() {
                         controller_search_progress.visibility = View.INVISIBLE
                     }
 
-                    supportActionBar?.setTitle(getString(R.string.ctl_actty_tittle_connected).format(intent.getStringExtra(
-                        "name")))
+//                    supportActionBar?.setTitle(getString(R.string.ctl_actty_tittle_connected).format(intent.getStringExtra(
+//                        "name")))
+
+                    supportActionBar?.hide()
                 }
 
                 else -> {}

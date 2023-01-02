@@ -3,6 +3,7 @@ package com.harrysoft.androidbluetoothserial.demoapp
 import android.bluetooth.BluetoothDevice
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.MenuItem
@@ -21,6 +22,11 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.jaiselrahman.filepicker.activity.FilePickerActivity
 import com.jaiselrahman.filepicker.config.Configurations
 import com.jaiselrahman.filepicker.model.MediaFile
+
+import android.util.Log
+import org.json.JSONObject
+import java.io.*
+import com.opencsv.*
 
 class MainActivity : AppCompatActivity() {
     private inner class DeviceViewHolder internal constructor(view: View) : ViewHolder(view) {
@@ -61,7 +67,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-
     private inner class DeviceAdapter : RecyclerView.Adapter<DeviceViewHolder>() {
         private var deviceList = arrayOfNulls<BluetoothDevice>(0)
 
@@ -78,7 +83,6 @@ class MainActivity : AppCompatActivity() {
             notifyDataSetChanged()
         }
     }
-
     companion object {
         private const val Tag = "Main"
         private const val FILE_REQUEST_CODE = 1
@@ -91,6 +95,8 @@ class MainActivity : AppCompatActivity() {
     private var viewModel: MainActivityViewModel? = null
     private var lastUsedDeviceMacAddress: String? = null
     private val buttonOpenConfigsJson: Button by lazy { findViewById(R.id.main_actty_button_open_json) }
+    private var csvList = mutableListOf<Array<String>>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -129,10 +135,11 @@ class MainActivity : AppCompatActivity() {
                                 .setCheckPermission(true)
                                 .setShowImages(false)
                                 .setShowVideos(false)
+                                .setSuffixes("csv")
                                 .setShowFiles(true)
-                                .setSuffixes("json")
+                                .setSingleChoiceMode(true)
                                 .enableImageCapture(false)
-                                .setSkipZeroSizeFiles(true)
+                                .setSkipZeroSizeFiles(false)
                                 .build())
             startActivityForResult(intent, FILE_REQUEST_CODE)
         }
@@ -149,7 +156,37 @@ class MainActivity : AppCompatActivity() {
 
         if (requestCode == FILE_REQUEST_CODE && resultCode == RESULT_OK) {
             val files: ArrayList<MediaFile> = data!!.getParcelableArrayListExtra(FilePickerActivity.MEDIA_FILES)!!
-            // Use the fileUri to access the selected file
+            if (files.size > 1) {
+                Log.e(Tag, "only one file should be allowed for selection!")
+                return
+            }
+
+            Log.i(Tag, files.get(0).name.toString())
+            Log.i(Tag, files.get(0).uri.toString())
+
+            val _file = files.get(0)
+
+            val contentResolver = contentResolver
+            val inputStream = contentResolver.openInputStream(Uri.parse(_file.uri.toString()))
+            val inputStreamReader = InputStreamReader(inputStream, "utf-8")
+            val csvReader = CSVReader(inputStreamReader)
+
+//
+//            val bufferedReader = BufferedReader(inputStreamReader)
+//            val stringBuilder = StringBuilder()
+//
+//            var line: String? = bufferedReader.readLine()
+//            while (line != null) {
+//                stringBuilder.append(line)
+//                line = bufferedReader.readLine()
+//            }
+//
+//            val jsonString = stringBuilder.toString()
+//            testJson = JSONObject(jsonString)
+
+
+            csvList = csvReader.readAll()
+
         }
 
     }

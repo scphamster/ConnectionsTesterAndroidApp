@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <SwitchPreference
+            android:key="pref_key_switch"
+            android:title="Switch"
+            android:defaultValue="true"/>
+
+<!--    <ListPreference-->
+<!--            android:key="pref_key_list"-->
+<!--            android:title="List"-->
+<!--            android:defaultValue="value1"/>-->
+
+</PreferenceScreen>
