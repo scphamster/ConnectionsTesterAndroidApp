@@ -23,9 +23,11 @@
     <string name="main_actty_button_name_connectors_cfg">Open configuration file</string>
 
 <!--    activity preferences-->
-    <string name="pref_pinout_descriptor_filename">Pins configuration</string>
-    <string name="pref_pinout_descriptor_filename_defaultval">not selected</string>
+    <string name="pref_pinout_filename_defaultval">not selected</string>
+    <string name="pref_pinout_descriptor_buttonName">Specify file with pinout namings</string>
+    <string name="pref_pinout_results_buttonName">Specify file where to store results</string>
 
+<!--    activity deviceControl-->
     <string name="ctl_actty_tittle_connecting">Connecting to device: %s</string>
     <string name="ctl_actty_tittle_connected">Connected to %s</string>
     <string name="ctl_actty_number_of_connected_boards">Number of connected boards: %s</string>

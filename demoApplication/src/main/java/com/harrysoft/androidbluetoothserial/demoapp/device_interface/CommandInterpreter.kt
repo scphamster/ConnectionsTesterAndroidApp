@@ -2,8 +2,6 @@ package com.harrysoft.androidbluetoothserial.demoapp.device_interface
 
 import android.util.Log
 
-typealias PinNumberT = Int
-typealias PinNumT = Int
 
 interface CommandInterpreter {
     enum class VoltageLevel {
@@ -38,7 +36,7 @@ interface CommandInterpreter {
     }
 
     sealed class ControllerMessage {
-        class ConnectionsDescription(val pin: PinAffinityAndId, val connectedTo: Array<PinAffinityAndId>) :
+        class ConnectionsDescription(val testedPin: PinAffinityAndId, val connectedTo: Array<PinAffinityAndId>) :
             ControllerMessage()
 
         class SelectedVoltageLevel(val level: VoltageLevel) : ControllerMessage()

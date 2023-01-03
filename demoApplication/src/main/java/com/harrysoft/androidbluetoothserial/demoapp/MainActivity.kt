@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
+
 import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
@@ -12,21 +14,21 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.RelativeLayout
 import android.widget.TextView
+
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProviders
+
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.ViewHolder
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+
 import com.jaiselrahman.filepicker.activity.FilePickerActivity
 import com.jaiselrahman.filepicker.config.Configurations
 import com.jaiselrahman.filepicker.model.MediaFile
 
-import android.util.Log
-import org.json.JSONObject
-import java.io.*
-import com.opencsv.*
+import java.io.OutputStreamWriter
 
 class MainActivity : AppCompatActivity() {
     private inner class DeviceViewHolder internal constructor(view: View) : ViewHolder(view) {
@@ -67,6 +69,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+
     private inner class DeviceAdapter : RecyclerView.Adapter<DeviceViewHolder>() {
         private var deviceList = arrayOfNulls<BluetoothDevice>(0)
 
@@ -83,6 +86,7 @@ class MainActivity : AppCompatActivity() {
             notifyDataSetChanged()
         }
     }
+
     companion object {
         private const val Tag = "Main"
         private const val FILE_REQUEST_CODE = 1
@@ -94,11 +98,19 @@ class MainActivity : AppCompatActivity() {
 
     private var viewModel: MainActivityViewModel? = null
     private var lastUsedDeviceMacAddress: String? = null
-    private val buttonOpenConfigsJson: Button by lazy { findViewById(R.id.main_actty_button_open_json) }
+    private val testButton: Button by lazy { findViewById(R.id.main_actty_button_open_json) }
     private var csvList = mutableListOf<Array<String>>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // set some system-properties to instruct the code to use the fasterxml parsers
+        System.setProperty("org.apache.poi.javax.xml.stream.XMLInputFactory",
+                           "com.fasterxml.aalto.stax.InputFactoryImpl")
+        System.setProperty("org.apache.poi.javax.xml.stream.XMLOutputFactory",
+                           "com.fasterxml.aalto.stax.OutputFactoryImpl")
+        System.setProperty("org.apache.poi.javax.xml.stream.XMLEventFactory",
+                           "com.fasterxml.aalto.stax.EventFactoryImpl")
 
         lastUsedDeviceMacAddress
         getPreferences(Context.MODE_PRIVATE)
@@ -127,7 +139,7 @@ class MainActivity : AppCompatActivity() {
             swipeRefreshLayout.isRefreshing = false
         }
 
-        buttonOpenConfigsJson.setOnClickListener{
+        testButton.setOnClickListener {
             val intent = Intent(this, FilePickerActivity::class.java)
             intent.putExtra(FilePickerActivity.CONFIGS,
                             Configurations
@@ -135,7 +147,7 @@ class MainActivity : AppCompatActivity() {
                                 .setCheckPermission(true)
                                 .setShowImages(false)
                                 .setShowVideos(false)
-                                .setSuffixes("csv")
+                                .setSuffixes("txt")
                                 .setShowFiles(true)
                                 .setSingleChoiceMode(true)
                                 .enableImageCapture(false)
@@ -164,17 +176,15 @@ class MainActivity : AppCompatActivity() {
             Log.i(Tag, files.get(0).name.toString())
             Log.i(Tag, files.get(0).uri.toString())
 
-            val _file = files.get(0)
+            val file = files.get(0)
 
             val contentResolver = contentResolver
-            val inputStream = contentResolver.openInputStream(Uri.parse(_file.uri.toString()))
-            val inputStreamReader = InputStreamReader(inputStream, "utf-8")
-            val csvReader = CSVReader(inputStreamReader)
+            val outputStream = contentResolver.openOutputStream(Uri.parse(file.uri.toString()))
+            val outputStreamWriter = OutputStreamWriter(outputStream, "utf-8")
 
-            csvList = csvReader.readAll()
-
+            outputStreamWriter.append("DUPA")
+            outputStreamWriter.close()
         }
-
     }
 
     override fun onSaveInstanceState(savedState: Bundle) {

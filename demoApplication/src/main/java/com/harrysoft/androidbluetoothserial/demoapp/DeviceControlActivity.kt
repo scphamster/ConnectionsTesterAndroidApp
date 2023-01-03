@@ -12,10 +12,9 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
-import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.harrysoft.androidbluetoothserial.demoapp.device_interface.CommandHandler
+import com.harrysoft.androidbluetoothserial.demoapp.device_interface.MeasurementsHandler
 import com.harrysoft.androidbluetoothserial.demoapp.device_interface.CommandInterpreter
 import com.harrysoft.androidbluetoothserial.demoapp.device_interface.IoBoard
 import com.harrysoft.androidbluetoothserial.demoapp.device_interface.Pin
@@ -44,7 +43,7 @@ class DeviceControlActivity : AppCompatActivity() {
             }
             else {
                 pinNumber.text =
-                    pin.descriptor.affinityAndId.boardAffinityId.toString() + ':' + pin.descriptor.affinityAndId.idxOnBoard.toString()
+                    pin.descriptor.affinityAndId.boardId.toString() + ':' + pin.descriptor.affinityAndId.idxOnBoard.toString()
             }
 
             if (pin.isConnectedTo.isEmpty()) {
@@ -53,7 +52,7 @@ class DeviceControlActivity : AppCompatActivity() {
             else {
                 //todo: use name and other field if available
                 foundConnections.text = pin.isConnectedTo.joinToString(" ") {
-                    it.affinityAndId.boardAffinityId.toString() + ':' + it.affinityAndId.idxOnBoard.toString()
+                    it.affinityAndId.boardId.toString() + ':' + it.affinityAndId.idxOnBoard.toString()
                 }
             }
         }
@@ -92,7 +91,7 @@ class DeviceControlActivity : AppCompatActivity() {
                 counter++
             }
 
-            Log.e(Tag, """Pin ${pin_to_update.descriptor.affinityAndId.boardAffinityId}:
+            Log.e(Tag, """Pin ${pin_to_update.descriptor.affinityAndId.boardId}:
                       |${pin_to_update.descriptor.affinityAndId.idxOnBoard} 
                       |is not found in stored pins list!""".trimMargin())
         }
@@ -147,13 +146,13 @@ class DeviceControlActivity : AppCompatActivity() {
         val adapter = ResultsAdapter()
         connectionsDisplay.adapter = adapter
 
-        model.commandHandler.boardsManager.boards.observe(this) {
+        model.measurementsHandler.boardsManager.boards.observe(this) {
             numberOfFoundBoards.text =
-                getString(R.string.ctl_actty_number_of_connected_boards).format(model.commandHandler.boardsManager.getBoardsCount())
+                getString(R.string.ctl_actty_number_of_connected_boards).format(model.measurementsHandler.boardsManager.getBoardsCount())
             adapter.updatePinSet(it)
         }
 
-        model.commandHandler.boardsManager.pinChangeCallback = { adapter.updateSingle(it) }
+        model.measurementsHandler.boardsManager.pinChangeCallback = { adapter.updateSingle(it) }
         setupAllListeners()
         Log.d(Tag, "device control created")
     }
@@ -188,9 +187,9 @@ class DeviceControlActivity : AppCompatActivity() {
     }
 
     private fun setupAllListeners() {
-        model.commandHandler.connectionStatus.observe(this) { connection_status: CommandHandler.ConnectionStatus ->
+        model.measurementsHandler.connectionStatus.observe(this) { connection_status: MeasurementsHandler.ConnectionStatus ->
             when (connection_status) {
-                CommandHandler.ConnectionStatus.CONNECTED -> {
+                MeasurementsHandler.ConnectionStatus.CONNECTED -> {
                     val controller_search_progress = findViewById<ProgressBar>(R.id.searching_for_controller_progbar)
 
                     if (controller_search_progress.visibility == View.VISIBLE) {
@@ -209,12 +208,16 @@ class DeviceControlActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.cmd1_button).setOnClickListener() {
-            model.commandHandler.connect()
+            model.measurementsHandler.connect()
         }
 
         findViewById<Button>(R.id.cmd2_button).setOnClickListener() {
-            model.commandHandler.sendCommand(CommandInterpreter.Commands.CheckConnectivity())
+            model.measurementsHandler.sendCommand(CommandInterpreter.Commands.CheckConnectivity())
             Log.d(Tag, "Command sent: ${getString(R.string.set_pin_cmd)}")
+        }
+
+        findViewById<Button>(R.id.ctl_actty_save_results_button).setOnClickListener(){
+            model.measurementsHandler.storeMeasurementsResultsToFile()
         }
     }
 

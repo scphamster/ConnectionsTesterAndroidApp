@@ -70,6 +70,14 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" android:id="@+id/cmd2_button" android:layout_weight="0"
                 style="?android:attr/buttonBarButtonStyle"/>
+
+        <Button
+                android:text="Save"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/ctl_actty_save_results_button"
+                android:layout_weight="0"
+                style="?android:attr/buttonBarButtonStyle"/>
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>
 

@@ -2,10 +2,13 @@ package com.harrysoft.androidbluetoothserial.demoapp.device_interface
 
 import java.lang.ref.WeakReference
 
+typealias IoBoardIndexT = Int
+typealias PinNumT = Int
+
 data class PinGroup(val groupId: Int, val groupName: String? = null)
-data class PinAffinityAndId(val boardAffinityId: IoBoardIndexT, val idxOnBoard: PinNumT)
+data class PinAffinityAndId(val boardId: IoBoardIndexT, val idxOnBoard: PinNumT)
 data class PinDescriptor(val affinityAndId: PinAffinityAndId,
-                         val customIdx: PinNumberT? = null,
+                         val customIdx: PinNumT? = null,
                          val name: String? = null,
                          val group: PinGroup? = null)
 
