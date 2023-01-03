@@ -2,7 +2,6 @@ package com.harrysoft.androidbluetoothserial.demoapp.device_interface
 
 import android.app.Application
 import android.net.Uri
-import android.os.ParcelFileDescriptor
 import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.MutableLiveData
@@ -18,16 +17,9 @@ import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
 
-import org.apache.poi.openxml4j.opc.OPCPackage
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 
-import org.xml.sax.XMLReader
-import java.io.FileInputStream
-import java.io.IOException
 import java.lang.ref.WeakReference
-import java.net.URI
-import javax.xml.parsers.SAXParser
-import javax.xml.parsers.SAXParserFactory
 
 typealias CommandArgsT = Int
 
@@ -172,7 +164,7 @@ class MeasurementsHandler : CommandInterpreter {
     }
 
     private fun boardsInitializer(boards_id: Array<IoBoardIndexT>) {
-        test_parse()
+//        test_parse()
 
         val new_boards = mutableListOf<IoBoard>()
         var boards_counter = 0
@@ -271,15 +263,73 @@ class MeasurementsHandler : CommandInterpreter {
             return
         }
 
-        val inputStream = context.contentResolver.openInputStream(Uri.parse(file_storage_uri))
-        val workbook = XSSFWorkbook(inputStream)
-        val sheet = workbook.getSheetAt(0)
+        val groups_of_sorted_pins = boardsManager.getPinsSortedByGroupOrAffinity()
 
-        val sorted_pins = boardsManager.getPinsSortedByGroupOrAffinity()
+        if (groups_of_sorted_pins == null) {
+            Log.e(Tag, "sorted pins array is null!")
+            return
+        }
 
+        val outputStream = context.contentResolver.openOutputStream(Uri.parse(file_storage_uri))
+        val workbook = XSSFWorkbook()
+        val sheet = workbook.createSheet("Measurements")
 
+        val names_row = sheet.getRow(0) ?: sheet.createRow(0)
 
+        var column_counter = 0
+        for (pins_group in groups_of_sorted_pins) {
+            val cell_with_name_of_group = names_row.getCell(column_counter) ?: names_row.createCell(column_counter)
+            cell_with_name_of_group.setCellValue(pins_group.getGroupName())
 
+            var row_counter = 1
+            for (pin in pins_group.pins) {
+                val row_for_this_pin = sheet.getRow(row_counter) ?: sheet.createRow(row_counter)
+                val cell_for_this_pin_connections =
+                    row_for_this_pin.getCell(column_counter) ?: row_for_this_pin.createCell(column_counter)
+
+                if (pin.isConnectedTo.isEmpty()) {
+                    cell_for_this_pin_connections.setCellValue("${pin.descriptor.getPrettyName()} -> NC")
+                    row_counter++
+                    continue
+                }
+
+                val string_builder = StringBuilder()
+                string_builder.append("${pin.descriptor.getPrettyName()} -> ")
+
+                for (descriptor_of_connected_pin in pin.isConnectedTo) {
+                    val _pin = boardsManager.findPinRefByAffinityAndId(descriptor_of_connected_pin.affinityAndId)
+
+                    if (_pin == null) {
+                        Log.e(Tag,
+                              """Pin ${descriptor_of_connected_pin.affinityAndId.boardId}:
+                                  |${descriptor_of_connected_pin.affinityAndId.idxOnBoard} 
+                                  |is not found""".trimMargin())
+
+                        continue
+                    }
+
+                    val connected_pin = _pin?.get()
+                    if (connected_pin == null) {
+                        Log.e(Tag,
+                              """Pin ${descriptor_of_connected_pin.affinityAndId.boardId}:
+                                  |${descriptor_of_connected_pin.affinityAndId.idxOnBoard} 
+                                  |is null!""".trimMargin())
+
+                        continue
+                    }
+
+                    string_builder.append(", ${connected_pin.descriptor.getPrettyName()}")
+                }
+
+                cell_for_this_pin_connections.setCellValue(string_builder.toString())
+                row_counter++
+            }
+
+            column_counter++
+        }
+
+        workbook.write(outputStream)
+        outputStream?.close()
     }
 
     private fun test_parse() {

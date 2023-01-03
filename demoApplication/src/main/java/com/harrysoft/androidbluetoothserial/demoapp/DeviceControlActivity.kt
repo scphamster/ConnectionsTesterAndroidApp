@@ -37,9 +37,9 @@ class DeviceControlActivity : AppCompatActivity() {
             if (pin.descriptor.name != null) pinNumber.text = pin.descriptor.name
             else if (pin.descriptor.customIdx != null) pinNumber.text = pin.descriptor.customIdx.toString()
             else if (pin.descriptor.group != null) {
-                if (pin.descriptor.group.groupName != null) pinNumber.text = pin.descriptor.group.groupName
+                if (pin.descriptor.group.name != null) pinNumber.text = pin.descriptor.group.name
                 else pinNumber.text =
-                    pin.descriptor.group.groupId.toString() + ':' + pin.descriptor.affinityAndId.idxOnBoard.toString()
+                    pin.descriptor.group.id.toString() + ':' + pin.descriptor.affinityAndId.idxOnBoard.toString()
             }
             else {
                 pinNumber.text =

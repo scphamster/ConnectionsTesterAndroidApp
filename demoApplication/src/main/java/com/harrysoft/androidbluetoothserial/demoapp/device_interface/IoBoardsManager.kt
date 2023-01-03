@@ -12,7 +12,15 @@ class IoBoardsManager() {
 
     data class SortedPins(val group: PinGroup? = null,
                           val affinity: IoBoardIndexT? = null,
-                          val pins: Array<Pin>? = null)
+                          val pins: Array<Pin>) {
+        fun getGroupName(): String {
+            group?.let {
+                return it.getPrettyName()
+            }
+
+            return affinity.toString()
+        }
+    }
 
     val boards = MutableLiveData<MutableList<IoBoard>>()
     private val boardsCount = MutableLiveData<Int>()
@@ -157,7 +165,7 @@ class IoBoardsManager() {
         return boards.value?.size ?: 0
     }
 
-    private fun findPinRefByAffinityAndId(affinityAndId: PinAffinityAndId): WeakReference<Pin>? {
+    fun findPinRefByAffinityAndId(affinityAndId: PinAffinityAndId): WeakReference<Pin>? {
         val available_boards = boards.value
         if (available_boards == null) return null
 
