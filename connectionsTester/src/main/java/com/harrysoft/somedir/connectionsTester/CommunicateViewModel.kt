@@ -1,4 +1,4 @@
-package com.harrysoft.androidbluetoothserial.connectionsTester
+package com.harrysoft.somedir.connectionsTester
 
 import android.app.Application
 import android.text.TextUtils
@@ -7,10 +7,10 @@ import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import com.harrysoft.androidbluetoothserial.BluetoothManager
-import com.harrysoft.androidbluetoothserial.BluetoothManager.Companion.manager
-import com.harrysoft.androidbluetoothserial.BluetoothSerialDevice
-import com.harrysoft.androidbluetoothserial.SimpleBluetoothDeviceInterface
+import com.harrysoft.somedir.BluetoothManager
+import com.harrysoft.somedir.BluetoothManager.Companion.manager
+import com.harrysoft.somedir.BluetoothSerialDevice
+import com.harrysoft.somedir.SimpleBluetoothDeviceInterface
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers

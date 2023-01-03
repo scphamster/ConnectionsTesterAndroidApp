@@ -1,4 +1,4 @@
-package com.harrysoft.androidbluetoothserial.connectionsTester
+package com.harrysoft.somedir.connectionsTester
 
 import android.content.Intent
 import android.os.Bundle

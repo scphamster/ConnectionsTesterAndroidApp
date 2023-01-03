@@ -36,7 +36,7 @@ Please see the `demoApplication` directory for a fully-featured demo app.
 1. Declare your `BluetoothManager` (Make sure to include the library `BluetoothManager`, not the Android one):
 
 ```JAVA
-import com.harrysoft.androidbluetoothserial.BluetoothManager;
+import com.harrysoft.somedir.BluetoothManager;
 ```
 
 Your Activity's `onCreate()`:
@@ -66,7 +66,7 @@ for (BluetoothDevice device : pairedDevices) {
 4. Connect to the device and send/receive messages:
 
 ```JAVA
-import com.harrysoft.androidbluetoothserial.BluetoothSerialDevice;
+import com.harrysoft.somedir.BluetoothSerialDevice;
 ```
 
 ```JAVA

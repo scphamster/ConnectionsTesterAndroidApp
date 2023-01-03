@@ -1,4 +1,4 @@
-package com.harrysoft.androidbluetoothserial
+package com.harrysoft.somedir
 
 interface SimpleBluetoothDeviceInterface {
     /**

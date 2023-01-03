@@ -1,4 +1,4 @@
-package com.harrysoft.androidbluetoothserial.connectionsTester.device_interface
+package com.harrysoft.somedir.connectionsTester.device_interface
 
 import android.app.Application
 import android.net.Uri
@@ -6,13 +6,13 @@ import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.MutableLiveData
 import androidx.preference.PreferenceManager
-import com.harrysoft.androidbluetoothserial.BluetoothManager
-import com.harrysoft.androidbluetoothserial.BluetoothSerialDevice
-import com.harrysoft.androidbluetoothserial.SimpleBluetoothDeviceInterface
-import com.harrysoft.androidbluetoothserial.connectionsTester.BoardCountT
-import com.harrysoft.androidbluetoothserial.connectionsTester.PreferencesFragment
-import com.harrysoft.androidbluetoothserial.connectionsTester.R
-import com.harrysoft.androidbluetoothserial.connectionsTester.device_interface.ControllerResponseInterpreter.Commands
+import com.harrysoft.somedir.BluetoothManager
+import com.harrysoft.somedir.BluetoothSerialDevice
+import com.harrysoft.somedir.SimpleBluetoothDeviceInterface
+import com.harrysoft.somedir.connectionsTester.BoardCountT
+import com.harrysoft.somedir.connectionsTester.PreferencesFragment
+import com.harrysoft.somedir.connectionsTester.R
+import com.harrysoft.somedir.connectionsTester.device_interface.ControllerResponseInterpreter.Commands
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers

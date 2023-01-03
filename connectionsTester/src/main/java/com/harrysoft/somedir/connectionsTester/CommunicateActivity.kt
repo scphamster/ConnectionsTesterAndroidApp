@@ -1,4 +1,4 @@
-package com.harrysoft.androidbluetoothserial.connectionsTester
+package com.harrysoft.somedir.connectionsTester
 
 import android.os.Bundle
 import android.text.TextUtils
@@ -9,7 +9,7 @@ import android.widget.EditText
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
-import com.harrysoft.androidbluetoothserial.connectionsTester.CommunicateViewModel.ConnectionStatus
+import com.harrysoft.somedir.connectionsTester.CommunicateViewModel.ConnectionStatus
 
 class CommunicateActivity : AppCompatActivity() {
     private var connectionText: TextView? = null

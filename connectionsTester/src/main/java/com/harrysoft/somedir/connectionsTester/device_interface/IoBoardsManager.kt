@@ -1,7 +1,7 @@
-package com.harrysoft.androidbluetoothserial.connectionsTester.device_interface
+package com.harrysoft.somedir.connectionsTester.device_interface
 
 import androidx.lifecycle.MutableLiveData
-import com.harrysoft.androidbluetoothserial.connectionsTester.device_interface.ControllerResponseInterpreter.ControllerMessage
+import com.harrysoft.somedir.connectionsTester.device_interface.ControllerResponseInterpreter.ControllerMessage
 import java.lang.ref.WeakReference
 import android.util.Log
 

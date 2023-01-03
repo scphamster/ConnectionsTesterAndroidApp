@@ -1,4 +1,4 @@
-package com.harrysoft.androidbluetoothserial.connectionsTester.device_interface
+package com.harrysoft.somedir.connectionsTester.device_interface
 
 import java.lang.ref.WeakReference
 

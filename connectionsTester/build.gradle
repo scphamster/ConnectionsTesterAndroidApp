@@ -5,7 +5,7 @@ apply plugin: 'kotlin-android-extensions'
 android {
     compileSdkVersion 33
     defaultConfig {
-        applicationId "com.harrysoft.androidbluetoothserial"
+        applicationId "scphamster.connectionsTester"
         minSdkVersion 26
         targetSdkVersion 33
         versionCode 1
@@ -26,7 +26,7 @@ android {
         sourceCompatibility 1.8
     }
 
-    namespace 'com.harrysoft.androidbluetoothserial.connectionsTester'
+    namespace 'com.harrysoft.somedir.connectionsTester'
 }
 
 dependencies {

@@ -1,4 +1,4 @@
-package com.harrysoft.androidbluetoothserial
+package com.harrysoft.somedir
 
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice

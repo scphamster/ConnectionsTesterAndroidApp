@@ -1,4 +1,4 @@
-package com.harrysoft.androidbluetoothserial.connectionsTester
+package com.harrysoft.somedir.connectionsTester
 
 import android.app.Application
 import android.bluetooth.BluetoothDevice
@@ -6,8 +6,8 @@ import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import com.harrysoft.androidbluetoothserial.BluetoothManager
-import com.harrysoft.androidbluetoothserial.BluetoothManager.Companion.manager
+import com.harrysoft.somedir.BluetoothManager
+import com.harrysoft.somedir.BluetoothManager.Companion.manager
 
 class MainActivityViewModel(application: Application) : AndroidViewModel(application) {
     private var bluetoothManager: BluetoothManager? = null

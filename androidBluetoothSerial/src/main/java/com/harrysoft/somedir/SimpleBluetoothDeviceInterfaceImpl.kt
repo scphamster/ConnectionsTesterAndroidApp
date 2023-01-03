@@ -1,4 +1,4 @@
-package com.harrysoft.androidbluetoothserial
+package com.harrysoft.somedir
 
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
