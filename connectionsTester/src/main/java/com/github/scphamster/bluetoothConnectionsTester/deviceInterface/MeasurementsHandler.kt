@@ -1,4 +1,4 @@
-package com.harrysoft.somedir.connectionsTester.device_interface
+package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
 
 import android.app.Application
 import android.net.Uri
@@ -9,10 +9,10 @@ import androidx.preference.PreferenceManager
 import com.harrysoft.somedir.BluetoothManager
 import com.harrysoft.somedir.BluetoothSerialDevice
 import com.harrysoft.somedir.SimpleBluetoothDeviceInterface
-import com.harrysoft.somedir.connectionsTester.BoardCountT
-import com.harrysoft.somedir.connectionsTester.PreferencesFragment
-import com.harrysoft.somedir.connectionsTester.R
-import com.harrysoft.somedir.connectionsTester.device_interface.ControllerResponseInterpreter.Commands
+import com.github.scphamster.bluetoothConnectionsTester.BoardCountT
+import com.github.scphamster.bluetoothConnectionsTester.PreferencesFragment
+import com.github.scphamster.bluetoothConnectionsTester.R
+import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter.Commands
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers

@@ -1,4 +1,4 @@
-package com.harrysoft.somedir.connectionsTester
+package com.github.scphamster.bluetoothConnectionsTester
 
 import android.bluetooth.BluetoothDevice
 import android.content.Context
@@ -23,6 +23,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.ViewHolder
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import com.github.scphamster.bluetoothConnectionsTester.R
 
 import com.jaiselrahman.filepicker.activity.FilePickerActivity
 import com.jaiselrahman.filepicker.config.Configurations

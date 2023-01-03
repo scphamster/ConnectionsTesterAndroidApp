@@ -1,4 +1,4 @@
-package com.harrysoft.somedir.connectionsTester.device_interface
+package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
 
 import java.lang.ref.WeakReference
 

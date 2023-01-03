@@ -1,4 +1,4 @@
-package com.harrysoft.somedir.connectionsTester
+package com.github.scphamster.bluetoothConnectionsTester
 
 //import android.R
 import android.content.Intent
@@ -14,10 +14,11 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.harrysoft.somedir.connectionsTester.device_interface.MeasurementsHandler
-import com.harrysoft.somedir.connectionsTester.device_interface.ControllerResponseInterpreter
-import com.harrysoft.somedir.connectionsTester.device_interface.IoBoard
-import com.harrysoft.somedir.connectionsTester.device_interface.Pin
+import com.github.scphamster.bluetoothConnectionsTester.R
+import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.MeasurementsHandler
+import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter
+import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.IoBoard
+import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.Pin
 
 class DeviceControlActivity : AppCompatActivity() {
     private val model by lazy {

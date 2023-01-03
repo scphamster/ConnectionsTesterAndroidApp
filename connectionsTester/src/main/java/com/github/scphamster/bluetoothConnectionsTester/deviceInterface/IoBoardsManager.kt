@@ -1,7 +1,7 @@
-package com.harrysoft.somedir.connectionsTester.device_interface
+package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
 
 import androidx.lifecycle.MutableLiveData
-import com.harrysoft.somedir.connectionsTester.device_interface.ControllerResponseInterpreter.ControllerMessage
+import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter.ControllerMessage
 import java.lang.ref.WeakReference
 import android.util.Log
 

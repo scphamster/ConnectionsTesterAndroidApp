@@ -1,4 +1,4 @@
-package com.harrysoft.somedir.connectionsTester
+package com.github.scphamster.bluetoothConnectionsTester
 
 import android.app.Application
 import android.text.TextUtils
@@ -11,6 +11,7 @@ import com.harrysoft.somedir.BluetoothManager
 import com.harrysoft.somedir.BluetoothManager.Companion.manager
 import com.harrysoft.somedir.BluetoothSerialDevice
 import com.harrysoft.somedir.SimpleBluetoothDeviceInterface
+import com.github.scphamster.bluetoothConnectionsTester.R
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers

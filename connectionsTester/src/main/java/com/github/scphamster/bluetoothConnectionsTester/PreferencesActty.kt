@@ -1,8 +1,10 @@
-package com.harrysoft.somedir.connectionsTester
+package com.github.scphamster.bluetoothConnectionsTester
 
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import com.github.scphamster.bluetoothConnectionsTester.R
+
 //import com.opencsv.CSVReader
 
 class PreferencesActty : AppCompatActivity() {

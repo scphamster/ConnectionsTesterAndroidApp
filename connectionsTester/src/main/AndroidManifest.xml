@@ -14,7 +14,7 @@
             android:theme="@style/AppTheme">
 
         <activity
-                android:name=".MainActivity"
+                android:name="com.github.scphamster.bluetoothConnectionsTester.MainActivity"
                 android:label="@string/app_name"
                 android:exported="true">
             <intent-filter>
@@ -22,9 +22,9 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <activity android:name=".CommunicateActivity"/>
-        <activity android:name=".DeviceControlActivity"/>
-        <activity android:name=".PreferencesActty"/>
+        <activity android:name="com.github.scphamster.bluetoothConnectionsTester.CommunicateActivity"/>
+        <activity android:name="com.github.scphamster.bluetoothConnectionsTester.DeviceControlActivity"/>
+        <activity android:name="com.github.scphamster.bluetoothConnectionsTester.PreferencesActty"/>
 
     </application>
 

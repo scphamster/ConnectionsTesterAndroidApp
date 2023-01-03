@@ -1,8 +1,8 @@
-package com.harrysoft.somedir.connectionsTester
+package com.github.scphamster.bluetoothConnectionsTester
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
-import com.harrysoft.somedir.connectionsTester.device_interface.MeasurementsHandler
+import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.MeasurementsHandler
 
 typealias BoardCountT = Int
 

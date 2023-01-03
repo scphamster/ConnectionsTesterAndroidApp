@@ -1,4 +1,4 @@
-package com.harrysoft.somedir.connectionsTester
+package com.github.scphamster.bluetoothConnectionsTester
 
 import android.app.Application
 import android.bluetooth.BluetoothDevice
@@ -8,6 +8,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.harrysoft.somedir.BluetoothManager
 import com.harrysoft.somedir.BluetoothManager.Companion.manager
+import com.github.scphamster.bluetoothConnectionsTester.R
 
 class MainActivityViewModel(application: Application) : AndroidViewModel(application) {
     private var bluetoothManager: BluetoothManager? = null
