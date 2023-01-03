@@ -1,14 +1,9 @@
-package com.harrysoft.androidbluetoothserial.demoapp
+package com.harrysoft.androidbluetoothserial.connectionsTester
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
-import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
-import com.jaiselrahman.filepicker.activity.FilePickerActivity
-import com.jaiselrahman.filepicker.model.MediaFile
 //import com.opencsv.CSVReader
-import java.io.InputStreamReader
 
 class PreferencesActty : AppCompatActivity() {
     companion object {

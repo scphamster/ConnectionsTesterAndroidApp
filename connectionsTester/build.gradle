@@ -26,7 +26,7 @@ android {
         sourceCompatibility 1.8
     }
 
-    namespace 'com.harrysoft.androidbluetoothserial.demoapp'
+    namespace 'com.harrysoft.androidbluetoothserial.connectionsTester'
 }
 
 dependencies {

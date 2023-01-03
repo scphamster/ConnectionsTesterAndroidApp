@@ -1,4 +1,4 @@
-package com.harrysoft.androidbluetoothserial.demoapp
+package com.harrysoft.androidbluetoothserial.connectionsTester
 
 //import android.R
 import android.content.Intent
@@ -14,10 +14,10 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.harrysoft.androidbluetoothserial.demoapp.device_interface.MeasurementsHandler
-import com.harrysoft.androidbluetoothserial.demoapp.device_interface.CommandInterpreter
-import com.harrysoft.androidbluetoothserial.demoapp.device_interface.IoBoard
-import com.harrysoft.androidbluetoothserial.demoapp.device_interface.Pin
+import com.harrysoft.androidbluetoothserial.connectionsTester.device_interface.MeasurementsHandler
+import com.harrysoft.androidbluetoothserial.connectionsTester.device_interface.ControllerResponseInterpreter
+import com.harrysoft.androidbluetoothserial.connectionsTester.device_interface.IoBoard
+import com.harrysoft.androidbluetoothserial.connectionsTester.device_interface.Pin
 
 class DeviceControlActivity : AppCompatActivity() {
     private val model by lazy {
@@ -212,7 +212,7 @@ class DeviceControlActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.cmd2_button).setOnClickListener() {
-            model.measurementsHandler.sendCommand(CommandInterpreter.Commands.CheckConnectivity())
+            model.measurementsHandler.sendCommand(ControllerResponseInterpreter.Commands.CheckConnectivity())
             Log.d(Tag, "Command sent: ${getString(R.string.set_pin_cmd)}")
         }
 

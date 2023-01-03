@@ -1,8 +1,8 @@
-package com.harrysoft.androidbluetoothserial.demoapp
+package com.harrysoft.androidbluetoothserial.connectionsTester
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
-import com.harrysoft.androidbluetoothserial.demoapp.device_interface.MeasurementsHandler
+import com.harrysoft.androidbluetoothserial.connectionsTester.device_interface.MeasurementsHandler
 
 typealias BoardCountT = Int
 

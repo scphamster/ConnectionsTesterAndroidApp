@@ -1,4 +1,4 @@
-package com.harrysoft.androidbluetoothserial.demoapp
+package com.harrysoft.androidbluetoothserial.connectionsTester
 
 import android.app.Application
 import android.bluetooth.BluetoothDevice

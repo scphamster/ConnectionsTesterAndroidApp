@@ -1,9 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
-    <SwitchPreference
-            android:key="pref_key_switch"
-            android:title="Switch"
-            android:defaultValue="true"/>
     <PreferenceScreen
             android:selectAllOnFocus="true"
             android:singleLine="true"

@@ -1,9 +1,9 @@
-package com.harrysoft.androidbluetoothserial.demoapp.device_interface
+package com.harrysoft.androidbluetoothserial.connectionsTester.device_interface
 
 import android.util.Log
 
 
-interface CommandInterpreter {
+interface ControllerResponseInterpreter {
     enum class VoltageLevel {
         Low, High
     }

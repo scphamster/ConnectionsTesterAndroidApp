@@ -1,4 +1,4 @@
-package com.harrysoft.androidbluetoothserial.demoapp.device_interface
+package com.harrysoft.androidbluetoothserial.connectionsTester.device_interface
 
 import android.app.Application
 import android.net.Uri
@@ -9,10 +9,10 @@ import androidx.preference.PreferenceManager
 import com.harrysoft.androidbluetoothserial.BluetoothManager
 import com.harrysoft.androidbluetoothserial.BluetoothSerialDevice
 import com.harrysoft.androidbluetoothserial.SimpleBluetoothDeviceInterface
-import com.harrysoft.androidbluetoothserial.demoapp.BoardCountT
-import com.harrysoft.androidbluetoothserial.demoapp.PreferencesFragment
-import com.harrysoft.androidbluetoothserial.demoapp.R
-import com.harrysoft.androidbluetoothserial.demoapp.device_interface.CommandInterpreter.Commands
+import com.harrysoft.androidbluetoothserial.connectionsTester.BoardCountT
+import com.harrysoft.androidbluetoothserial.connectionsTester.PreferencesFragment
+import com.harrysoft.androidbluetoothserial.connectionsTester.R
+import com.harrysoft.androidbluetoothserial.connectionsTester.device_interface.ControllerResponseInterpreter.Commands
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
@@ -23,7 +23,7 @@ import java.lang.ref.WeakReference
 
 typealias CommandArgsT = Int
 
-class MeasurementsHandler : CommandInterpreter {
+class MeasurementsHandler : ControllerResponseInterpreter {
     enum class ConnectionStatus {
         DISCONNECTED,
         CONNECTING,
@@ -138,7 +138,7 @@ class MeasurementsHandler : CommandInterpreter {
 
         command = context.getString(R.string.check_cmd)
 
-        if (cmd.pin == CommandInterpreter.Commands.CheckConnectivity.checkAllConnections) {
+        if (cmd.pin == ControllerResponseInterpreter.Commands.CheckConnectivity.checkAllConnections) {
             command_argument = context.getString(R.string.check_all_cmd_special_argument)
         }
         else {
@@ -216,7 +216,7 @@ class MeasurementsHandler : CommandInterpreter {
             connectionStatus.postValue(ConnectionStatus.DISCONNECTED)
         }
 
-        sendCommand(CommandInterpreter.Commands.CheckHardware())
+        sendCommand(ControllerResponseInterpreter.Commands.CheckHardware())
     }
 
     private fun onMessageReceived(message: String) {
@@ -231,9 +231,9 @@ class MeasurementsHandler : CommandInterpreter {
         }
     }
 
-    private fun handleControllerMsg(msg: CommandInterpreter.ControllerMessage) {
+    private fun handleControllerMsg(msg: ControllerResponseInterpreter.ControllerMessage) {
         when (msg) {
-            is CommandInterpreter.ControllerMessage.ConnectionsDescription -> {
+            is ControllerResponseInterpreter.ControllerMessage.ConnectionsDescription -> {
                 if (boardsManager.boards.value == null) {
                     Log.e(Tag, "Connections info arrived but boards are not initialized yet!")
                     return
@@ -242,7 +242,7 @@ class MeasurementsHandler : CommandInterpreter {
                 boardsManager.updatePinConnections(msg)
             }
 
-            is CommandInterpreter.ControllerMessage.HardwareDescription -> {
+            is ControllerResponseInterpreter.ControllerMessage.HardwareDescription -> {
                 Log.i(Tag, "Hardware description command arrived");
                 boardsInitializer(msg.boardsOnLine)
             }
