@@ -11,11 +11,13 @@ class DeviceControlViewModel(app: Application) : AndroidViewModel(app) {
     private var isInitialized: Boolean = false
     fun setupViewModel(deviceName: String, mac: String?): Boolean {
         if (!isInitialized) {
-            isInitialized = true
 
             measurementsHandler.context = getApplication()
             measurementsHandler.deviceName = deviceName
             measurementsHandler.mac = mac
+
+            measurementsHandler.connect()
+            isInitialized = true
         }
         return true
     }

@@ -80,11 +80,6 @@ class PreferencesFragment : PreferenceFragmentCompat() {
                 if (files.size > 1) {
                     return
                 }
-                val file = File(files.get(0).uri.path)
-                Log.d(Tag, "AbsolutePath: ${file.absolutePath}")
-
-                val fos = FileOutputStream(file)
-                fos.write("Dupa".toByteArray())
 
                 saveFileChoiceToSharedPreferences(PreferenceId.Results.text,
                                                   files.get(0),
@@ -129,7 +124,6 @@ class PreferencesFragment : PreferenceFragmentCompat() {
                                 .setSkipZeroSizeFiles(false)
                                 .build())
             startActivityForResult(intent, IntentResultCode.ChooseWhereToStoreFile.value)
-
 
             true
         }

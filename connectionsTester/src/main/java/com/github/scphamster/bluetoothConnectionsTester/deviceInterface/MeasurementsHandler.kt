@@ -1,10 +1,8 @@
 package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
 
 import android.app.Application
-import android.content.ContentResolver
 import android.net.Uri
-import android.os.Parcel
-import android.os.ParcelFileDescriptor
+import android.os.AsyncTask
 import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.MutableLiveData
@@ -20,10 +18,12 @@ import com.jaiselrahman.filepicker.model.MediaFile
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.io.FileNotFoundException
-import java.io.FileOutputStream
+import java.io.OutputStream
 
 import java.lang.ref.WeakReference
 
@@ -54,6 +54,42 @@ class MeasurementsHandler : ControllerResponseInterpreter {
     }
 
     private data class Measurements(private var pinId: String = "", private var isConnectedTo: String = "") {}
+    private inner class StoreResultsAsync : AsyncTask<XSSFWorkbook, Void, String>() {
+        @Deprecated("Deprecated in Java")
+        override fun doInBackground(vararg workbooks: XSSFWorkbook?): String {
+            val file_storage_uri = PreferenceManager
+                .getDefaultSharedPreferences(context)
+                .getString(PreferencesFragment.Companion.SharedPreferenceKey.ResultsFileUri.text, "")
+
+            val file_storage_name = PreferenceManager
+                .getDefaultSharedPreferences(context)
+                .getString(PreferencesFragment.Companion.SharedPreferenceKey.ResultsFileName.text, "")
+
+            if (file_storage_uri == "") {
+                return "No file for storage selected! Go to settings and set it via: Specify file where to store results"
+            }
+
+            val outputStream: OutputStream? = try {
+                context.contentResolver.openOutputStream(Uri.parse(file_storage_uri))
+            }
+            catch (e: FileNotFoundException) {
+                Log.d(Tag, "File was not found, exception: ${e.message}")
+                null
+            }
+
+            if (outputStream == null) return "File $file_storage_name not found! Go to settings and set new output file!"
+
+            workbooks.get(0)?.write(outputStream)
+            outputStream.close()
+
+            return "Successfully stored results to file $file_storage_name"
+        }
+
+        @Deprecated("Deprecated in Java")
+        override fun onPostExecute(result: String) {
+            toast(result)
+        }
+    }
 
     companion object {
         //        val Tag = this::class.simpleName.toString()
@@ -96,7 +132,9 @@ class MeasurementsHandler : ControllerResponseInterpreter {
                                     .openSerialDevice(mac!!)
                                     .subscribeOn(Schedulers.io())
                                     .observeOn(AndroidSchedulers.mainThread())
-                                    .subscribe({ device: BluetoothSerialDevice -> onConnected(device.toSimpleDeviceInterface()) }) { t: Throwable? ->
+                                    .subscribe({ device: BluetoothSerialDevice ->
+                                                   onConnected(device.toSimpleDeviceInterface())
+                                               }) { t: Throwable? ->
                                         toast(R.string.connection_failed.toString())
                                         connectionAttemptedOrMade = false
                                         connectionStatus.postValue(ConnectionStatus.DISCONNECTED)
@@ -261,15 +299,6 @@ class MeasurementsHandler : ControllerResponseInterpreter {
     }
 
     fun storeMeasurementsResultsToFile() {
-        val file_storage_uri = PreferenceManager
-            .getDefaultSharedPreferences(context)
-            .getString(PreferencesFragment.Companion.SharedPreferenceKey.ResultsFileUri.text, "")
-
-        if (file_storage_uri == "") {
-            toast("No file for storage selected! Go to settings and set it via: Specify file where to store results")
-            return
-        }
-
         val groups_of_sorted_pins = boardsManager.getPinsSortedByGroupOrAffinity()
 
         if (groups_of_sorted_pins == null) {
@@ -277,22 +306,9 @@ class MeasurementsHandler : ControllerResponseInterpreter {
             return
         }
 
-        val uri = Uri.parse(file_storage_uri)
-        val parcelFileDescriptor: ParcelFileDescriptor?
-        try {
-            parcelFileDescriptor = context.contentResolver.openFileDescriptor(uri, "w")
-        }
-        catch (e: FileNotFoundException) {
-            Log.d(Tag, "File was not found, exception: ${e.message}")
-            return
-        }
-
-//        val outputStream = context.contentResolver.openOutputStream(Uri.parse(file_storage_uri))
-        val outputStream = FileOutputStream(parcelFileDescriptor?.fileDescriptor)
 
         val workbook = XSSFWorkbook()
         val sheet = workbook.createSheet("Measurements")
-
         val names_row = sheet.getRow(0) ?: sheet.createRow(0)
 
         var column_counter = 0
@@ -319,18 +335,16 @@ class MeasurementsHandler : ControllerResponseInterpreter {
                     val _pin = boardsManager.findPinRefByAffinityAndId(descriptor_of_connected_pin.affinityAndId)
 
                     if (_pin == null) {
-                        Log.e(Tag,
-                              """Pin ${descriptor_of_connected_pin.affinityAndId.boardId}:
+                        Log.e(Tag, """Pin ${descriptor_of_connected_pin.affinityAndId.boardId}:
                                   |${descriptor_of_connected_pin.affinityAndId.idxOnBoard} 
                                   |is not found""".trimMargin())
 
                         continue
                     }
 
-                    val connected_pin = _pin?.get()
+                    val connected_pin = _pin.get()
                     if (connected_pin == null) {
-                        Log.e(Tag,
-                              """Pin ${descriptor_of_connected_pin.affinityAndId.boardId}:
+                        Log.e(Tag, """Pin ${descriptor_of_connected_pin.affinityAndId.boardId}:
                                   |${descriptor_of_connected_pin.affinityAndId.idxOnBoard} 
                                   |is null!""".trimMargin())
 
@@ -347,9 +361,14 @@ class MeasurementsHandler : ControllerResponseInterpreter {
             column_counter++
         }
 
-        workbook.write(outputStream)
-        outputStream?.close()
+        StoreResultsAsync().execute(workbook)
     }
+
+//    suspend fun storeToFileTest(workbook: XSSFWorkbook) {
+//        return withContext(Dispatchers.IO) {
+//
+//        }
+//    }
 
     private fun test_parse() {
         val file_storage_uri = PreferenceManager

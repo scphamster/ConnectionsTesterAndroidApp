@@ -1,10 +1,8 @@
 package com.github.scphamster.bluetoothConnectionsTester
 
 //import android.R
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.os.Parcel
 import android.util.Log
 import android.view.*
 import android.widget.Button
@@ -20,19 +18,12 @@ import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.Measurem
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.IoBoard
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.Pin
-import com.jaiselrahman.filepicker.model.MediaFile
-import java.io.File
-import java.io.FileInputStream
-import java.io.ObjectInputStream
 
 class DeviceControlActivity : AppCompatActivity() {
     private val model by lazy {
-        ViewModelProvider.AndroidViewModelFactory
-            .getInstance(application)
-            .create(DeviceControlViewModel::class.java)
+        ViewModelProvider(this).get(DeviceControlViewModel::class.java)
     }
-    private val numberOfFoundBoards by lazy { findViewById<TextView>(R.id.number_of_found_boards_vw) }
-    private val connectionsDisplay by lazy { findViewById<RecyclerView>(R.id.connectivity_results) }
+    private val measurementsView by lazy { findViewById<RecyclerView>(R.id.measurements_results) }
 
     private inner class CheckResultViewHolder internal constructor(view: View) : RecyclerView.ViewHolder(view) {
         private val layout: RelativeLayout by lazy { view.findViewById(R.id.single_check_result) }
@@ -146,20 +137,10 @@ class DeviceControlActivity : AppCompatActivity() {
             return
         }
 
-        applyPreferences()
         setupEntryViewState()
 
-        connectionsDisplay.layoutManager = LinearLayoutManager(this)
-        val adapter = ResultsAdapter()
-        connectionsDisplay.adapter = adapter
 
-        model.measurementsHandler.boardsManager.boards.observe(this) {
-            numberOfFoundBoards.text =
-                getString(R.string.ctl_actty_number_of_connected_boards).format(model.measurementsHandler.boardsManager.getBoardsCount())
-            adapter.updatePinSet(it)
-        }
 
-        model.measurementsHandler.boardsManager.pinChangeCallback = { adapter.updateSingle(it) }
         setupAllListeners()
         Log.d(Tag, "device control created")
     }
@@ -183,18 +164,30 @@ class DeviceControlActivity : AppCompatActivity() {
     }
 
     private fun setupEntryViewState() {
-        supportActionBar?.setTitle(getString(R.string.ctl_actty_tittle_connecting).format(intent.getStringExtra("name") + "..."))
-        numberOfFoundBoards.text = getString(R.string.ctl_actty_number_of_connected_boards).format(0)
-
-        val controller_search_progress = findViewById<ProgressBar>(R.id.searching_for_controller_progbar)
-        controller_search_progress.visibility = View.VISIBLE
+        supportActionBar?.setTitle(
+            getString(R.string.ctl_actty_tittle_connecting).format(intent.getStringExtra("name") + "..."))
 
         //todo: use theme instead of manual setup
         window.statusBarColor = ContextCompat.getColor(this@DeviceControlActivity, R.color.ctl_actty_status_bar)
+
+        measurementsView.layoutManager = LinearLayoutManager(this)
+        val adapter = ResultsAdapter()
+        measurementsView.adapter = adapter
     }
 
     private fun setupAllListeners() {
-        model.measurementsHandler.connectionStatus.observe(this) { connection_status: MeasurementsHandler.ConnectionStatus ->
+        model.measurementsHandler.boardsManager.boards.observe(this) {
+            supportActionBar?.setTitle(getString(R.string.ctl_actty_number_of_connected_boards).format(
+                model.measurementsHandler.boardsManager.getBoardsCount()))
+            (measurementsView.adapter as ResultsAdapter).updatePinSet(it)
+        }
+
+        model.measurementsHandler.boardsManager.pinChangeCallback = {
+            (measurementsView.adapter as ResultsAdapter).updateSingle(it)
+        }
+
+        model.measurementsHandler.connectionStatus.observe(
+            this) { connection_status: MeasurementsHandler.ConnectionStatus ->
             when (connection_status) {
                 MeasurementsHandler.ConnectionStatus.CONNECTED -> {
                     val controller_search_progress = findViewById<ProgressBar>(R.id.searching_for_controller_progbar)
@@ -204,13 +197,17 @@ class DeviceControlActivity : AppCompatActivity() {
                     }
                 }
 
+                MeasurementsHandler.ConnectionStatus.CONNECTING -> {
+                    val controller_search_progress = findViewById<ProgressBar>(R.id.searching_for_controller_progbar)
+
+                    if (controller_search_progress.visibility == View.INVISIBLE) {
+                        controller_search_progress.visibility = View.VISIBLE
+                    }
+                }
+
                 else -> {}
             }
 
-        }
-
-        findViewById<Button>(R.id.cmd1_button).setOnClickListener() {
-            model.measurementsHandler.connect()
         }
 
         findViewById<Button>(R.id.cmd2_button).setOnClickListener() {
