@@ -3,19 +3,17 @@ package com.github.scphamster.bluetoothConnectionsTester
 import android.bluetooth.BluetoothDevice
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
-import android.util.Log
 
 import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
 import android.widget.RelativeLayout
 import android.widget.TextView
 
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProviders
 
@@ -23,13 +21,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.ViewHolder
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-import com.github.scphamster.bluetoothConnectionsTester.R
 
-import com.jaiselrahman.filepicker.activity.FilePickerActivity
-import com.jaiselrahman.filepicker.config.Configurations
-import com.jaiselrahman.filepicker.model.MediaFile
-
-import java.io.OutputStreamWriter
+import android.Manifest
 
 class MainActivity : AppCompatActivity() {
     private inner class DeviceViewHolder internal constructor(view: View) : ViewHolder(view) {
@@ -54,17 +47,17 @@ class MainActivity : AppCompatActivity() {
 
             layout.setOnClickListener { view: View? ->
                 onDeviceChoice(deviceAddress.text.toString())
-                startTerminalWithDevice(device?.name, device?.address)
-            }
-
-            layout.setOnLongClickListener {
-                onDeviceChoice(deviceAddress.text.toString())
 
                 Intent(this@MainActivity, DeviceControlActivity::class.java).also { intent ->
                     intent.putExtra("name", deviceName.text)
                     intent.putExtra("mac", deviceAddress.text)
                     startActivity(intent)
                 }
+            }
+
+            layout.setOnLongClickListener {
+                onDeviceChoice(deviceAddress.text.toString())
+                startTerminalWithDevice(device?.name, device?.address)
 
                 false
             }
@@ -99,7 +92,6 @@ class MainActivity : AppCompatActivity() {
 
     private var viewModel: MainActivityViewModel? = null
     private var lastUsedDeviceMacAddress: String? = null
-    private val testButton: Button by lazy { findViewById(R.id.main_actty_button_open_json) }
     private var csvList = mutableListOf<Array<String>>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -140,52 +132,13 @@ class MainActivity : AppCompatActivity() {
             swipeRefreshLayout.isRefreshing = false
         }
 
-        testButton.setOnClickListener {
-            val intent = Intent(this, FilePickerActivity::class.java)
-            intent.putExtra(FilePickerActivity.CONFIGS,
-                            Configurations
-                                .Builder()
-                                .setCheckPermission(true)
-                                .setShowImages(false)
-                                .setShowVideos(false)
-                                .setSuffixes("txt")
-                                .setShowFiles(true)
-                                .setSingleChoiceMode(true)
-                                .enableImageCapture(false)
-                                .setSkipZeroSizeFiles(false)
-                                .build())
-            startActivityForResult(intent, FILE_REQUEST_CODE)
-        }
-
         viewModel?.pairedDeviceList?.observe(this@MainActivity) { deviceList: Collection<BluetoothDevice?> ->
             adapter.updateList(deviceList)
         }
 
         viewModel?.refreshPairedDevices()
-    }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-
-        if (requestCode == FILE_REQUEST_CODE && resultCode == RESULT_OK) {
-            val files: ArrayList<MediaFile> = data!!.getParcelableArrayListExtra(FilePickerActivity.MEDIA_FILES)!!
-            if (files.size > 1) {
-                Log.e(Tag, "only one file should be allowed for selection!")
-                return
-            }
-
-            Log.i(Tag, files.get(0).name.toString())
-            Log.i(Tag, files.get(0).uri.toString())
-
-            val file = files.get(0)
-
-            val contentResolver = contentResolver
-            val outputStream = contentResolver.openOutputStream(Uri.parse(file.uri.toString()))
-            val outputStreamWriter = OutputStreamWriter(outputStream, "utf-8")
-
-            outputStreamWriter.append("DUPA")
-            outputStreamWriter.close()
-        }
+        ActivityCompat.requestPermissions(this@MainActivity, arrayOf(Manifest.permission_group.STORAGE), 1)
     }
 
     override fun onSaveInstanceState(savedState: Bundle) {

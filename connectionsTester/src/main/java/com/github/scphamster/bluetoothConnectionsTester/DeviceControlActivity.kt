@@ -1,8 +1,10 @@
 package com.github.scphamster.bluetoothConnectionsTester
 
 //import android.R
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.os.Parcel
 import android.util.Log
 import android.view.*
 import android.widget.Button
@@ -14,11 +16,14 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.github.scphamster.bluetoothConnectionsTester.R
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.MeasurementsHandler
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.IoBoard
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.Pin
+import com.jaiselrahman.filepicker.model.MediaFile
+import java.io.File
+import java.io.FileInputStream
+import java.io.ObjectInputStream
 
 class DeviceControlActivity : AppCompatActivity() {
     private val model by lazy {
@@ -28,6 +33,7 @@ class DeviceControlActivity : AppCompatActivity() {
     }
     private val numberOfFoundBoards by lazy { findViewById<TextView>(R.id.number_of_found_boards_vw) }
     private val connectionsDisplay by lazy { findViewById<RecyclerView>(R.id.connectivity_results) }
+
     private inner class CheckResultViewHolder internal constructor(view: View) : RecyclerView.ViewHolder(view) {
         private val layout: RelativeLayout by lazy { view.findViewById(R.id.single_check_result) }
         private val pinNumber: TextView by lazy { view.findViewById(R.id.pin_description) }
@@ -196,11 +202,6 @@ class DeviceControlActivity : AppCompatActivity() {
                     if (controller_search_progress.visibility == View.VISIBLE) {
                         controller_search_progress.visibility = View.INVISIBLE
                     }
-
-//                    supportActionBar?.setTitle(getString(R.string.ctl_actty_tittle_connected).format(intent.getStringExtra(
-//                        "name")))
-
-                    supportActionBar?.hide()
                 }
 
                 else -> {}
@@ -217,7 +218,7 @@ class DeviceControlActivity : AppCompatActivity() {
             Log.d(Tag, "Command sent: ${getString(R.string.set_pin_cmd)}")
         }
 
-        findViewById<Button>(R.id.ctl_actty_save_results_button).setOnClickListener(){
+        findViewById<Button>(R.id.ctl_actty_save_results_button).setOnClickListener() {
             model.measurementsHandler.storeMeasurementsResultsToFile()
         }
     }

@@ -1,7 +1,10 @@
 package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
 
 import android.app.Application
+import android.content.ContentResolver
 import android.net.Uri
+import android.os.Parcel
+import android.os.ParcelFileDescriptor
 import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.MutableLiveData
@@ -13,11 +16,14 @@ import com.github.scphamster.bluetoothConnectionsTester.BoardCountT
 import com.github.scphamster.bluetoothConnectionsTester.PreferencesFragment
 import com.github.scphamster.bluetoothConnectionsTester.R
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter.Commands
+import com.jaiselrahman.filepicker.model.MediaFile
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
 
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import java.io.FileNotFoundException
+import java.io.FileOutputStream
 
 import java.lang.ref.WeakReference
 
@@ -72,6 +78,7 @@ class MeasurementsHandler : ControllerResponseInterpreter {
         private set
         get
     val boardsManager = IoBoardsManager()
+    var outputFile: MediaFile? = null
 
     init {
         if (BluetoothManager.manager != null) {
@@ -270,7 +277,19 @@ class MeasurementsHandler : ControllerResponseInterpreter {
             return
         }
 
-        val outputStream = context.contentResolver.openOutputStream(Uri.parse(file_storage_uri))
+        val uri = Uri.parse(file_storage_uri)
+        val parcelFileDescriptor: ParcelFileDescriptor?
+        try {
+            parcelFileDescriptor = context.contentResolver.openFileDescriptor(uri, "w")
+        }
+        catch (e: FileNotFoundException) {
+            Log.d(Tag, "File was not found, exception: ${e.message}")
+            return
+        }
+
+//        val outputStream = context.contentResolver.openOutputStream(Uri.parse(file_storage_uri))
+        val outputStream = FileOutputStream(parcelFileDescriptor?.fileDescriptor)
+
         val workbook = XSSFWorkbook()
         val sheet = workbook.createSheet("Measurements")
 

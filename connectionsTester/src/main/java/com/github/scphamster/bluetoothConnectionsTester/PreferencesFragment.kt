@@ -1,13 +1,22 @@
 package com.github.scphamster.bluetoothConnectionsTester
 
+import android.util.Log
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.os.Parcel
+import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.net.toFile
+import androidx.core.net.toUri
 import androidx.preference.*
-import com.github.scphamster.bluetoothConnectionsTester.R
 import com.jaiselrahman.filepicker.activity.FilePickerActivity
 import com.jaiselrahman.filepicker.config.Configurations
 import com.jaiselrahman.filepicker.model.MediaFile
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.io.ObjectOutputStream
 
 class PreferencesFragment : PreferenceFragmentCompat() {
     companion object {
@@ -42,7 +51,6 @@ class PreferencesFragment : PreferenceFragmentCompat() {
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.preferences, rootKey)
         setupOnClickCallbacks()
-
         setupButtonsSummary()
     }
 
@@ -59,6 +67,7 @@ class PreferencesFragment : PreferenceFragmentCompat() {
                     return
                 }
 
+
                 saveFileChoiceToSharedPreferences(PreferenceId.Pinout.text,
                                                   files.get(0),
                                                   SharedPreferenceKey.PinoutConfigFileUri.text,
@@ -71,6 +80,11 @@ class PreferencesFragment : PreferenceFragmentCompat() {
                 if (files.size > 1) {
                     return
                 }
+                val file = File(files.get(0).uri.path)
+                Log.d(Tag, "AbsolutePath: ${file.absolutePath}")
+
+                val fos = FileOutputStream(file)
+                fos.write("Dupa".toByteArray())
 
                 saveFileChoiceToSharedPreferences(PreferenceId.Results.text,
                                                   files.get(0),
@@ -115,6 +129,7 @@ class PreferencesFragment : PreferenceFragmentCompat() {
                                 .setSkipZeroSizeFiles(false)
                                 .build())
             startActivityForResult(intent, IntentResultCode.ChooseWhereToStoreFile.value)
+
 
             true
         }
