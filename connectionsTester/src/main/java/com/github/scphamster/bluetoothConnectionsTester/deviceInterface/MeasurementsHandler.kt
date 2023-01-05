@@ -7,13 +7,10 @@ import android.widget.Toast
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import androidx.preference.PreferenceManager
+import com.github.scphamster.bluetoothConnectionsTester.*
 import com.harrysoft.somedir.BluetoothManager
 import com.harrysoft.somedir.BluetoothSerialDevice
 import com.harrysoft.somedir.SimpleBluetoothDeviceInterface
-import com.github.scphamster.bluetoothConnectionsTester.BoardCountT
-import com.github.scphamster.bluetoothConnectionsTester.DeviceControlViewModel
-import com.github.scphamster.bluetoothConnectionsTester.PreferencesFragment
-import com.github.scphamster.bluetoothConnectionsTester.R
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter.Commands
 import com.jaiselrahman.filepicker.model.MediaFile
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -325,39 +322,12 @@ class MeasurementsHandler : ControllerResponseInterpreter {
             column_counter++
         }
 
-        storeToFile(workbook, Dispatchers.IO)
+        Storage.storeToFile(workbook, Dispatchers.IO, context)
 
         return true
     }
 
-    suspend fun storeToFile(workbook: XSSFWorkbook, dispatcher: CoroutineDispatcher) = withContext(dispatcher) {
-        val file_storage_uri = PreferenceManager
-            .getDefaultSharedPreferences(context)
-            .getString(PreferencesFragment.Companion.SharedPreferenceKey.ResultsFileUri.text, "")
 
-        val file_storage_name = PreferenceManager
-            .getDefaultSharedPreferences(context)
-            .getString(PreferencesFragment.Companion.SharedPreferenceKey.ResultsFileName.text, "")
-
-        if (file_storage_uri == "") {
-            throw Error(
-                "No file for storage selected! Go to settings and set it via: Specify file where to store results")
-        }
-
-        val outputStream: OutputStream? = try {
-            context.contentResolver.openOutputStream(Uri.parse(file_storage_uri))
-        }
-        catch (e: FileNotFoundException) {
-            throw Error("File was not found, ${e.message}")
-        }
-
-        if (outputStream == null) {
-            throw Error("File $file_storage_name not found! Go to settings and set new output file!")
-        }
-
-        workbook.write(outputStream)
-        outputStream.close()
-    }
 
     private fun test_parse() {
         val file_storage_uri = PreferenceManager
