@@ -5,10 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.*
-import android.widget.Button
-import android.widget.ProgressBar
-import android.widget.RelativeLayout
-import android.widget.TextView
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
@@ -141,7 +138,7 @@ class DeviceControlActivity : AppCompatActivity() {
 
 
 
-        setupAllListeners()
+        setupCallbacks()
         Log.d(Tag, "device control created")
     }
 
@@ -175,7 +172,7 @@ class DeviceControlActivity : AppCompatActivity() {
         measurementsView.adapter = adapter
     }
 
-    private fun setupAllListeners() {
+    private fun setupCallbacks() {
         model.measurementsHandler.boardsManager.boards.observe(this) {
             supportActionBar?.setTitle(getString(R.string.ctl_actty_number_of_connected_boards).format(
                 model.measurementsHandler.boardsManager.getBoardsCount()))
@@ -216,11 +213,17 @@ class DeviceControlActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.ctl_actty_save_results_button).setOnClickListener() {
-            model.measurementsHandler.storeMeasurementsResultsToFile()
+            model.storeMeasurementsToFile()
         }
     }
 
     private fun applyPreferences() {
+    }
+
+    private fun toast(msg: String?) {
+        Toast
+            .makeText(this, msg, Toast.LENGTH_LONG)
+            .show()
     }
 
     companion object {

@@ -2,15 +2,16 @@ package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
 
 import android.app.Application
 import android.net.Uri
-import android.os.AsyncTask
 import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.viewModelScope
 import androidx.preference.PreferenceManager
 import com.harrysoft.somedir.BluetoothManager
 import com.harrysoft.somedir.BluetoothSerialDevice
 import com.harrysoft.somedir.SimpleBluetoothDeviceInterface
 import com.github.scphamster.bluetoothConnectionsTester.BoardCountT
+import com.github.scphamster.bluetoothConnectionsTester.DeviceControlViewModel
 import com.github.scphamster.bluetoothConnectionsTester.PreferencesFragment
 import com.github.scphamster.bluetoothConnectionsTester.R
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter.Commands
@@ -18,8 +19,7 @@ import com.jaiselrahman.filepicker.model.MediaFile
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.io.FileNotFoundException
@@ -54,42 +54,6 @@ class MeasurementsHandler : ControllerResponseInterpreter {
     }
 
     private data class Measurements(private var pinId: String = "", private var isConnectedTo: String = "") {}
-    private inner class StoreResultsAsync : AsyncTask<XSSFWorkbook, Void, String>() {
-        @Deprecated("Deprecated in Java")
-        override fun doInBackground(vararg workbooks: XSSFWorkbook?): String {
-            val file_storage_uri = PreferenceManager
-                .getDefaultSharedPreferences(context)
-                .getString(PreferencesFragment.Companion.SharedPreferenceKey.ResultsFileUri.text, "")
-
-            val file_storage_name = PreferenceManager
-                .getDefaultSharedPreferences(context)
-                .getString(PreferencesFragment.Companion.SharedPreferenceKey.ResultsFileName.text, "")
-
-            if (file_storage_uri == "") {
-                return "No file for storage selected! Go to settings and set it via: Specify file where to store results"
-            }
-
-            val outputStream: OutputStream? = try {
-                context.contentResolver.openOutputStream(Uri.parse(file_storage_uri))
-            }
-            catch (e: FileNotFoundException) {
-                Log.d(Tag, "File was not found, exception: ${e.message}")
-                null
-            }
-
-            if (outputStream == null) return "File $file_storage_name not found! Go to settings and set new output file!"
-
-            workbooks.get(0)?.write(outputStream)
-            outputStream.close()
-
-            return "Successfully stored results to file $file_storage_name"
-        }
-
-        @Deprecated("Deprecated in Java")
-        override fun onPostExecute(result: String) {
-            toast(result)
-        }
-    }
 
     companion object {
         //        val Tag = this::class.simpleName.toString()
@@ -115,6 +79,7 @@ class MeasurementsHandler : ControllerResponseInterpreter {
         get
     val boardsManager = IoBoardsManager()
     var outputFile: MediaFile? = null
+    lateinit var parentViewModel: WeakReference<DeviceControlViewModel>
 
     init {
         if (BluetoothManager.manager != null) {
@@ -298,14 +263,13 @@ class MeasurementsHandler : ControllerResponseInterpreter {
         }
     }
 
-    fun storeMeasurementsResultsToFile() {
+    suspend fun storeMeasurementsResultsToFile() : Boolean{
         val groups_of_sorted_pins = boardsManager.getPinsSortedByGroupOrAffinity()
 
         if (groups_of_sorted_pins == null) {
             Log.e(Tag, "sorted pins array is null!")
-            return
+            throw Error("Internal error")
         }
-
 
         val workbook = XSSFWorkbook()
         val sheet = workbook.createSheet("Measurements")
@@ -361,14 +325,39 @@ class MeasurementsHandler : ControllerResponseInterpreter {
             column_counter++
         }
 
-        StoreResultsAsync().execute(workbook)
+        storeToFile(workbook, Dispatchers.IO)
+
+        return true
     }
 
-//    suspend fun storeToFileTest(workbook: XSSFWorkbook) {
-//        return withContext(Dispatchers.IO) {
-//
-//        }
-//    }
+    suspend fun storeToFile(workbook: XSSFWorkbook, dispatcher: CoroutineDispatcher) = withContext(dispatcher) {
+        val file_storage_uri = PreferenceManager
+            .getDefaultSharedPreferences(context)
+            .getString(PreferencesFragment.Companion.SharedPreferenceKey.ResultsFileUri.text, "")
+
+        val file_storage_name = PreferenceManager
+            .getDefaultSharedPreferences(context)
+            .getString(PreferencesFragment.Companion.SharedPreferenceKey.ResultsFileName.text, "")
+
+        if (file_storage_uri == "") {
+            throw Error(
+                "No file for storage selected! Go to settings and set it via: Specify file where to store results")
+        }
+
+        val outputStream: OutputStream? = try {
+            context.contentResolver.openOutputStream(Uri.parse(file_storage_uri))
+        }
+        catch (e: FileNotFoundException) {
+            throw Error("File was not found, ${e.message}")
+        }
+
+        if (outputStream == null) {
+            throw Error("File $file_storage_name not found! Go to settings and set new output file!")
+        }
+
+        workbook.write(outputStream)
+        outputStream.close()
+    }
 
     private fun test_parse() {
         val file_storage_uri = PreferenceManager
