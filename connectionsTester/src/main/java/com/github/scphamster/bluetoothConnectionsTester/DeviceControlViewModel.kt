@@ -53,6 +53,5 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             .makeText(app, msg, Toast.LENGTH_LONG)
             .show()
     }
-
 }
 

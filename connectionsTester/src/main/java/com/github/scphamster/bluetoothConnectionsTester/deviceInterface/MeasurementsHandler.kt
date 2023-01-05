@@ -1,11 +1,12 @@
 package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
 
+import java.lang.ref.WeakReference
+
 import android.app.Application
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.viewModelScope
 import androidx.preference.PreferenceManager
 import com.github.scphamster.bluetoothConnectionsTester.*
 import com.harrysoft.somedir.BluetoothManager
@@ -19,14 +20,10 @@ import io.reactivex.schedulers.Schedulers
 import kotlinx.coroutines.*
 
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
-import java.io.FileNotFoundException
-import java.io.OutputStream
-
-import java.lang.ref.WeakReference
 
 typealias CommandArgsT = Int
 
-class MeasurementsHandler : ControllerResponseInterpreter {
+class MeasurementsHandler {
     enum class ConnectionStatus {
         DISCONNECTED,
         CONNECTING,
@@ -76,6 +73,7 @@ class MeasurementsHandler : ControllerResponseInterpreter {
         get
     val boardsManager = IoBoardsManager()
     var outputFile: MediaFile? = null
+    val responseInterpreter = ControllerResponseInterpreter()
     lateinit var parentViewModel: WeakReference<DeviceControlViewModel>
 
     init {
@@ -119,7 +117,7 @@ class MeasurementsHandler : ControllerResponseInterpreter {
         }
     }
 
-    override fun sendCommand(cmd: Commands.SetVoltageAtPin) {
+    fun sendCommand(cmd: Commands.SetVoltageAtPin) {
         val command: String
         val command_argument: String
 
@@ -230,7 +228,7 @@ class MeasurementsHandler : ControllerResponseInterpreter {
         var msg: String? = message
 
         while (msg != null) {
-            val (controller_msg, rest) = parseAndSplitSingleCommandFromString(msg)
+            val (controller_msg, rest) = responseInterpreter.parseAndSplitSingleCommandFromString(msg)
             if (controller_msg == null) return
 
             msg = rest

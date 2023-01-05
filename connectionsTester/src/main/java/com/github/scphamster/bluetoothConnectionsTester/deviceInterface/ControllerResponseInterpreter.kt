@@ -3,7 +3,7 @@ package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
 import android.util.Log
 
 
-interface ControllerResponseInterpreter {
+class ControllerResponseInterpreter {
     enum class VoltageLevel {
         Low, High
     }
@@ -52,8 +52,6 @@ interface ControllerResponseInterpreter {
         val Tag = "CommandInterpreter"
         const val pinAndAffinityNumbersNum = 2
     }
-
-    abstract fun sendCommand(cmd: Commands.SetVoltageAtPin)
 
     /**
      * @brief Returns interpreted message from controller and remains of that same message string after first
