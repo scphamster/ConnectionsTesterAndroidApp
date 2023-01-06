@@ -9,8 +9,11 @@ import androidx.lifecycle.MutableLiveData
 import com.github.scphamster.bluetoothConnectionsTester.*
 import com.jaiselrahman.filepicker.model.MediaFile
 import kotlinx.coroutines.*
+import org.apache.poi.ss.usermodel.IndexedColors
 
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import java.util.*
+import kotlin.math.max
 
 typealias CommandArgsT = Int
 
@@ -110,9 +113,11 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
         val sheet = workbook.createSheet("Measurements")
         val names_row = sheet.getRow(0) ?: sheet.createRow(0)
 
-
         var column_counter = 0
+
         for (congregation in pins_congregations) {
+            var max_number_of_characters_in_this_column = 0
+
             val cell_with_name_of_congregation =
                 names_row.getCell(column_counter) ?: names_row.createCell(column_counter)
 
@@ -159,12 +164,20 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
                     string_builder.append(", ${connected_pin.descriptor.getPrettyName()}")
                 }
 
+                if (max_number_of_characters_in_this_column < string_builder.length) max_number_of_characters_in_this_column =
+                    string_builder.length
+
                 cell_for_this_pin_connections.setCellValue(string_builder.toString())
                 row_counter++
             }
 
             //todo: add preference to make this action configurable
-            sheet.autoSizeColumn(column_counter)
+//            sheet.setColumnWidth(column_counter, max_number_of_characters_in_this_column)
+            sheet.setColumnWidth(column_counter, 240 * max_number_of_characters_in_this_column)
+//            sheet.setColumnWidth(column_counter, 5000)
+//            val calendar = Calendar.getInstance()
+//            val millis = calendar.time.toString()
+//            Log.d(Tag, "Watermark0: $column_counter ${millis}")
             column_counter++
         }
 
