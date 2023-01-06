@@ -162,7 +162,7 @@ class DeviceControlActivity : AppCompatActivity() {
         model.measurementsHandler.boardsManager.boards.observe(this) {
 //            supportActionBar?.setTitle(getString(R.string.ctl_actty_number_of_connected_boards).format(
 //                model.measurementsHandler.boardsManager.getBoardsCount()))
-//            (measurementsView.adapter as ResultsAdapter).updatePinSet(it)
+            (measurementsView.adapter as ResultsAdapter).updatePinSet(it)
         }
 
         model.measurementsHandler.commander.dataLink.connectionStatus.observe(
