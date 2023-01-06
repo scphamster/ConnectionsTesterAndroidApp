@@ -17,14 +17,14 @@ data class PinGroup(val id: Int, val name: String? = null) {
 }
 data class PinAffinityAndId(val boardId: IoBoardIndexT, val idxOnBoard: PinNumT)
 data class PinDescriptor(val affinityAndId: PinAffinityAndId,
-                         val customIdx: PinNumT? = null,
-                         val name: String? = null,
-                         val group: PinGroup? = null) {
+                         val uniqueIdx: PinNumT? = null,
+                         var name: String? = null,
+                         var group: PinGroup? = null) {
     fun getPrettyName() : String {
         val string_builder = StringBuilder()
 
         if (group!=null) {
-            string_builder.append(group.getPrettyName())
+            string_builder.append(group?.getPrettyName())
         }
         else {
             string_builder.append(affinityAndId.boardId.toString())

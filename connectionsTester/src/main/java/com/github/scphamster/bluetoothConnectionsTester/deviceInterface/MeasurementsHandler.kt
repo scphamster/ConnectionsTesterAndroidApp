@@ -15,7 +15,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook
 
 typealias CommandArgsT = Int
 
-class MeasurementsHandler(bluetoothBridge: BluetoothBridge, private val context: Context) {
+class MeasurementsHandler(errorHandler: ErrorHandler, bluetoothBridge: BluetoothBridge, private val context: Context) {
 
     class IOBoardState {
         var lastSelectedOutputPin: PinNumT = 0
@@ -45,23 +45,25 @@ class MeasurementsHandler(bluetoothBridge: BluetoothBridge, private val context:
     var numberOfConnectedBoards = MutableLiveData<BoardCountT>()
         private set
         get
-    val boardsManager = IoBoardsManager()
+    val boardsManager by lazy { IoBoardsManager(errorHandler) }
     var outputFile: MediaFile? = null
-    val responseInterpreter = ControllerResponseInterpreter()
+    val responseInterpreter by lazy { ControllerResponseInterpreter() }
 
     //new
     val commander = Commander(bluetoothBridge, context)
 
-    init{
+    init {
         responseInterpreter.onConnectionsDescriptionCallback = { new_connections ->
             boardsManager.updatePinConnections(new_connections)
         }
         responseInterpreter.onHardwareDescriptionCallback = { message ->
             boardsManager.updateIOBoards(message.boardsOnLine)
         }
+
+        commander.dataLink.onMessageReceivedCallback = { msg ->
+            responseInterpreter.handleMessage(msg)
+        }
     }
-
-
 
     private fun toast(msg: String) {
         Toast
@@ -90,7 +92,6 @@ class MeasurementsHandler(bluetoothBridge: BluetoothBridge, private val context:
 
         boardsManager.boards.value = new_boards
     }
-
 
     suspend fun storeMeasurementsResultsToFile(): Boolean {
         val groups_of_sorted_pins = boardsManager.getPinsSortedByGroupOrAffinity()

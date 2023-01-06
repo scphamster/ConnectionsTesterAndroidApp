@@ -4,9 +4,8 @@ import androidx.lifecycle.MutableLiveData
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter.ControllerMessage
 import java.lang.ref.WeakReference
 import android.util.Log
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
 
-class IoBoardsManager() {
+class IoBoardsManager(val errorHandler: ErrorHandler) {
     companion object {
         val Tag = "IoBoardsManagerLive"
     }
@@ -38,11 +37,14 @@ class IoBoardsManager() {
             field++
             return id
         }
-    var pinsDescriptorWorkbook: XSSFWorkbook? = null
-        set(value) {
-            field = value
-            fetchPinsInfoFromExcelToPins()
+    private var nextUniquePinId = 0
+        get() {
+            val id = field
+            field++
+            return id
         }
+
+    val pinDescriptionInterpreter by lazy { PinDescriptionInterpreter() }
 
     fun getPinGroups(): Array<PinGroup>? {
         val boards = boards.value
@@ -198,10 +200,11 @@ class IoBoardsManager() {
 
         for (board in boards_id) {
             val new_board = IoBoard(board)
-            val new_pin_group = PinGroup(nextUniqueBoardId)
+            val new_pin_group = PinGroup(board)
 
             for (pin_num in 0..(IoBoard.pinsCountOnSingleBoard - 1)) {
-                val descriptor = PinDescriptor(PinAffinityAndId(board, pin_num), group = new_pin_group)
+                val descriptor =
+                    PinDescriptor(PinAffinityAndId(board, pin_num), group = new_pin_group, uniqueIdx = nextUniquePinId)
 
                 val new_pin = Pin(descriptor, belongsToBoard = WeakReference(new_board))
                 new_board.pins.add(new_pin)
@@ -212,21 +215,46 @@ class IoBoardsManager() {
         }
 
         boards.value = new_boards
+
+        fetchPinsInfoFromExcelToPins()
     }
 
-    private fun fetchPinsInfoFromExcelToPins() {
-        val sheet = pinsDescriptorWorkbook?.getSheetAt(0)
+    fun fetchPinsInfoFromExcelToPins() {
+        val boards = boards.value
+        if (boards == null) return
+        if (boards.isEmpty()) return
 
-        val rows = sheet?.rowIterator()
-        if (rows != null) {
-            while (rows.hasNext()) {
-                val row = rows.next()
-                val cells = row.cellIterator()
-                while (cells.hasNext()) {
-                    val cell = cells.next()
-                    val cellValue = cell.stringCellValue
-                    Log.d(MeasurementsHandler.Tag, cellValue)
+        val pinout_interpretation = try {
+            pinDescriptionInterpreter.getInterpretation()
+        }
+        catch (e: PinDescriptionInterpreter.BadFileSyntaxException) {
+            errorHandler.handleError("Error ${e.message}")
+            return
+        }
+
+        if (pinout_interpretation == null) return
+
+        Log.d(Tag, "Fetching pins from xlsx file")
+        for (group in pinout_interpretation.pinGroups) {
+            val logicPinGroup = PinGroup(nextUniqueGroupId, group.name)
+            Log.d(Tag, "PinGroup.name = ${logicPinGroup.name}")
+
+            Log.d(Tag, " pins properties:")
+            for (pin_mapping in group.pinsMap) {
+                val pin_ref = findPinRefByAffinityAndId(pin_mapping.value)
+                Log.d(Tag,
+                      "  name: ${pin_mapping.key}, affinity: ${pin_mapping.value.boardId}, id: ${pin_mapping.value.idxOnBoard}")
+
+
+                if (pin_ref == null) continue
+                val pin = pin_ref.get()
+                if (pin == null) {
+                    Log.e(Tag, "Pin is null!")
+                    return
                 }
+
+                pin.descriptor.group = logicPinGroup
+                pin.descriptor.name = pin_mapping.key
             }
         }
     }

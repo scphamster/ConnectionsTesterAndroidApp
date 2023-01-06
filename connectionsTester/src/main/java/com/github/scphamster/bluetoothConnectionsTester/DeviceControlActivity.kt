@@ -25,18 +25,7 @@ class DeviceControlActivity : AppCompatActivity() {
         private val foundConnections: TextView by lazy { view.findViewById(R.id.connections) }
 
         fun setup(pin: Pin) {
-            //todo: refactor and optimize
-            if (pin.descriptor.name != null) pinNumber.text = pin.descriptor.name
-            else if (pin.descriptor.customIdx != null) pinNumber.text = pin.descriptor.customIdx.toString()
-            else if (pin.descriptor.group != null) {
-                if (pin.descriptor.group.name != null) pinNumber.text = pin.descriptor.group.name
-                else pinNumber.text =
-                    pin.descriptor.group.id.toString() + ':' + pin.descriptor.affinityAndId.idxOnBoard.toString()
-            }
-            else {
-                pinNumber.text =
-                    pin.descriptor.affinityAndId.boardId.toString() + ':' + pin.descriptor.affinityAndId.idxOnBoard.toString()
-            }
+            pinNumber.text = pin.descriptor.getPrettyName()
 
             if (pin.isConnectedTo.isEmpty()) {
                 foundConnections.text = "Not connected"
@@ -44,7 +33,7 @@ class DeviceControlActivity : AppCompatActivity() {
             else {
                 //todo: use name and other field if available
                 foundConnections.text = pin.isConnectedTo.joinToString(" ") {
-                    it.affinityAndId.boardId.toString() + ':' + it.affinityAndId.idxOnBoard.toString()
+                    it.getPrettyName()
                 }
             }
         }

@@ -1,29 +1,22 @@
 package com.github.scphamster.bluetoothConnectionsTester
 
 import android.app.Application
-import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.BluetoothBridge
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ErrorHandler
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.MeasurementsHandler
-import com.harrysoft.somedir.BluetoothManager
-import com.harrysoft.somedir.SimpleBluetoothDeviceInterface
-import io.reactivex.disposables.CompositeDisposable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
-import java.lang.ref.WeakReference
 
 typealias BoardCountT = Int
 
 class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
     private val errorHandler by lazy { ErrorHandler(app) }
     private val bluetooth by lazy { BluetoothBridge(errorHandler) }
-    val measurementsHandler by lazy { MeasurementsHandler(bluetooth, app) }
+    val measurementsHandler by lazy { MeasurementsHandler(errorHandler, bluetooth, app) }
 
     private var isInitialized: Boolean = false
 
@@ -40,8 +33,9 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
                 }
 
                 try {
-                    measurementsHandler.boardsManager.pinsDescriptorWorkbook = workbook.await()
+                    measurementsHandler.boardsManager.pinDescriptionInterpreter.document = workbook.await()
                     toast("Pinout descriptor found")
+                    measurementsHandler.boardsManager.fetchPinsInfoFromExcelToPins()
                 }
                 catch (e: Throwable) {
                     toast(e.message)

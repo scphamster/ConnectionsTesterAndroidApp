@@ -259,7 +259,7 @@ class ControllerResponseInterpreter {
         }
     }
 
-    private fun handleMessage(message: String) {
+    fun handleMessage(message: String) {
         var msg: String? = message
 
         while (msg != null) {
@@ -278,7 +278,7 @@ class ControllerResponseInterpreter {
             }
 
             is ControllerMessage.HardwareDescription -> {
-                if (::onHardwareDescriptionCallback.isInitialized) onHardwareDescriptionCallback
+                if (::onHardwareDescriptionCallback.isInitialized) onHardwareDescriptionCallback(msg)
             }
 
             else -> {

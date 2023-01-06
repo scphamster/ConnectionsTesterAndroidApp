@@ -4,7 +4,7 @@ import android.content.Context
 import android.widget.Toast
 
 class ErrorHandler(val context: Context) {
-    fun handleError(error_description: String) {
+    fun handleError(error_description: String?) {
         toast(error_description)
     }
 
