@@ -1,11 +1,14 @@
 package com.github.scphamster.bluetoothConnectionsTester
 
 //import android.R
+import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.*
 import android.widget.*
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.appcompat.app.ActionBar
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -15,6 +18,11 @@ import androidx.recyclerview.widget.RecyclerView
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.*
 
 class DeviceControlActivity : AppCompatActivity() {
+    companion object {
+        private val Tag: String = "DeviceControl"
+        private const val SETTINGS_REQUEST_CODE = 1
+    }
+
     private val model by lazy {
         ViewModelProvider(this).get(DeviceControlViewModel::class.java)
     }
@@ -22,7 +30,7 @@ class DeviceControlActivity : AppCompatActivity() {
     private val actionBarText by lazy {
         supportActionBar?.customView?.findViewById<TextView>(R.id.ctl_actty_actionBar_text)
     }
-    private val popup by lazy {
+    private val menu by lazy {
         PopupMenu(this, supportActionBar?.customView?.findViewById(R.id.button_at_custom_action_bar))
     }
 
@@ -141,7 +149,7 @@ class DeviceControlActivity : AppCompatActivity() {
     private fun setupEntryViewState() {
         supportActionBar?.setCustomView(R.layout.ctl_actty_action_bar)
         supportActionBar?.setDisplayOptions(ActionBar.DISPLAY_SHOW_CUSTOM)
-        popup.inflate(R.menu.ctl_actty_popup)
+        menu.inflate(R.menu.ctl_actty_popup)
         actionBarText?.text =
             getString(R.string.ctl_actty_tittle_connecting).format(intent.getStringExtra("name") + "...")
 
@@ -199,11 +207,25 @@ class DeviceControlActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
-        popup.setOnMenuItemClickListener { menuItem ->
+        val preferences_activity =
+            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { answer ->
+                if (answer.resultCode == Activity.RESULT_OK) {
+                    val new_pinout_file_has_been_chosen = answer.data?.getBooleanExtra(
+                        PreferencesFragment.Companion.MessageToInvoker.NewPinoutConfigFileChosen.text,
+                        false)
+
+                    if (new_pinout_file_has_been_chosen != null && new_pinout_file_has_been_chosen) {
+                        model.configuePinoutAccordingToFile()
+                    }
+                }
+            }
+
+        menu.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.ctl_actty_menu_settings_button -> {
-                    val intent = Intent(this, PreferencesActty::class.java)
-                    startActivity(intent)
+
+                    preferences_activity.launch(Intent(this, PreferencesActty::class.java))
+
                     return@setOnMenuItemClickListener true
                 }
 
@@ -218,7 +240,7 @@ class DeviceControlActivity : AppCompatActivity() {
         supportActionBar?.customView
             ?.findViewById<Button>(R.id.button_at_custom_action_bar)
             ?.setOnClickListener {
-                popup.show()
+                menu.show()
             }
 
         findViewById<Button>(R.id.cmd2_button).setOnClickListener() {
@@ -238,9 +260,5 @@ class DeviceControlActivity : AppCompatActivity() {
         Toast
             .makeText(this, msg, Toast.LENGTH_LONG)
             .show()
-    }
-
-    companion object {
-        private val Tag: String = "DeviceControl"
     }
 }

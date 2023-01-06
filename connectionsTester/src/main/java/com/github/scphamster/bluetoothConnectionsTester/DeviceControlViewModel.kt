@@ -26,25 +26,29 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             bluetooth.mac = mac
             bluetooth.connect()
 
-            viewModelScope.launch {
-                val workbook = viewModelScope.async {
-                    Storage.getWorkBookFromFile(app)
-                }
-
-                try {
-                    measurementsHandler.boardsManager.pinDescriptionInterpreter.document = workbook.await()
-                    toast("Pinout descriptor found")
-                    measurementsHandler.boardsManager.fetchPinsInfoFromExcelToPins()
-                }
-                catch (e: Throwable) {
-                    toast(e.message)
-                }
-            }
+            configuePinoutAccordingToFile()
 
 
             isInitialized = true
         }
         return true
+    }
+
+    fun configuePinoutAccordingToFile() {
+        viewModelScope.launch {
+            val workbook = viewModelScope.async {
+                Storage.getWorkBookFromFile(app)
+            }
+
+            try {
+                measurementsHandler.boardsManager.pinDescriptionInterpreter.document = workbook.await()
+                toast("Pinout descriptor found")
+                measurementsHandler.boardsManager.fetchPinsInfoFromExcelToPins()
+            }
+            catch (e: Throwable) {
+                toast(e.message)
+            }
+        }
     }
 
     fun storeMeasurementsToFile() = viewModelScope.launch {

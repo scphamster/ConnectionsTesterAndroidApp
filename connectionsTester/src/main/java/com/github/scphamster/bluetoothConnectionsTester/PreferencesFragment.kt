@@ -1,22 +1,13 @@
 package com.github.scphamster.bluetoothConnectionsTester
 
-import android.util.Log
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.os.Parcel
-import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.net.toFile
-import androidx.core.net.toUri
 import androidx.preference.*
 import com.jaiselrahman.filepicker.activity.FilePickerActivity
 import com.jaiselrahman.filepicker.config.Configurations
 import com.jaiselrahman.filepicker.model.MediaFile
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
-import java.io.ObjectOutputStream
 
 class PreferencesFragment : PreferenceFragmentCompat() {
     companion object {
@@ -25,6 +16,10 @@ class PreferencesFragment : PreferenceFragmentCompat() {
         public enum class IntentResultCode(val value: Int) {
             ChooseConfigsFile(1),
             ChooseWhereToStoreFile(2)
+        }
+
+        public enum class MessageToInvoker(val text: String) {
+            NewPinoutConfigFileChosen("new config file")
         }
 
         public enum class SharedPreferenceKey(val text: String) {
@@ -45,8 +40,18 @@ class PreferencesFragment : PreferenceFragmentCompat() {
         }
     }
 
+    interface IntentToInvokerTransporter {
+        fun setIntent(intent: Intent)
+    }
+
     private val pinout_file_preference by lazy { findPreference<PreferenceScreen>(PreferenceId.Pinout.text) }
     private val where_to_store_results_file by lazy { findPreference<PreferenceScreen>(PreferenceId.Results.text) }
+    private lateinit var intentToInvokerTransporter: IntentToInvokerTransporter
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+
+        intentToInvokerTransporter = context as IntentToInvokerTransporter
+    }
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.preferences, rootKey)
@@ -67,9 +72,10 @@ class PreferencesFragment : PreferenceFragmentCompat() {
                     return
                 }
 
+                intentToInvokerTransporter.setIntent(
+                    Intent().putExtra(MessageToInvoker.NewPinoutConfigFileChosen.text, true))
 
-                saveFileChoiceToSharedPreferences(PreferenceId.Pinout.text,
-                                                  files.get(0),
+                saveFileChoiceToSharedPreferences(PreferenceId.Pinout.text, files.get(0),
                                                   SharedPreferenceKey.PinoutConfigFileUri.text,
                                                   SharedPreferenceKey.PinoutConfigFileName.text)
             }
@@ -81,8 +87,7 @@ class PreferencesFragment : PreferenceFragmentCompat() {
                     return
                 }
 
-                saveFileChoiceToSharedPreferences(PreferenceId.Results.text,
-                                                  files.get(0),
+                saveFileChoiceToSharedPreferences(PreferenceId.Results.text, files.get(0),
                                                   SharedPreferenceKey.ResultsFileUri.text,
                                                   SharedPreferenceKey.ResultsFileName.text)
             }
@@ -92,18 +97,17 @@ class PreferencesFragment : PreferenceFragmentCompat() {
     private fun setupOnClickCallbacks() {
         pinout_file_preference?.setOnPreferenceClickListener {
             val intent = Intent(context, FilePickerActivity::class.java)
-            intent.putExtra(FilePickerActivity.CONFIGS,
-                            Configurations
-                                .Builder()
-                                .setCheckPermission(true)
-                                .setShowImages(false)
-                                .setShowVideos(false)
-                                .setSuffixes(FileExtensions.PinConfig.text)
-                                .setShowFiles(true)
-                                .setSingleChoiceMode(true)
-                                .enableImageCapture(false)
-                                .setSkipZeroSizeFiles(false)
-                                .build())
+            intent.putExtra(FilePickerActivity.CONFIGS, Configurations
+                .Builder()
+                .setCheckPermission(true)
+                .setShowImages(false)
+                .setShowVideos(false)
+                .setSuffixes(FileExtensions.PinConfig.text)
+                .setShowFiles(true)
+                .setSingleChoiceMode(true)
+                .enableImageCapture(false)
+                .setSkipZeroSizeFiles(false)
+                .build())
             startActivityForResult(intent, IntentResultCode.ChooseConfigsFile.value)
 
             true
@@ -111,18 +115,17 @@ class PreferencesFragment : PreferenceFragmentCompat() {
 
         where_to_store_results_file?.setOnPreferenceClickListener {
             val intent = Intent(context, FilePickerActivity::class.java)
-            intent.putExtra(FilePickerActivity.CONFIGS,
-                            Configurations
-                                .Builder()
-                                .setCheckPermission(true)
-                                .setShowImages(false)
-                                .setShowVideos(false)
-                                .setSuffixes(FileExtensions.Results.text)
-                                .setShowFiles(true)
-                                .setSingleChoiceMode(true)
-                                .enableImageCapture(false)
-                                .setSkipZeroSizeFiles(false)
-                                .build())
+            intent.putExtra(FilePickerActivity.CONFIGS, Configurations
+                .Builder()
+                .setCheckPermission(true)
+                .setShowImages(false)
+                .setShowVideos(false)
+                .setSuffixes(FileExtensions.Results.text)
+                .setShowFiles(true)
+                .setSingleChoiceMode(true)
+                .enableImageCapture(false)
+                .setSkipZeroSizeFiles(false)
+                .build())
             startActivityForResult(intent, IntentResultCode.ChooseWhereToStoreFile.value)
 
             true

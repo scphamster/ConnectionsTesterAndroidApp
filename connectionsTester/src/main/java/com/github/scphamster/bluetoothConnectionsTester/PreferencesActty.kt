@@ -1,5 +1,6 @@
 package com.github.scphamster.bluetoothConnectionsTester
 
+import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
@@ -7,7 +8,7 @@ import com.github.scphamster.bluetoothConnectionsTester.R
 
 //import com.opencsv.CSVReader
 
-class PreferencesActty : AppCompatActivity() {
+class PreferencesActty : AppCompatActivity(), PreferencesFragment.IntentToInvokerTransporter {
     companion object {
         private const val FILE_REQUEST_CODE = 1
     }
@@ -22,6 +23,10 @@ class PreferencesActty : AppCompatActivity() {
             .beginTransaction()
             .replace(R.id.pref_actty_container, PreferencesFragment())
             .commit()
+    }
+
+    override fun setIntent(intent: Intent) {
+        setResult(Activity.RESULT_OK, intent)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
