@@ -22,7 +22,6 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
 
     fun setupViewModel(deviceName: String, mac: String?): Boolean {
         if (!isInitialized) {
-
             bluetooth.deviceName = deviceName
             bluetooth.mac = mac
             bluetooth.connect()

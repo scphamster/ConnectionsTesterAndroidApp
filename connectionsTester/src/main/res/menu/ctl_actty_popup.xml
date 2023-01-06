@@ -1,9 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:id="@+id/action_button_1"
-          android:title="Button 1" />
-    <item android:id="@+id/action_button_2"
-          android:title="Button 2" />
-    <item android:id="@+id/action_button_3"
-          android:title="Button 3" />
+    <item
+            android:id="@+id/ctl_actty_menu_settings_button"
+            android:title="Settings"/>
 </menu>

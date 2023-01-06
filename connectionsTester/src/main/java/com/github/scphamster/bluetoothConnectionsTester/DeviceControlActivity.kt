@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.*
 import android.widget.*
+import androidx.appcompat.app.ActionBar
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
@@ -18,6 +19,9 @@ class DeviceControlActivity : AppCompatActivity() {
         ViewModelProvider(this).get(DeviceControlViewModel::class.java)
     }
     private val measurementsView by lazy { findViewById<RecyclerView>(R.id.measurements_results) }
+    private val popup by lazy {
+        PopupMenu(this, supportActionBar?.customView?.findViewById(R.id.button_at_custom_action_bar))
+    }
 
     private inner class CheckResultViewHolder internal constructor(view: View) : RecyclerView.ViewHolder(view) {
         private val layout: RelativeLayout by lazy { view.findViewById(R.id.single_check_result) }
@@ -113,6 +117,12 @@ class DeviceControlActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.ctl_actty_device_controll)
+
+        setupEntryViewState()
+        setupCallbacks()
+        setupObservers()
+        setupClickListeners()
+
         if (!model.setupViewModel(intent.getStringExtra("name")!!, intent.getStringExtra("mac"))) {
             Log.e(Tag, "No arguments obtained in DeviceControlActivity onCreate method!")
 
@@ -120,24 +130,6 @@ class DeviceControlActivity : AppCompatActivity() {
             return
         }
 
-        setupEntryViewState()
-        setupCallbacks()
-        setupObservers()
-        Log.d(Tag, "device control created")
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.ctl_actty_menu, menu)
-        Log.d(Tag, "Menu button created!")
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-
-        val intent = Intent(this, PreferencesActty::class.java)
-        startActivity(intent)
-
-        return super.onOptionsItemSelected(item)
     }
 
     override fun onBackPressed() {
@@ -145,8 +137,12 @@ class DeviceControlActivity : AppCompatActivity() {
     }
 
     private fun setupEntryViewState() {
-        supportActionBar?.setTitle(
-            getString(R.string.ctl_actty_tittle_connecting).format(intent.getStringExtra("name") + "..."))
+//        supportActionBar?.setTitle(
+//            getString(R.string.ctl_actty_tittle_connecting).format(intent.getStringExtra("name") + "..."))
+
+        supportActionBar?.setCustomView(R.layout.ctl_actty_action_bar)
+        supportActionBar?.setDisplayOptions(ActionBar.DISPLAY_SHOW_CUSTOM)
+        popup.inflate(R.menu.ctl_actty_popup)
 
         //todo: use theme instead of manual setup
         window.statusBarColor = ContextCompat.getColor(this@DeviceControlActivity, R.color.ctl_actty_status_bar)
@@ -157,26 +153,16 @@ class DeviceControlActivity : AppCompatActivity() {
     }
 
     private fun setupCallbacks() {
-
         model.measurementsHandler.boardsManager.pinChangeCallback = {
             (measurementsView.adapter as ResultsAdapter).updateSingle(it)
-        }
-
-        findViewById<Button>(R.id.cmd2_button).setOnClickListener() {
-            model.measurementsHandler.commander.sendCommand(ControllerResponseInterpreter.Commands.CheckConnectivity())
-            Log.d(Tag, "Command sent: ${getString(R.string.set_pin_cmd)}")
-        }
-
-        findViewById<Button>(R.id.ctl_actty_save_results_button).setOnClickListener() {
-            model.storeMeasurementsToFile()
         }
     }
 
     private fun setupObservers() {
         model.measurementsHandler.boardsManager.boards.observe(this) {
-            supportActionBar?.setTitle(getString(R.string.ctl_actty_number_of_connected_boards).format(
-                model.measurementsHandler.boardsManager.getBoardsCount()))
-            (measurementsView.adapter as ResultsAdapter).updatePinSet(it)
+//            supportActionBar?.setTitle(getString(R.string.ctl_actty_number_of_connected_boards).format(
+//                model.measurementsHandler.boardsManager.getBoardsCount()))
+//            (measurementsView.adapter as ResultsAdapter).updatePinSet(it)
         }
 
         model.measurementsHandler.commander.dataLink.connectionStatus.observe(
@@ -204,6 +190,39 @@ class DeviceControlActivity : AppCompatActivity() {
                 else -> {}
             }
 
+        }
+    }
+
+    private fun setupClickListeners() {
+        popup.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.ctl_actty_menu_settings_button -> {
+                    val intent = Intent(this, PreferencesActty::class.java)
+                    startActivity(intent)
+                    return@setOnMenuItemClickListener true
+                }
+
+                else -> {
+                    return@setOnMenuItemClickListener true
+                }
+
+            }
+
+        }
+
+        supportActionBar?.customView
+            ?.findViewById<Button>(R.id.button_at_custom_action_bar)
+            ?.setOnClickListener {
+                popup.show()
+            }
+
+        findViewById<Button>(R.id.cmd2_button).setOnClickListener() {
+            model.measurementsHandler.commander.sendCommand(ControllerResponseInterpreter.Commands.CheckConnectivity())
+            Log.d(Tag, "Command sent: ${getString(R.string.set_pin_cmd)}")
+        }
+
+        findViewById<Button>(R.id.ctl_actty_save_results_button).setOnClickListener() {
+            model.storeMeasurementsToFile()
         }
     }
 
