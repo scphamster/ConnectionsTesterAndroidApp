@@ -11,10 +11,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.MeasurementsHandler
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.IoBoard
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.Pin
+import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.*
 
 class DeviceControlActivity : AppCompatActivity() {
     private val model by lazy {
@@ -135,10 +132,8 @@ class DeviceControlActivity : AppCompatActivity() {
         }
 
         setupEntryViewState()
-
-
-
         setupCallbacks()
+        setupObservers()
         Log.d(Tag, "device control created")
     }
 
@@ -173,28 +168,43 @@ class DeviceControlActivity : AppCompatActivity() {
     }
 
     private fun setupCallbacks() {
+
+        model.measurementsHandler.boardsManager.pinChangeCallback = {
+            (measurementsView.adapter as ResultsAdapter).updateSingle(it)
+        }
+
+        findViewById<Button>(R.id.cmd2_button).setOnClickListener() {
+            model.measurementsHandler.commander.sendCommand(ControllerResponseInterpreter.Commands.CheckConnectivity())
+            Log.d(Tag, "Command sent: ${getString(R.string.set_pin_cmd)}")
+        }
+
+        findViewById<Button>(R.id.ctl_actty_save_results_button).setOnClickListener() {
+            model.storeMeasurementsToFile()
+        }
+    }
+
+    private fun setupObservers() {
         model.measurementsHandler.boardsManager.boards.observe(this) {
             supportActionBar?.setTitle(getString(R.string.ctl_actty_number_of_connected_boards).format(
                 model.measurementsHandler.boardsManager.getBoardsCount()))
             (measurementsView.adapter as ResultsAdapter).updatePinSet(it)
         }
 
-        model.measurementsHandler.boardsManager.pinChangeCallback = {
-            (measurementsView.adapter as ResultsAdapter).updateSingle(it)
-        }
-
-        model.measurementsHandler.connectionStatus.observe(
-            this) { connection_status: MeasurementsHandler.ConnectionStatus ->
+        model.measurementsHandler.commander.dataLink.connectionStatus.observe(
+            this) { connection_status: BluetoothBridge.ConnectionStatus ->
             when (connection_status) {
-                MeasurementsHandler.ConnectionStatus.CONNECTED -> {
+                BluetoothBridge.ConnectionStatus.CONNECTED -> {
                     val controller_search_progress = findViewById<ProgressBar>(R.id.searching_for_controller_progbar)
 
                     if (controller_search_progress.visibility == View.VISIBLE) {
                         controller_search_progress.visibility = View.INVISIBLE
                     }
+
+                    model.measurementsHandler.commander.sendCommand(
+                        ControllerResponseInterpreter.Commands.CheckHardware())
                 }
 
-                MeasurementsHandler.ConnectionStatus.CONNECTING -> {
+                BluetoothBridge.ConnectionStatus.CONNECTING -> {
                     val controller_search_progress = findViewById<ProgressBar>(R.id.searching_for_controller_progbar)
 
                     if (controller_search_progress.visibility == View.INVISIBLE) {
@@ -205,15 +215,6 @@ class DeviceControlActivity : AppCompatActivity() {
                 else -> {}
             }
 
-        }
-
-        findViewById<Button>(R.id.cmd2_button).setOnClickListener() {
-            model.measurementsHandler.sendCommand(ControllerResponseInterpreter.Commands.CheckConnectivity())
-            Log.d(Tag, "Command sent: ${getString(R.string.set_pin_cmd)}")
-        }
-
-        findViewById<Button>(R.id.ctl_actty_save_results_button).setOnClickListener() {
-            model.storeMeasurementsToFile()
         }
     }
 

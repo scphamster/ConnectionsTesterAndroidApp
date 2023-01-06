@@ -3,32 +3,19 @@ package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
 import java.lang.ref.WeakReference
 
 import android.app.Application
-import android.net.Uri
+import android.content.Context
 import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.MutableLiveData
-import androidx.preference.PreferenceManager
 import com.github.scphamster.bluetoothConnectionsTester.*
-import com.harrysoft.somedir.BluetoothManager
-import com.harrysoft.somedir.BluetoothSerialDevice
-import com.harrysoft.somedir.SimpleBluetoothDeviceInterface
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter.Commands
 import com.jaiselrahman.filepicker.model.MediaFile
-import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.disposables.CompositeDisposable
-import io.reactivex.schedulers.Schedulers
 import kotlinx.coroutines.*
 
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 
 typealias CommandArgsT = Int
 
-class MeasurementsHandler {
-    enum class ConnectionStatus {
-        DISCONNECTED,
-        CONNECTING,
-        CONNECTED
-    }
+class MeasurementsHandler(bluetoothBridge: BluetoothBridge, private val context: Context) {
 
     class IOBoardState {
         var lastSelectedOutputPin: PinNumT = 0
@@ -55,112 +42,26 @@ class MeasurementsHandler {
         const val unused: Int = -1
     }
 
-    lateinit var context: Application
-    private val compositeDisposable = CompositeDisposable()
-    private var bluetoothManager: BluetoothManager? = null
-    private var deviceInterface: SimpleBluetoothDeviceInterface? = null
-    var mac: String? = null
-    var deviceName: String? = null
-    var deviceNameData = MutableLiveData<String>()
-        private set
-        get
-    private var connectionAttemptedOrMade: Boolean = false
-    var connectionStatus = MutableLiveData<ConnectionStatus>()
-        private set
-        get
     var numberOfConnectedBoards = MutableLiveData<BoardCountT>()
         private set
         get
     val boardsManager = IoBoardsManager()
     var outputFile: MediaFile? = null
     val responseInterpreter = ControllerResponseInterpreter()
-    lateinit var parentViewModel: WeakReference<DeviceControlViewModel>
 
-    init {
-        if (BluetoothManager.manager != null) {
-            bluetoothManager = BluetoothManager.manager
+    //new
+    val commander = Commander(bluetoothBridge, context)
+
+    init{
+        responseInterpreter.onConnectionsDescriptionCallback = { new_connections ->
+            boardsManager.updatePinConnections(new_connections)
         }
-        else {
-            toast(R.string.bluetooth_unavailable.toString())
-        }
-    }
-
-    fun connect() {
-        if (connectionAttemptedOrMade) return
-
-        compositeDisposable.add(bluetoothManager!!
-                                    .openSerialDevice(mac!!)
-                                    .subscribeOn(Schedulers.io())
-                                    .observeOn(AndroidSchedulers.mainThread())
-                                    .subscribe({ device: BluetoothSerialDevice ->
-                                                   onConnected(device.toSimpleDeviceInterface())
-                                               }) { t: Throwable? ->
-                                        toast(R.string.connection_failed.toString())
-                                        connectionAttemptedOrMade = false
-                                        connectionStatus.postValue(ConnectionStatus.DISCONNECTED)
-                                    })
-
-        connectionAttemptedOrMade = true
-        connectionStatus.postValue(ConnectionStatus.CONNECTING)
-    }
-
-    fun disconnect() {
-        // Check we were connected
-        if (connectionAttemptedOrMade && deviceInterface != null) {
-            connectionAttemptedOrMade = false
-            // Use the library to close the connection
-            bluetoothManager!!.closeDevice(deviceInterface!!)
-            // Set it to null so no one tries to use it
-            deviceInterface = null
-            // Tell the activity we are disconnected
-            connectionStatus.postValue(ConnectionStatus.DISCONNECTED)
+        responseInterpreter.onHardwareDescriptionCallback = { message ->
+            boardsManager.updateIOBoards(message.boardsOnLine)
         }
     }
 
-    fun sendCommand(cmd: Commands.SetVoltageAtPin) {
-        val command: String
-        val command_argument: String
 
-        command = context.getString(R.string.set_pin_cmd)
-        command_argument = cmd.pin.toString()
-
-        sendRawCommand(command + " " + command_argument)
-    }
-
-    fun sendCommand(cmd: Commands.SetOutputVoltageLevel) {
-        val command: String
-        val command_argument: String
-
-        command = context.getString(R.string.set_output_voltage)
-        command_argument = cmd.level.toString()
-
-        sendRawCommand(command + " " + command_argument)
-    }
-
-    fun sendCommand(cmd: Commands.CheckConnectivity) {
-        val command: String
-        val command_argument: String
-
-        command = context.getString(R.string.check_cmd)
-
-        if (cmd.pin == ControllerResponseInterpreter.Commands.CheckConnectivity.checkAllConnections) {
-            command_argument = context.getString(R.string.check_all_cmd_special_argument)
-        }
-        else {
-            command_argument = cmd.pin.toString()
-        }
-
-        sendRawCommand(command + " " + command_argument)
-
-        //test
-//        ioBoards.pinsConnections.postValue(mutableListOf(PinConnections(1, mutableListOf(5))))
-//        logAllConnections()
-    }
-
-    fun sendCommand(cmd: Commands.CheckHardware) {
-        //todo: make supervisor to watch for answer to happen, if answer will not be obtained - controller is unhealthy
-        sendRawCommand(context.getString(R.string.get_all_boads_online))
-    }
 
     private fun toast(msg: String) {
         Toast
@@ -169,8 +70,6 @@ class MeasurementsHandler {
     }
 
     private fun boardsInitializer(boards_id: Array<IoBoardIndexT>) {
-//        test_parse()
-
         val new_boards = mutableListOf<IoBoard>()
         var boards_counter = 0
 
@@ -192,73 +91,8 @@ class MeasurementsHandler {
         boardsManager.boards.value = new_boards
     }
 
-    private fun sendRawCommand(cmd: String) {
-        if (cmd.isEmpty()) {
-            Log.e(Tag, "Empty command is not allowed")
-            return
-        }
-        Log.d(Tag, "Sending command: " + cmd)
-        deviceInterface?.sendMessage(cmd)
-        Log.d(Tag, "Command sent")
-    }
 
-    private fun onConnected(bt_interface: SimpleBluetoothDeviceInterface) {
-        deviceInterface = bt_interface
-
-        if (deviceInterface != null) {
-            connectionStatus.postValue(ConnectionStatus.CONNECTED)
-            numberOfConnectedBoards.postValue(100)
-
-
-            deviceInterface?.setListeners({ message: String -> onMessageReceived(message) },
-                                          { Log.d(Tag, "command sent: $it") },
-                                          { error: Throwable -> toast(R.string.message_send_error.toString()) })
-
-            toast(R.string.connected.toString())
-        }
-        else {
-            toast(R.string.connection_failed.toString())
-            connectionStatus.postValue(ConnectionStatus.DISCONNECTED)
-        }
-
-        sendCommand(ControllerResponseInterpreter.Commands.CheckHardware())
-    }
-
-    private fun onMessageReceived(message: String) {
-        var msg: String? = message
-
-        while (msg != null) {
-            val (controller_msg, rest) = responseInterpreter.parseAndSplitSingleCommandFromString(msg)
-            if (controller_msg == null) return
-
-            msg = rest
-            handleControllerMsg(controller_msg)
-        }
-    }
-
-    private fun handleControllerMsg(msg: ControllerResponseInterpreter.ControllerMessage) {
-        when (msg) {
-            is ControllerResponseInterpreter.ControllerMessage.ConnectionsDescription -> {
-                if (boardsManager.boards.value == null) {
-                    Log.e(Tag, "Connections info arrived but boards are not initialized yet!")
-                    return
-                }
-
-                boardsManager.updatePinConnections(msg)
-            }
-
-            is ControllerResponseInterpreter.ControllerMessage.HardwareDescription -> {
-                Log.i(Tag, "Hardware description command arrived");
-                boardsInitializer(msg.boardsOnLine)
-            }
-
-            else -> {
-                return
-            }
-        }
-    }
-
-    suspend fun storeMeasurementsResultsToFile() : Boolean{
+    suspend fun storeMeasurementsResultsToFile(): Boolean {
         val groups_of_sorted_pins = boardsManager.getPinsSortedByGroupOrAffinity()
 
         if (groups_of_sorted_pins == null) {
@@ -323,35 +157,5 @@ class MeasurementsHandler {
         Storage.storeToFile(workbook, Dispatchers.IO, context)
 
         return true
-    }
-
-
-
-    private fun test_parse() {
-        val file_storage_uri = PreferenceManager
-            .getDefaultSharedPreferences(context)
-            .getString(PreferencesFragment.Companion.SharedPreferenceKey.ResultsFileUri.text, "")
-
-        if (file_storage_uri == "") {
-            toast("No file for storage selected! Go to settings and set it via: Specify file where to store results")
-            return
-        }
-
-        val inputStream = context.contentResolver.openInputStream(Uri.parse(file_storage_uri))
-        val workbook = XSSFWorkbook(inputStream)
-        val sheet = workbook.getSheetAt(0)
-
-        val rows = sheet.rowIterator()
-        while (rows.hasNext()) {
-            val row = rows.next()
-            val cells = row.cellIterator()
-            while (cells.hasNext()) {
-                val cell = cells.next()
-                val cellValue = cell.stringCellValue
-                Log.d(Tag, cellValue)
-            }
-        }
-
-        inputStream?.close()
     }
 }

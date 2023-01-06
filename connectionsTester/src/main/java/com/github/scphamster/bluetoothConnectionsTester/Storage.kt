@@ -4,12 +4,13 @@ import android.content.Context
 import android.net.Uri
 import androidx.preference.PreferenceManager
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.io.FileNotFoundException
 import java.io.OutputStream
 
-interface Storage {
+class Storage {
     companion object {
         suspend fun storeToFile(workbook: XSSFWorkbook, dispatcher: CoroutineDispatcher, context: Context) =
             withContext(dispatcher) {
@@ -41,5 +42,24 @@ interface Storage {
                 workbook.write(outputStream)
                 outputStream.close()
             }
+
+        suspend fun getWorkBookFromFile(context: Context): XSSFWorkbook = withContext(Dispatchers.IO){
+            val file_uri = PreferenceManager
+                .getDefaultSharedPreferences(context)
+                .getString(PreferencesFragment.Companion.SharedPreferenceKey.PinoutConfigFileUri.text, "")
+
+            val file_name = PreferenceManager
+                .getDefaultSharedPreferences(context)
+                .getString(PreferencesFragment.Companion.SharedPreferenceKey.PinoutConfigFileName.text, "")
+
+            if (file_uri == "") throw Error("No file for pinout description found!")
+
+            val inputStream = context.contentResolver.openInputStream(Uri.parse(file_uri))
+            val workbook = XSSFWorkbook(inputStream)
+
+            inputStream?.close()
+
+            workbook
+        }
     }
 }

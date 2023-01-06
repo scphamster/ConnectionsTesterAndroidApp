@@ -2,19 +2,24 @@ package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
 
 import android.util.Log
 
-
 class ControllerResponseInterpreter {
     enum class VoltageLevel {
-        Low, High
+        Low,
+        High
     }
 
     enum class Headers(val text: String) {
         //todo: find better way to implement "unknown", empty string will not work btw.
-        Unknown("_"), VoltageLevel("VOL"), PinConnectivity("CONNECT"), HardwareDescription("HW")
+        Unknown("_"),
+        VoltageLevel("VOL"),
+        PinConnectivity("CONNECT"),
+        HardwareDescription("HW")
     }
 
     enum class Keywords(val text: String) {
-        ArgumentsStart("->"), EndOfMessage("END"), ValueAndAffinitySplitter(":")
+        ArgumentsStart("->"),
+        EndOfMessage("END"),
+        ValueAndAffinitySplitter(":")
     }
 
     abstract class Commands {
@@ -22,7 +27,8 @@ class ControllerResponseInterpreter {
         class SetVoltageAtPin(val pin: PinNumT) : AbstractCommand() {}
         class SetOutputVoltageLevel(val level: VoltageLevel) : AbstractCommand() {
             enum class VoltageLevel(lvl: String) {
-                High("high"), Low("low")
+                High("high"),
+                Low("low")
             }
         }
 
@@ -52,6 +58,9 @@ class ControllerResponseInterpreter {
         val Tag = "CommandInterpreter"
         const val pinAndAffinityNumbersNum = 2
     }
+
+    lateinit var onConnectionsDescriptionCallback: ((ControllerMessage.ConnectionsDescription) -> Unit)
+    lateinit var onHardwareDescriptionCallback: ((ControllerMessage.HardwareDescription) -> Unit)
 
     /**
      * @brief Returns interpreted message from controller and remains of that same message string after first
@@ -246,6 +255,34 @@ class ControllerResponseInterpreter {
 
             else -> {
                 return null
+            }
+        }
+    }
+
+    private fun handleMessage(message: String) {
+        var msg: String? = message
+
+        while (msg != null) {
+            val (controller_msg, rest) = parseAndSplitSingleCommandFromString(msg)
+            if (controller_msg == null) return
+
+            msg = rest
+            handleControllerMsg(controller_msg)
+        }
+    }
+
+    private fun handleControllerMsg(msg: ControllerMessage) {
+        when (msg) {
+            is ControllerMessage.ConnectionsDescription -> {
+                if (::onConnectionsDescriptionCallback.isInitialized) onConnectionsDescriptionCallback(msg)
+            }
+
+            is ControllerMessage.HardwareDescription -> {
+                if (::onHardwareDescriptionCallback.isInitialized) onHardwareDescriptionCallback
+            }
+
+            else -> {
+                return
             }
         }
     }

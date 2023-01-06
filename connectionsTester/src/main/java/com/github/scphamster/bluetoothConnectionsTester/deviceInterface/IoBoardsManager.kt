@@ -4,15 +4,14 @@ import androidx.lifecycle.MutableLiveData
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter.ControllerMessage
 import java.lang.ref.WeakReference
 import android.util.Log
+import org.apache.poi.xssf.usermodel.XSSFWorkbook
 
 class IoBoardsManager() {
     companion object {
         val Tag = "IoBoardsManagerLive"
     }
 
-    data class SortedPins(val group: PinGroup? = null,
-                          val affinity: IoBoardIndexT? = null,
-                          val pins: Array<Pin>) {
+    data class SortedPins(val group: PinGroup? = null, val affinity: IoBoardIndexT? = null, val pins: Array<Pin>) {
         fun getGroupName(): String {
             group?.let {
                 return it.getPrettyName()
@@ -38,6 +37,11 @@ class IoBoardsManager() {
             val id = field
             field++
             return id
+        }
+    var pinsDescriptorWorkbook: XSSFWorkbook? = null
+        set(value) {
+            field = value
+            fetchPinsInfoFromExcelToPins()
         }
 
     fun getPinGroups(): Array<PinGroup>? {
@@ -185,5 +189,45 @@ class IoBoardsManager() {
         }
 
         return null
+    }
+
+    //new
+    fun updateIOBoards(boards_id: Array<IoBoardIndexT>) {
+        val new_boards = mutableListOf<IoBoard>()
+        var boards_counter = 0
+
+        for (board in boards_id) {
+            val new_board = IoBoard(board)
+            val new_pin_group = PinGroup(nextUniqueBoardId)
+
+            for (pin_num in 0..(IoBoard.pinsCountOnSingleBoard - 1)) {
+                val descriptor = PinDescriptor(PinAffinityAndId(board, pin_num), group = new_pin_group)
+
+                val new_pin = Pin(descriptor, belongsToBoard = WeakReference(new_board))
+                new_board.pins.add(new_pin)
+            }
+
+            new_boards.add(new_board)
+            boards_counter++
+        }
+
+        boards.value = new_boards
+    }
+
+    private fun fetchPinsInfoFromExcelToPins() {
+        val sheet = pinsDescriptorWorkbook?.getSheetAt(0)
+
+        val rows = sheet?.rowIterator()
+        if (rows != null) {
+            while (rows.hasNext()) {
+                val row = rows.next()
+                val cells = row.cellIterator()
+                while (cells.hasNext()) {
+                    val cell = cells.next()
+                    val cellValue = cell.stringCellValue
+                    Log.d(MeasurementsHandler.Tag, cellValue)
+                }
+            }
+        }
     }
 }
