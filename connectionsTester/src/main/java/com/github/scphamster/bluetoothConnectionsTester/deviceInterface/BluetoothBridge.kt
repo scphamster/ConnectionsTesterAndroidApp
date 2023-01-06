@@ -101,7 +101,7 @@ class BluetoothBridge(val errorHandler: ErrorHandler) {
                                               errorHandler.handleError(R.string.message_send_error.toString())
                                           })
 
-            connectionStatus.postValue(ConnectionStatus.CONNECTED)
+             connectionStatus.postValue(ConnectionStatus.CONNECTED)
 //            toast(R.string.connected.toString())
         }
         else {

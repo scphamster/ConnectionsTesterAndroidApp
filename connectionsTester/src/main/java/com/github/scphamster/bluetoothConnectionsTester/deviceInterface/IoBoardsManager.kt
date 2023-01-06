@@ -194,7 +194,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
     }
 
     //new
-    fun updateIOBoards(boards_id: Array<IoBoardIndexT>) {
+    suspend fun updateIOBoards(boards_id: Array<IoBoardIndexT>) {
         val new_boards = mutableListOf<IoBoard>()
         var boards_counter = 0
 
@@ -219,7 +219,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
         fetchPinsInfoFromExcelToPins()
     }
 
-    fun fetchPinsInfoFromExcelToPins() {
+    suspend fun fetchPinsInfoFromExcelToPins() {
         val boards = boards.value
         if (boards == null) return
         if (boards.isEmpty()) return

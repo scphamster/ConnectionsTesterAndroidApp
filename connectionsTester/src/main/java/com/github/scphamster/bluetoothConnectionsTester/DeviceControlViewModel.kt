@@ -14,11 +14,19 @@ import kotlinx.coroutines.launch
 typealias BoardCountT = Int
 
 class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
-    private val errorHandler by lazy { ErrorHandler(app) }
-    private val bluetooth by lazy { BluetoothBridge(errorHandler) }
-    val measurementsHandler by lazy { MeasurementsHandler(errorHandler, bluetooth, app) }
+    private var isInitialized: Boolean
+    private val errorHandler: ErrorHandler
+    private val bluetooth:BluetoothBridge
+    val measurementsHandler: MeasurementsHandler
+    val shouldCheckHardware: Boolean
+        get() {return measurementsHandler.boardsManager.boards.value?.isEmpty() ?: true}
 
-    private var isInitialized: Boolean = false
+    init{
+        isInitialized = false
+        errorHandler = ErrorHandler(app)
+        bluetooth = BluetoothBridge(errorHandler)
+        measurementsHandler =  MeasurementsHandler(errorHandler, bluetooth, app, viewModelScope)
+    }
 
     fun setupViewModel(deviceName: String, mac: String?): Boolean {
         if (!isInitialized) {

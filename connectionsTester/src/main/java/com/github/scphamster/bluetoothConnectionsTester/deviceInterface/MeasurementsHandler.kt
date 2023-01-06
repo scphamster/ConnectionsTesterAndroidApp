@@ -15,7 +15,10 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook
 
 typealias CommandArgsT = Int
 
-class MeasurementsHandler(errorHandler: ErrorHandler, bluetoothBridge: BluetoothBridge, private val context: Context) {
+class MeasurementsHandler(errorHandler: ErrorHandler,
+                          bluetoothBridge: BluetoothBridge,
+                          private val context: Context,
+                          val coroutineScope: CoroutineScope) {
 
     class IOBoardState {
         var lastSelectedOutputPin: PinNumT = 0
@@ -57,7 +60,9 @@ class MeasurementsHandler(errorHandler: ErrorHandler, bluetoothBridge: Bluetooth
             boardsManager.updatePinConnections(new_connections)
         }
         responseInterpreter.onHardwareDescriptionCallback = { message ->
-            boardsManager.updateIOBoards(message.boardsOnLine)
+            coroutineScope.launch {
+                boardsManager.updateIOBoards(message.boardsOnLine)
+            }
         }
 
         commander.dataLink.onMessageReceivedCallback = { msg ->

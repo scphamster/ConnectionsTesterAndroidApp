@@ -8,7 +8,6 @@ import android.util.Log
 import android.view.*
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.appcompat.app.ActionBar
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -46,7 +45,6 @@ class DeviceControlActivity : AppCompatActivity() {
                 foundConnections.text = "Not connected"
             }
             else {
-                //todo: use name and other field if available
                 foundConnections.text = pin.isConnectedTo.joinToString(" ") {
                     it.getPrettyName()
                 }
@@ -149,7 +147,9 @@ class DeviceControlActivity : AppCompatActivity() {
     private fun setupEntryViewState() {
         supportActionBar?.setCustomView(R.layout.ctl_actty_action_bar)
         supportActionBar?.setDisplayOptions(ActionBar.DISPLAY_SHOW_CUSTOM)
+
         menu.inflate(R.menu.ctl_actty_popup)
+
         actionBarText?.text =
             getString(R.string.ctl_actty_tittle_connecting).format(intent.getStringExtra("name") + "...")
 
@@ -184,8 +184,10 @@ class DeviceControlActivity : AppCompatActivity() {
                         controller_search_progress.visibility = View.INVISIBLE
                     }
 
-                    model.measurementsHandler.commander.sendCommand(
-                        ControllerResponseInterpreter.Commands.CheckHardware())
+                    if (model.shouldCheckHardware) {
+                        model.measurementsHandler.commander.sendCommand(
+                            ControllerResponseInterpreter.Commands.CheckHardware())
+                    }
                 }
 
                 BluetoothBridge.ConnectionStatus.CONNECTING -> {
@@ -251,9 +253,6 @@ class DeviceControlActivity : AppCompatActivity() {
         findViewById<Button>(R.id.ctl_actty_save_results_button).setOnClickListener() {
             model.storeMeasurementsToFile()
         }
-    }
-
-    private fun applyPreferences() {
     }
 
     private fun toast(msg: String?) {
