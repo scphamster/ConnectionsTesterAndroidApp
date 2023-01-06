@@ -19,6 +19,9 @@ class DeviceControlActivity : AppCompatActivity() {
         ViewModelProvider(this).get(DeviceControlViewModel::class.java)
     }
     private val measurementsView by lazy { findViewById<RecyclerView>(R.id.measurements_results) }
+    private val actionBarText by lazy {
+        supportActionBar?.customView?.findViewById<TextView>(R.id.ctl_actty_actionBar_text)
+    }
     private val popup by lazy {
         PopupMenu(this, supportActionBar?.customView?.findViewById(R.id.button_at_custom_action_bar))
     }
@@ -129,7 +132,6 @@ class DeviceControlActivity : AppCompatActivity() {
             finish()
             return
         }
-
     }
 
     override fun onBackPressed() {
@@ -137,12 +139,11 @@ class DeviceControlActivity : AppCompatActivity() {
     }
 
     private fun setupEntryViewState() {
-//        supportActionBar?.setTitle(
-//            getString(R.string.ctl_actty_tittle_connecting).format(intent.getStringExtra("name") + "..."))
-
         supportActionBar?.setCustomView(R.layout.ctl_actty_action_bar)
         supportActionBar?.setDisplayOptions(ActionBar.DISPLAY_SHOW_CUSTOM)
         popup.inflate(R.menu.ctl_actty_popup)
+        actionBarText?.text =
+            getString(R.string.ctl_actty_tittle_connecting).format(intent.getStringExtra("name") + "...")
 
         //todo: use theme instead of manual setup
         window.statusBarColor = ContextCompat.getColor(this@DeviceControlActivity, R.color.ctl_actty_status_bar)
@@ -160,8 +161,8 @@ class DeviceControlActivity : AppCompatActivity() {
 
     private fun setupObservers() {
         model.measurementsHandler.boardsManager.boards.observe(this) {
-//            supportActionBar?.setTitle(getString(R.string.ctl_actty_number_of_connected_boards).format(
-//                model.measurementsHandler.boardsManager.getBoardsCount()))
+            actionBarText?.text = getString(R.string.ctl_actty_number_of_connected_boards).format(
+                model.measurementsHandler.boardsManager.getBoardsCount())
             (measurementsView.adapter as ResultsAdapter).updatePinSet(it)
         }
 
@@ -170,7 +171,7 @@ class DeviceControlActivity : AppCompatActivity() {
             when (connection_status) {
                 BluetoothBridge.ConnectionStatus.CONNECTED -> {
                     val controller_search_progress = findViewById<ProgressBar>(R.id.searching_for_controller_progbar)
-
+                    actionBarText?.text = "Connected"
                     if (controller_search_progress.visibility == View.VISIBLE) {
                         controller_search_progress.visibility = View.INVISIBLE
                     }
@@ -181,10 +182,14 @@ class DeviceControlActivity : AppCompatActivity() {
 
                 BluetoothBridge.ConnectionStatus.CONNECTING -> {
                     val controller_search_progress = findViewById<ProgressBar>(R.id.searching_for_controller_progbar)
-
+                    actionBarText?.text = "Connecting"
                     if (controller_search_progress.visibility == View.INVISIBLE) {
                         controller_search_progress.visibility = View.VISIBLE
                     }
+                }
+
+                BluetoothBridge.ConnectionStatus.DISCONNECTED -> {
+                    actionBarText?.text = "Disconnected!"
                 }
 
                 else -> {}
