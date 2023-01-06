@@ -41,6 +41,13 @@ data class PinDescriptor(val affinityAndId: PinAffinityAndId,
 
         return string_builder.toString()
     }
+    fun clearPinAndGroupNames() {
+        group?.let{
+            group = PinGroup(it.id, null)
+        }
+
+        name = null
+    }
 }
 
 data class Pin(val descriptor: PinDescriptor,

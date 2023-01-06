@@ -198,7 +198,6 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
         return null
     }
 
-    //new
     suspend fun updateIOBoards(boards_id: Array<IoBoardIndexT>) {
         val new_boards = mutableListOf<IoBoard>()
         var boards_counter = 0
@@ -239,16 +238,13 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
 
         if (pinout_interpretation == null) return
 
-        Log.d(Tag, "Fetching pins from xlsx file")
+        cleanAllPinsAndGroupsNaming_silently()
+
         for (group in pinout_interpretation.pinGroups) {
             val logicPinGroup = PinGroup(nextUniqueGroupId, group.name)
-            Log.d(Tag, "PinGroup.name = ${logicPinGroup.name}")
 
-            Log.d(Tag, " pins properties:")
             for (pin_mapping in group.pinsMap) {
                 val pin_ref = findPinRefByAffinityAndId(pin_mapping.value)
-                Log.d(Tag,
-                      "  name: ${pin_mapping.key}, affinity: ${pin_mapping.value.boardId}, id: ${pin_mapping.value.idxOnBoard}")
 
 
                 if (pin_ref == null) continue
@@ -260,6 +256,21 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
 
                 pin.descriptor.group = logicPinGroup
                 pin.descriptor.name = pin_mapping.key
+            }
+        }
+
+        this.boards.value = boards
+    }
+
+    private fun cleanAllPinsAndGroupsNaming_silently() {
+        val boards = boards.value
+        if (boards == null) return
+
+        for (board in boards) {
+            if (board.pins.isEmpty()) continue
+
+            for (pin in board.pins) {
+                pin.descriptor.clearPinAndGroupNames()
             }
         }
     }

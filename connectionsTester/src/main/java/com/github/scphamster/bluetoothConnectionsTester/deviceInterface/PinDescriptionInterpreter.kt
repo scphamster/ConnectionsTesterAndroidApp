@@ -18,18 +18,72 @@ class PinDescriptionInterpreter {
 
     class BadFileSyntaxException(msg: String) : Exception(msg)
     data class Group(val name: String, val pinsMap: Map<String, PinAffinityAndId>)
-    data class Interpretation(val pinGroups: List<Group>)
+    class Interpretation(val pinGroups: List<Group>) {
+//        data class DuplicatesDescription(val numberOfDuplicates: Int)
+
+//        fun checkForDuplicates() {
+//            val used_boards_with_pins = mutableMapOf<Int, MutableList<Int>>()
+//            val used_groups_with_pins = mutableMapOf<String, MutableList<String>>()
+//            var number_of_duplicates = 0
+//            val duplicated_group_names = mutableListOf<String>()
+//
+//
+//            for (pin_group in pinGroups) {
+//                if (used_groups_with_pins.contains(pin_group.name)) {
+//                    number_of_duplicates++
+//
+//                    if (!duplicated_group_names.contains(pin_group.name))
+//                        duplicated_group_names.add(pin_group.name)
+//                }
+//
+//
+//
+//                used_groups_with_pins[pin_group.name] = mutableListOf()
+//            }
+//        }
+
+    }
+
+    private class GroupsManager(val groups: MutableList<Group> = mutableListOf()) {
+        fun addNewGroup(new_group: Group) {
+            for (group in groups) {
+                if (new_group.name == group.name) {
+                    throw Exception("Two or more group names in file: ${group.name}")
+                }
+            }
+
+            for ((pin_name, affinity_and_id) in new_group.pinsMap.entries) {
+                if (checkIfPinAffinityIsNotOccupied(affinity_and_id)) {
+                    throw Exception(
+                        """Duplicate hardware pin usage for 
+                                |pin group: ${new_group.name}, 
+                                |logical pin: ${pin_name}, 
+                                |hw pin: ${affinity_and_id.idxOnBoard}, 
+                                |board: ${affinity_and_id.boardId}""".trimMargin())
+                }
+            }
+        }
+
+        private fun checkIfPinAffinityIsNotOccupied(affinityAndId: PinAffinityAndId): Boolean {
+            for (group in groups) {
+                for ((pin_name, pin_affinity_and_id) in group.pinsMap.entries) {
+                    if (pin_affinity_and_id == affinityAndId) return true
+                }
+            }
+
+            return false
+        }
+    }
 
     var document: XSSFWorkbook? = null
         set(value) {
             field = value
-//            fetchPinsInfoFromExcelToPins()
         }
 
     fun getInterpretation(document: XSSFWorkbook?): Interpretation? {
         if (document == null) return null
 
-        val sheet = document?.getSheetAt(0)
+        val sheet = document.getSheetAt(0)
         if (sheet == null) return null
 
         val cells_with_group_names = findCellsWithGroupHeadersAtSheet(sheet)
@@ -109,7 +163,9 @@ class PinDescriptionInterpreter {
     private fun getSinglePinMappingFromCell(cell: Cell): Pair<String, PinAffinityAndId>? {
         val row_affinity_of_cell = cell.row
 
-        val pin_name = cell.getStringRepresentationOfValue().trim()
+        val pin_name = cell
+            .getStringRepresentationOfValue()
+            .trim()
         if (pin_name.length == 0) return null
 
         val cell_with_board_affinity = row_affinity_of_cell.getCell(cell.columnIndex + 1)
@@ -130,7 +186,9 @@ class PinDescriptionInterpreter {
 
 private fun Cell.getStringRepresentationOfValue(): String {
     if (cellType == CellType.NUMERIC) {
-        return numericCellValue.toInt().toString()
+        return numericCellValue
+            .toInt()
+            .toString()
     }
     else if (cellType == CellType.STRING) {
         return stringCellValue
