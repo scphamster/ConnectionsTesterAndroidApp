@@ -11,13 +11,16 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
     }
 
     data class SortedPins(val group: PinGroup? = null, val affinity: IoBoardIndexT? = null, val pins: Array<Pin>) {
-        fun getGroupName(): String {
+        fun getCongregationName(): String {
             group?.let {
                 return it.getPrettyName()
             }
 
             return affinity.toString()
         }
+
+        val isSortedByGroup: Boolean = group != null
+        val isSortedByAffinity: Boolean = affinity != null
     }
 
     val boards = MutableLiveData<MutableList<IoBoard>>()
@@ -46,7 +49,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
 
     val pinDescriptionInterpreter by lazy { PinDescriptionInterpreter() }
 
-    fun getPinGroups(): Array<PinGroup>? {
+    fun getNamedPinGroups(): Array<PinGroup>? {
         val boards = boards.value
 
         if (boards == null) return null
@@ -58,6 +61,8 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
             if (board.pins.isEmpty()) continue
 
             for (pin in board.pins) {
+                if (pin.descriptor.group?.name == null) continue
+
                 if (!groups.contains(pin.descriptor.group)) {
                     pin.descriptor.group?.let {
                         groups.add(it)
@@ -94,12 +99,12 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
         if (boards == null) return null
         if (boards.isEmpty()) return null
 
-        val groups = getPinGroups()
+        val groups = getNamedPinGroups()
         val pins_sorted_by_group = mutableListOf<SortedPins>()
         groups?.let {
             for (group in it) {
-                val pins_for_this_group = getAllPinsFromGroup(group)
-                pins_for_this_group?.let {
+                val pins_from_this_group = getAllPinsFromGroup(group)
+                pins_from_this_group?.let {
                     val sorted_pins = SortedPins(group, pins = it)
                     pins_sorted_by_group.add(sorted_pins)
                 }
@@ -111,14 +116,14 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
             val pins_without_group = mutableListOf<Pin>()
 
             for (pin in board.pins) {
-                if (pin.descriptor.group != null) continue
+                if (pin.descriptor.group?.name != null) continue
 
                 pins_without_group.add(pin)
             }
 
             if (pins_without_group.isEmpty()) continue
 
-            val sorted_pins = SortedPins(null, board.id, pins_without_group.toTypedArray())
+            val sorted_pins = SortedPins(group = null, affinity = board.id, pins = pins_without_group.toTypedArray())
             pins_sorted_by_affinity.add(sorted_pins)
         }
 
@@ -198,13 +203,13 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
         val new_boards = mutableListOf<IoBoard>()
         var boards_counter = 0
 
-        for (board in boards_id) {
-            val new_board = IoBoard(board)
-            val new_pin_group = PinGroup(board)
+        for (id in boards_id) {
+            val new_board = IoBoard(id)
+            val new_pin_group = PinGroup(id)
 
             for (pin_num in 0..(IoBoard.pinsCountOnSingleBoard - 1)) {
                 val descriptor =
-                    PinDescriptor(PinAffinityAndId(board, pin_num), group = new_pin_group, uniqueIdx = nextUniquePinId)
+                    PinDescriptor(PinAffinityAndId(id, pin_num), group = new_pin_group, uniqueIdx = nextUniquePinId)
 
                 val new_pin = Pin(descriptor, belongsToBoard = WeakReference(new_board))
                 new_board.pins.add(new_pin)

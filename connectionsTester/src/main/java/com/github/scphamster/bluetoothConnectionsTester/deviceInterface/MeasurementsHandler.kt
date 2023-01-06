@@ -2,7 +2,6 @@ package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
 
 import java.lang.ref.WeakReference
 
-import android.app.Application
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
@@ -98,10 +97,11 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
         boardsManager.boards.value = new_boards
     }
 
+    //todo: refactor
     suspend fun storeMeasurementsResultsToFile(): Boolean {
-        val groups_of_sorted_pins = boardsManager.getPinsSortedByGroupOrAffinity()
+        val pins_congregations = boardsManager.getPinsSortedByGroupOrAffinity()
 
-        if (groups_of_sorted_pins == null) {
+        if (pins_congregations == null) {
             Log.e(Tag, "sorted pins array is null!")
             throw Error("Internal error")
         }
@@ -111,12 +111,17 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
         val names_row = sheet.getRow(0) ?: sheet.createRow(0)
 
         var column_counter = 0
-        for (pins_group in groups_of_sorted_pins) {
-            val cell_with_name_of_group = names_row.getCell(column_counter) ?: names_row.createCell(column_counter)
-            cell_with_name_of_group.setCellValue(pins_group.getGroupName())
+        for (congregation in pins_congregations) {
+            val cell_with_name_of_congregation =
+                names_row.getCell(column_counter) ?: names_row.createCell(column_counter)
+
+            val name_of_congregation = if (congregation.isSortedByGroup) "Group: ${congregation.getCongregationName()}"
+            else "BoardId: ${congregation.getCongregationName()}"
+
+            cell_with_name_of_congregation.setCellValue(name_of_congregation)
 
             var row_counter = 1
-            for (pin in pins_group.pins) {
+            for (pin in congregation.pins) {
                 val row_for_this_pin = sheet.getRow(row_counter) ?: sheet.createRow(row_counter)
                 val cell_for_this_pin_connections =
                     row_for_this_pin.getCell(column_counter) ?: row_for_this_pin.createCell(column_counter)
