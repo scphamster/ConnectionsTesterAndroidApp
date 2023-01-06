@@ -48,20 +48,36 @@ class PinDescriptionInterpreter {
         fun addNewGroup(new_group: Group) {
             for (group in groups) {
                 if (new_group.name == group.name) {
-                    throw Exception("Two or more group names in file: ${group.name}")
+                    throw Exception("Duplicate group names found: ${group.name}!")
                 }
             }
 
+            if (groupHasDuplicatedPinAffinities(new_group))
+                throw Exception("Group ${new_group.name} has duplicated pin affinities")
+
             for ((pin_name, affinity_and_id) in new_group.pinsMap.entries) {
                 if (checkIfPinAffinityIsNotOccupied(affinity_and_id)) {
-                    throw Exception(
-                        """Duplicate hardware pin usage for 
+                    throw Exception("""Duplicate hardware pin usage for 
                                 |pin group: ${new_group.name}, 
                                 |logical pin: ${pin_name}, 
                                 |hw pin: ${affinity_and_id.idxOnBoard}, 
                                 |board: ${affinity_and_id.boardId}""".trimMargin())
                 }
             }
+
+            groups.add(new_group)
+        }
+
+        private fun groupHasDuplicatedPinAffinities(group: Group): Boolean {
+            val used_pins = mutableListOf<PinAffinityAndId>()
+
+            for ((pin_name, affinity_and_id) in group.pinsMap.entries) {
+                if (used_pins.contains(affinity_and_id)) return true
+
+                used_pins.add(affinity_and_id)
+            }
+
+            return false
         }
 
         private fun checkIfPinAffinityIsNotOccupied(affinityAndId: PinAffinityAndId): Boolean {
@@ -87,18 +103,22 @@ class PinDescriptionInterpreter {
         if (sheet == null) return null
 
         val cells_with_group_names = findCellsWithGroupHeadersAtSheet(sheet)
-        val groups = mutableListOf<Group>()
+//        val groups = mutableListOf<Group>()
+        val groups_manager = GroupsManager()
 
         if (cells_with_group_names == null) return null
 
         for (cell in cells_with_group_names) {
             val group = getGroupFromSheetAtCell(sheet, cell)
-            if (group != null) groups.add(group)
+            if (group != null)
+//                groups.add(group)
+                groups_manager.addNewGroup(group)
         }
 
-        if (groups.isEmpty()) return null
+//        if (groups.isEmpty()) return null
+        if (groups_manager.groups.isEmpty()) return null
 
-        return Interpretation(groups)
+        return Interpretation(groups_manager.groups)
     }
 
     fun getInterpretation(): Interpretation? {
