@@ -71,7 +71,7 @@ class PinDescriptionInterpreter {
         private fun groupHasDuplicatedPinAffinities(group: Group): Boolean {
             val used_pins = mutableListOf<PinAffinityAndId>()
 
-            for ((pin_name, affinity_and_id) in group.pinsMap.entries) {
+            for ((_, affinity_and_id) in group.pinsMap.entries) {
                 if (used_pins.contains(affinity_and_id)) return true
 
                 used_pins.add(affinity_and_id)
@@ -82,7 +82,7 @@ class PinDescriptionInterpreter {
 
         private fun checkIfPinAffinityIsNotOccupied(affinityAndId: PinAffinityAndId): Boolean {
             for (group in groups) {
-                for ((pin_name, pin_affinity_and_id) in group.pinsMap.entries) {
+                for ((_, pin_affinity_and_id) in group.pinsMap.entries) {
                     if (pin_affinity_and_id == affinityAndId) return true
                 }
             }
@@ -92,15 +92,11 @@ class PinDescriptionInterpreter {
     }
 
     var document: XSSFWorkbook? = null
-        set(value) {
-            field = value
-        }
 
-    fun getInterpretation(document: XSSFWorkbook?): Interpretation? {
+    private fun getInterpretation(document: XSSFWorkbook?): Interpretation? {
         if (document == null) return null
 
-        val sheet = document.getSheetAt(0)
-        if (sheet == null) return null
+        val sheet = document.getSheetAt(0) ?: return null
 
         val cells_with_group_names = findCellsWithGroupHeadersAtSheet(sheet)
 //        val groups = mutableListOf<Group>()
@@ -126,8 +122,7 @@ class PinDescriptionInterpreter {
     }
 
     private fun findCellsWithGroupHeadersAtSheet(sheet: XSSFSheet): Array<Cell>? {
-        val first_row = sheet.getRow(0)
-        if (first_row == null) return null
+        val first_row = sheet.getRow(0) ?: return null
 
         val cell_iterator = first_row.cellIterator()
         if (!cell_iterator.hasNext()) return null
@@ -141,8 +136,8 @@ class PinDescriptionInterpreter {
             }
         }
 
-        if (list_of_cells_with_group_headers.isEmpty()) return null
-        else return list_of_cells_with_group_headers.toTypedArray()
+        return if (list_of_cells_with_group_headers.isEmpty()) null
+        else list_of_cells_with_group_headers.toTypedArray()
     }
 
     private fun getGroupFromSheetAtCell(sheet: XSSFSheet, cell: Cell): Group? {
@@ -155,29 +150,27 @@ class PinDescriptionInterpreter {
         val usable_data_begins_at_row = cell.rowIndex + groupHeaderToActualDataHorizontalIndent
         val usable_data_begins_at_column = cell.columnIndex
 
-        val pins_mappins = mutableMapOf<String, PinAffinityAndId>()
+        val pins_mappings = mutableMapOf<String, PinAffinityAndId>()
 
         for ((row_idx, row) in sheet
             .rowIterator()
             .withIndex()) {
             if (row_idx < usable_data_begins_at_row) continue
 
-            val cell_probably_with_mapping = row.getCell(usable_data_begins_at_column)
-            if (cell_probably_with_mapping == null) continue
-            val mapping = getSinglePinMappingFromCell(cell_probably_with_mapping)
-            if (mapping == null) continue
+            val cell_probably_with_mapping = row.getCell(usable_data_begins_at_column) ?: continue
+            val mapping = getSinglePinMappingFromCell(cell_probably_with_mapping) ?: continue
 
-            if (pins_mappins.contains(mapping.first)) {
+            if (pins_mappings.contains(mapping.first)) {
                 throw (BadFileSyntaxException("Duplicate pin found at: ${
                     CellReference(row_idx, usable_data_begins_at_column)
                 }"))
             }
 
-            pins_mappins[mapping.first] = mapping.second
+            pins_mappings[mapping.first] = mapping.second
         }
 
-        if (pins_mappins.isEmpty()) return null
-        return Group(group_name, pins_mappins.toMap())
+        if (pins_mappings.isEmpty()) return null
+        return Group(group_name, pins_mappings.toMap())
     }
 
     private fun getSinglePinMappingFromCell(cell: Cell): Pair<String, PinAffinityAndId>? {
@@ -186,16 +179,14 @@ class PinDescriptionInterpreter {
         val pin_name = cell
             .getStringRepresentationOfValue()
             .trim()
-        if (pin_name.length == 0) return null
+        if (pin_name.isEmpty()) return null
 
-        val cell_with_board_affinity = row_affinity_of_cell.getCell(cell.columnIndex + 1)
-        if (cell_with_board_affinity == null) return null
+        val cell_with_board_affinity = row_affinity_of_cell.getCell(cell.columnIndex + 1) ?: return null
         val board_affinity = cell_with_board_affinity.numericCellValue.toInt()
 //        if (board_affinity == null) return null
         if (board_affinity > maxBoardIndex || board_affinity < minBoardIndex) return null
 
-        val cell_with_pin_idx_on_board = row_affinity_of_cell.getCell(cell.columnIndex + 2)
-        if (cell_with_pin_idx_on_board == null) return null
+        val cell_with_pin_idx_on_board = row_affinity_of_cell.getCell(cell.columnIndex + 2) ?: return null
         val pin_index_on_board = cell_with_pin_idx_on_board.numericCellValue.toInt()
 //        if (pin_index_on_board == null) return null
         if (pin_index_on_board > maxPinIndexOnBoard || pin_index_on_board < minPinIndexOnBoard) return null
@@ -205,17 +196,19 @@ class PinDescriptionInterpreter {
 }
 
 private fun Cell.getStringRepresentationOfValue(): String {
-    if (cellType == CellType.NUMERIC) {
-        return numericCellValue
-            .toInt()
-            .toString()
-    }
-    else if (cellType == CellType.STRING) {
-        return stringCellValue
-    }
-    else {
-        throw Exception("Group header from cell: ${
-            CellReference(rowIndex, columnIndex)
-        } is not of string nor integer type")
+    return when (cellType) {
+        CellType.NUMERIC -> {
+            numericCellValue
+                .toInt()
+                .toString()
+        }
+        CellType.STRING -> {
+            stringCellValue
+        }
+        else -> {
+            throw Exception("Group header from cell: ${
+                CellReference(rowIndex, columnIndex)
+            } is not of string nor integer type")
+        }
     }
 }

@@ -110,6 +110,7 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
         val sheet = workbook.createSheet("Measurements")
         val names_row = sheet.getRow(0) ?: sheet.createRow(0)
 
+
         var column_counter = 0
         for (congregation in pins_congregations) {
             val cell_with_name_of_congregation =
@@ -162,6 +163,8 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
                 row_counter++
             }
 
+            //todo: add preference to make this action configurable
+            sheet.autoSizeColumn(column_counter)
             column_counter++
         }
 

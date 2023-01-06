@@ -119,7 +119,7 @@ class DeviceControlActivity : AppCompatActivity() {
             notifyItemRangeInserted(0, pins.size - 1)
 
             //test
-            notifyDataSetChanged()
+//            notifyDataSetChanged()
         }
     }
 
@@ -140,9 +140,6 @@ class DeviceControlActivity : AppCompatActivity() {
         }
     }
 
-    override fun onBackPressed() {
-        finish()
-    }
 
     private fun setupEntryViewState() {
         supportActionBar?.setCustomView(R.layout.ctl_actty_action_bar)
@@ -202,7 +199,6 @@ class DeviceControlActivity : AppCompatActivity() {
                     actionBarText?.text = "Disconnected!"
                 }
 
-                else -> {}
             }
 
         }
