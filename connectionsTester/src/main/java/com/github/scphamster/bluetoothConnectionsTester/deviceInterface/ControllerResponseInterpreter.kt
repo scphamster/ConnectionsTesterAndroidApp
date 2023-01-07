@@ -32,9 +32,13 @@ class ControllerResponseInterpreter {
             }
         }
 
-        class CheckConnectivity(val pin: PinNumT = checkAllConnections) : AbstractCommand() {
-            companion object {
-                const val checkAllConnections = -1
+        class CheckConnectivity(val domain: AnswerDomain, val pinAffinityAndId: PinAffinityAndId? = null) {
+            val base = "check"
+
+            enum class AnswerDomain(val text: String) {
+                SimpleConnectionFlag("connections"),
+                Voltage("voltage"),
+                Resistance("resistance")
             }
         }
 

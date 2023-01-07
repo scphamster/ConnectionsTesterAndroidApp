@@ -9,6 +9,9 @@ import androidx.lifecycle.MutableLiveData
 import com.github.scphamster.bluetoothConnectionsTester.*
 import com.jaiselrahman.filepicker.model.MediaFile
 import kotlinx.coroutines.*
+import org.apache.poi.ss.usermodel.FillPatternType
+import org.apache.poi.ss.usermodel.IndexedColors
+import org.apache.poi.xssf.usermodel.XSSFColor
 
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 
@@ -122,6 +125,11 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
             else "BoardId: ${congregation.getCongregationName()}"
 
             cell_with_name_of_congregation.setCellValue(name_of_congregation)
+
+            val new_style = workbook.createCellStyle()
+            new_style.setFillBackgroundColor(IndexedColors.LIGHT_CORNFLOWER_BLUE.index)
+            new_style.setFillPattern(FillPatternType.SQUARES)
+            cell_with_name_of_congregation.cellStyle = (new_style)
 
             var row_counter = 1
             for (pin in congregation.pins) {

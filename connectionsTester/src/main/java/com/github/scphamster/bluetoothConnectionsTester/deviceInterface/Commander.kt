@@ -3,6 +3,7 @@ package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
 import android.content.Context
 import android.util.Log
 import com.github.scphamster.bluetoothConnectionsTester.R
+import org.apache.commons.math3.ml.clustering.KMeansPlusPlusClusterer.EmptyClusterStrategy
 
 class Commander(val dataLink: BluetoothBridge, val context: Context) {
     fun sendCommand(cmd: ControllerResponseInterpreter.Commands.SetVoltageAtPin) {
@@ -27,18 +28,14 @@ class Commander(val dataLink: BluetoothBridge, val context: Context) {
 
     fun sendCommand(cmd: ControllerResponseInterpreter.Commands.CheckConnectivity) {
         val command: String
-        val command_argument: String
-
-        command = context.getString(R.string.check_cmd)
-
-        if (cmd.pin == ControllerResponseInterpreter.Commands.CheckConnectivity.checkAllConnections) {
-            command_argument = context.getString(R.string.check_all_cmd_special_argument)
+        val command_argument = if (cmd.pinAffinityAndId == null) {
+            String()
         }
         else {
-            command_argument = cmd.pin.toString()
+            "${cmd.pinAffinityAndId.boardId}:${cmd.pinAffinityAndId.idxOnBoard}"
         }
-
-        dataLink.sendRawCommand(command + " " + command_argument)
+        val composed_command = (cmd.base + ' ' + cmd.domain.text + ' ' + command_argument).trim()
+        dataLink.sendRawCommand(composed_command)
     }
 
     fun sendCommand(cmd: ControllerResponseInterpreter.Commands.CheckHardware) {

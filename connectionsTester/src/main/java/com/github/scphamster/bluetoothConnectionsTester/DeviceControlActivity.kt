@@ -140,7 +140,6 @@ class DeviceControlActivity : AppCompatActivity() {
         }
     }
 
-
     private fun setupEntryViewState() {
         supportActionBar?.setCustomView(R.layout.ctl_actty_action_bar)
         supportActionBar?.setDisplayOptions(ActionBar.DISPLAY_SHOW_CUSTOM)
@@ -230,9 +229,7 @@ class DeviceControlActivity : AppCompatActivity() {
                 else -> {
                     return@setOnMenuItemClickListener true
                 }
-
             }
-
         }
 
         supportActionBar?.customView
@@ -241,8 +238,9 @@ class DeviceControlActivity : AppCompatActivity() {
                 menu.show()
             }
 
-        findViewById<Button>(R.id.cmd2_button).setOnClickListener() {
-            model.measurementsHandler.commander.sendCommand(ControllerResponseInterpreter.Commands.CheckConnectivity())
+        findViewById<Button>(R.id.check_connections).setOnClickListener() {
+            model.measurementsHandler.commander.sendCommand(ControllerResponseInterpreter.Commands.CheckConnectivity(
+                ControllerResponseInterpreter.Commands.CheckConnectivity.AnswerDomain.SimpleConnectionFlag))
             Log.d(Tag, "Command sent: ${getString(R.string.set_pin_cmd)}")
         }
 

@@ -99,9 +99,6 @@ class PinDescriptionInterpreter {
             Log.d(Tag, "Workbook set, is null? ${doc == null}")
             field = doc
         }
-        get() {
-            return field
-        }
 
     private fun getInterpretation(document: XSSFWorkbook?): Interpretation? {
         if (document == null){
@@ -114,7 +111,6 @@ class PinDescriptionInterpreter {
         val sheet = document.getSheetAt(0) ?: throw BadFileException("document has no sheets!")
 
         val cells_with_group_names = findCellsWithGroupHeadersAtSheet(sheet)
-//        val groups = mutableListOf<Group>()
 
         val groups_manager = GroupsManager()
         if (cells_with_group_names == null) throw BadFileException("No cells with group names found!")
@@ -122,11 +118,9 @@ class PinDescriptionInterpreter {
         for (cell in cells_with_group_names) {
             val group = getGroupFromSheetAtCell(sheet, cell)
             if (group != null)
-//                groups.add(group)
                 groups_manager.addNewGroup(group)
         }
 
-//        if (groups.isEmpty()) return null
         if (groups_manager.groups.isEmpty()) return null
 
         return Interpretation(groups_manager.groups)

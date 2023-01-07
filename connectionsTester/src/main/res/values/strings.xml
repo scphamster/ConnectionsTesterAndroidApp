@@ -38,7 +38,7 @@
 
 
     <string name="set_pin_cmd">set</string>
-    <string name="check_cmd">check</string>
+    <string name="check_cmd">check connections</string>
     <string name="check_all_cmd_special_argument">all</string>
     <string name="set_output_voltage">voltage</string>
     <string name="get_all_boads_online">getboards</string>
