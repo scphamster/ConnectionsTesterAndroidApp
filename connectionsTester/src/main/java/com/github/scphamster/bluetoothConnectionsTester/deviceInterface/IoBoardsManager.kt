@@ -24,6 +24,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
     }
 
     val boards = MutableLiveData<MutableList<IoBoard>>()
+    val pinDescriptionInterpreter: PinDescriptionInterpreter
     private val boardsCount = MutableLiveData<Int>()
     var pinChangeCallback: ((Pin) -> Unit)? = null
     var nextUniqueBoardId = 0
@@ -40,6 +41,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
             field++
             return id
         }
+
     private var nextUniquePinId = 0
         get() {
             val id = field
@@ -47,7 +49,9 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
             return id
         }
 
-    val pinDescriptionInterpreter by lazy { PinDescriptionInterpreter() }
+    init{
+        pinDescriptionInterpreter = PinDescriptionInterpreter()
+    }
 
     fun getNamedPinGroups(): Array<PinGroup>? {
         val boards = boards.value
@@ -228,17 +232,30 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
         if (boards == null) return
         if (boards.isEmpty()) return
 
+        Log.d(Tag, "entering fetch procedure")
+        Log.d(Tag, "checking for null document: Is null? = ${pinDescriptionInterpreter.document == null}")
+
         val pinout_interpretation = try {
             pinDescriptionInterpreter.getInterpretation()
         }
-        catch (e: PinDescriptionInterpreter.BadFileSyntaxException) {
+        catch (e: PinDescriptionInterpreter.BadFileException) {
             errorHandler.handleError("Error ${e.message}")
+            Log.e(Tag, "${e.message}");
             return
         }
+        catch (e: Throwable) {
+            errorHandler.handleError("Unknown error: ${e.message}")
+            Log.e(Tag, "${e.message}");
+            return
+        }
+
+        Log.d(Tag, "checking for null document2: Is null? = ${pinDescriptionInterpreter.document == null}")
+        Log.d(Tag, "Interpretation obtained, is null? : ${pinout_interpretation == null}")
 
         if (pinout_interpretation == null) return
 
         cleanAllPinsAndGroupsNaming_silently()
+        Log.d(Tag, "all pins names and groups names cleared")
 
         for (group in pinout_interpretation.pinGroups) {
             val logicPinGroup = PinGroup(nextUniqueGroupId, group.name)

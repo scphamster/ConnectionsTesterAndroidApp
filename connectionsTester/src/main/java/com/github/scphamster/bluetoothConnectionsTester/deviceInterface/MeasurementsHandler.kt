@@ -9,11 +9,8 @@ import androidx.lifecycle.MutableLiveData
 import com.github.scphamster.bluetoothConnectionsTester.*
 import com.jaiselrahman.filepicker.model.MediaFile
 import kotlinx.coroutines.*
-import org.apache.poi.ss.usermodel.IndexedColors
 
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
-import java.util.*
-import kotlin.math.max
 
 typealias CommandArgsT = Int
 
@@ -181,7 +178,7 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
             column_counter++
         }
 
-        Storage.storeToFile(workbook, Dispatchers.IO, context)
+        Storage.storeToFile(workbook, context)
 
         return true
     }

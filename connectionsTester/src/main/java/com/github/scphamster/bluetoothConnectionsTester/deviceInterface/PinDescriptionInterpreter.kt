@@ -1,5 +1,7 @@
 package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
 
+import android.util.Log
+
 import org.apache.poi.ss.usermodel.Cell
 import org.apache.poi.ss.usermodel.CellType
 import org.apache.poi.ss.util.CellReference
@@ -14,9 +16,10 @@ class PinDescriptionInterpreter {
         private const val maxPinIndexOnBoard = 31
         private const val minPinIndexOnBoard = 0
         private const val groupHeaderToActualDataHorizontalIndent = 2
+        private const val Tag = "PinDecoder"
     }
 
-    class BadFileSyntaxException(msg: String) : Exception(msg)
+    class BadFileException(msg: String) : Exception(msg)
     data class Group(val name: String, val pinsMap: Map<String, PinAffinityAndId>)
     class Interpretation(val pinGroups: List<Group>) {
 //        data class DuplicatesDescription(val numberOfDuplicates: Int)
@@ -92,17 +95,29 @@ class PinDescriptionInterpreter {
     }
 
     var document: XSSFWorkbook? = null
+        set(doc) {
+            Log.d(Tag, "Workbook set, is null? ${doc == null}")
+            field = doc
+        }
+        get() {
+            return field
+        }
 
     private fun getInterpretation(document: XSSFWorkbook?): Interpretation? {
-        if (document == null) return null
+        if (document == null){
+            Log.e(Tag, "Document is NULL")
+            return null
+        }
 
-        val sheet = document.getSheetAt(0) ?: return null
+        Log.d(Tag, "Start of decode...")
+
+        val sheet = document.getSheetAt(0) ?: throw BadFileException("document has no sheets!")
 
         val cells_with_group_names = findCellsWithGroupHeadersAtSheet(sheet)
 //        val groups = mutableListOf<Group>()
-        val groups_manager = GroupsManager()
 
-        if (cells_with_group_names == null) return null
+        val groups_manager = GroupsManager()
+        if (cells_with_group_names == null) throw BadFileException("No cells with group names found!")
 
         for (cell in cells_with_group_names) {
             val group = getGroupFromSheetAtCell(sheet, cell)
@@ -161,7 +176,7 @@ class PinDescriptionInterpreter {
             val mapping = getSinglePinMappingFromCell(cell_probably_with_mapping) ?: continue
 
             if (pins_mappings.contains(mapping.first)) {
-                throw (BadFileSyntaxException("Duplicate pin found at: ${
+                throw (BadFileException("Duplicate pin found at: ${
                     CellReference(row_idx, usable_data_begins_at_column)
                 }"))
             }

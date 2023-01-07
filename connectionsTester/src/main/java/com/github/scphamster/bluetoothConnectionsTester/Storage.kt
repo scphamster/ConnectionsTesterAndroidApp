@@ -3,7 +3,6 @@ package com.github.scphamster.bluetoothConnectionsTester
 import android.content.Context
 import android.net.Uri
 import androidx.preference.PreferenceManager
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
@@ -12,9 +11,8 @@ import java.io.OutputStream
 
 class Storage {
     companion object {
-        suspend fun storeToFile(workbook: XSSFWorkbook, dispatcher: CoroutineDispatcher, context: Context) =
-            withContext(dispatcher) {
-
+        suspend fun storeToFile(workbook: XSSFWorkbook, context: Context) =
+            withContext(Dispatchers.IO) {
                 val file_storage_uri = PreferenceManager
                     .getDefaultSharedPreferences(context)
                     .getString(PreferencesFragment.Companion.SharedPreferenceKey.ResultsFileUri.text, "")

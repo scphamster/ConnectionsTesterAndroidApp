@@ -1,5 +1,7 @@
 package com.github.scphamster.bluetoothConnectionsTester
 
+import android.util.Log
+
 import android.app.Application
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
@@ -14,6 +16,10 @@ import kotlinx.coroutines.launch
 typealias BoardCountT = Int
 
 class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
+    companion object {
+        private const val Tag = "ControlViewModel"
+    }
+
     private var isInitialized: Boolean
     private val errorHandler: ErrorHandler
     private val bluetooth:BluetoothBridge
@@ -49,7 +55,11 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             }
 
             try {
-                measurementsHandler.boardsManager.pinDescriptionInterpreter.document = workbook.await()
+                val workbook_instance = workbook.await()
+                Log.d(Tag, "Workbook obtained, Not null? : ${workbook != null}")
+
+                measurementsHandler.boardsManager.pinDescriptionInterpreter.document = workbook_instance
+
                 toast("Pinout descriptor found")
                 measurementsHandler.boardsManager.fetchPinsInfoFromExcelToPins()
             }
