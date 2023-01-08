@@ -46,12 +46,7 @@ class DeviceControlActivity : AppCompatActivity() {
             }
             else {
                 foundConnections.text = pin.connections.joinToString(" ") {
-                    if (it.resistance != null)
-                        "${it.toPin.getPrettyName()}(R${it.resistance.toString()})"
-                    else if (it.voltage != null)
-                        "${it.toPin.getPrettyName()}(V${it.voltage.toString()})"
-                    else
-                        it.toPin.getPrettyName()
+                    it.toString()
                 }
             }
         }
