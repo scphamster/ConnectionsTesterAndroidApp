@@ -1,6 +1,5 @@
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.*
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.toConnection
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test

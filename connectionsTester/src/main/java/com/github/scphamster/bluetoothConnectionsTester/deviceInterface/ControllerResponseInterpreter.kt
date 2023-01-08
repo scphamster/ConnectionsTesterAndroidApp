@@ -258,22 +258,13 @@ class ControllerResponseInterpreter {
 
         for (value in msg.values) {
 
-            val connection_description = if (msg.header == MessageHeader.PinConnectivityBoolean) {
-                val affinityAndId = value.toAffinityAndId()
-                if (affinityAndId == null) {
-                    Log.e(Tag, "One of pin descriptors is of wrong format!")
-                    return null
-                }
-                Connection(affinity_and_id, null, null)
-            }
-            else if (msg.header == MessageHeader.PinConnectivityVoltage) {
-                value.toConnection(msg.header)
-            }
-            else {
-                value.toConnectionWithResistance()
-            }
+            val connection_description = value.toConnection(msg.header)
 
             connections.add(connection_description)
+
+            val electrical = connection_description.resistance ?: connection_description.voltage
+            Log.d(Tag,
+                  "conn: ${connection_description.toPin.pinAffinityAndId.boardId}:${connection_description.toPin.pinAffinityAndId.idxOnBoard}($electrical)")
         }
 
         return ControllerMessage.ConnectionsDescription(affinity_and_id, connections.toTypedArray())
@@ -384,17 +375,47 @@ fun String.getAllFloats(): List<Float> {
 
     //find only floats (not integers) will reject: 12.345.678
     val regex = "(?<!(\\d{0,100}\\.\\d{0,100}))[-]?\\d+[.]\\d+(?!\\d*\\.\\d*)".toRegex()
-    val floats = regex.findAll(this).map{it.value.toFloat()}.toList()
+    val floats = regex
+        .findAll(this)
+        .map { it.value.toFloat() }
+        .toList()
 
     return floats
 }
 
-fun String.toConnection(header: ControllerResponseInterpreter.MessageHeader): Connection {
-    // matches pattern of connection description with optional circuit parameter in parentheses, example: 37:1(33.4) or 37:1
-    val regex = "\\d+[:]\\d+([(][-]?\\d+[.]?\\d+[)])?".toRegex()
+private fun String.toConnection(header: ControllerResponseInterpreter.MessageHeader): Connection {
+    return when (header) {
+        ControllerResponseInterpreter.MessageHeader.PinConnectivityBoolean -> {
+            val integers = getAllIntegers()
+            Connection(PinAffinityAndId(integers
+                                            .get(0)
+                                            .toInt(), integers
+                                            .get(1)
+                                            .toInt()))
+        }
 
+        ControllerResponseInterpreter.MessageHeader.VoltageLevel -> {
+            val numbers = getAllIntegers() + getAllFloats()
+            Connection(PinAffinityAndId(numbers
+                                            .get(0)
+                                            .toInt(), numbers
+                                            .get(1)
+                                            .toInt()), numbers
+                           .get(2)
+                           .toFloat())
+        }
 
-    return Connection(PinAffinityAndId(1, 1), null, null)
+        ControllerResponseInterpreter.MessageHeader.PinConnectivityResistance -> {
+            val numbers = getAllIntegers() + getAllFloats()
+            Connection(PinAffinityAndId(numbers
+                                            .get(0)
+                                            .toInt(), numbers
+                                            .get(1)
+                                            .toInt()), null, numbers
+                           .get(2)
+                           .toFloat())
+        }
 
-//    return Connection(PinAffinityAndId(board_number, pin_number), voltage, null)
+        else -> throw IllegalArgumentException("header ${header.text} is incompatible")
+    }
 }
