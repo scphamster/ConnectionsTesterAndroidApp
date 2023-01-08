@@ -363,25 +363,38 @@ private fun String.toConnectionWithResistance(): Connection {
     return Connection(PinAffinityAndId(board_number, pin_number), null, resistance)
 }
 
-fun String.getAllIntegers() :List<Number> {
+fun String.getAllIntegers(): List<Number> {
+    //workaround of inability to set arbitrary size in negative lookbehind
     val LOOKBEHIND_QUANTIFIER_UPPER_LIMIT = 100
 
-    val regex = "(?<!(\\d{0,100}\\.\\d{0,100}))\\d+(?!\\d*\\.\\d*)".toRegex()
+    //find only integers, will reject: 123.456
+    val regex = "(?<!(\\d{0,100}\\.\\d{0,100}))[-]?\\d+(?!\\d*\\.\\d*)".toRegex()
 
-    val integers = regex.findAll(this).map{ it.value.toInt() }.toList()
+    val integers = regex
+        .findAll(this)
+        .map { it.value.toInt() }
+        .toList()
 
     return integers
-
 }
 
+fun String.getAllFloats(): List<Float> {
+    //workaround of inability to set arbitrary size in negative lookbehind
+    val LOOKBEHIND_QUANTIFIER_UPPER_LIMIT = 100
+
+    //find only floats (not integers) will reject: 12.345.678
+    val regex = "(?<!(\\d{0,100}\\.\\d{0,100}))[-]?\\d+[.]\\d+(?!\\d*\\.\\d*)".toRegex()
+    val floats = regex.findAll(this).map{it.value.toFloat()}.toList()
+
+    return floats
+}
 
 fun String.toConnection(header: ControllerResponseInterpreter.MessageHeader): Connection {
     // matches pattern of connection description with optional circuit parameter in parentheses, example: 37:1(33.4) or 37:1
     val regex = "\\d+[:]\\d+([(][-]?\\d+[.]?\\d+[)])?".toRegex()
 
 
-    return Connection(PinAffinityAndId(1,1),null,null)
-
+    return Connection(PinAffinityAndId(1, 1), null, null)
 
 //    return Connection(PinAffinityAndId(board_number, pin_number), voltage, null)
 }
