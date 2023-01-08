@@ -7,10 +7,12 @@ import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.BluetoothBridge
+import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ErrorHandler
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.MeasurementsHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 typealias BoardCountT = Int
@@ -22,16 +24,18 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
 
     private var isInitialized: Boolean
     private val errorHandler: ErrorHandler
-    private val bluetooth:BluetoothBridge
+    private val bluetooth: BluetoothBridge
     val measurementsHandler: MeasurementsHandler
-    val shouldCheckHardware: Boolean
-        get() {return measurementsHandler.boardsManager.boards.value?.isEmpty() ?: true}
+    val controllerIsNotConfigured: Boolean
+        get() {
+            return measurementsHandler.boardsManager.boards.value?.isEmpty() ?: true
+        }
 
-    init{
+    init {
         isInitialized = false
         errorHandler = ErrorHandler(app)
         bluetooth = BluetoothBridge(errorHandler)
-        measurementsHandler =  MeasurementsHandler(errorHandler, bluetooth, app, viewModelScope)
+        measurementsHandler = MeasurementsHandler(errorHandler, bluetooth, app, viewModelScope)
     }
 
     fun setupViewModel(deviceName: String, mac: String?): Boolean {
@@ -41,7 +45,6 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             bluetooth.connect()
 
             configuePinoutAccordingToFile()
-
 
             isInitialized = true
         }
@@ -83,6 +86,29 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
         }
         catch (e: Throwable) {
             toast(e.message)
+        }
+    }
+
+    fun reconnectToController() {
+        if (isInitialized) {
+            bluetooth.connect()
+            toast("Reconnecting")
+        }
+        else {
+            toast("Error")
+        }
+    }
+
+    fun initializeHardware() {
+        viewModelScope.launch(Dispatchers.IO) {
+            measurementsHandler.commander.sendCommand(
+                ControllerResponseInterpreter.Commands.CheckHardware())
+
+            delay(1000)
+
+            measurementsHandler.commander.sendCommand(
+                ControllerResponseInterpreter.Commands.SetOutputVoltageLevel(
+                    ControllerResponseInterpreter.Commands.SetOutputVoltageLevel.VoltageLevel.Low))
         }
     }
 

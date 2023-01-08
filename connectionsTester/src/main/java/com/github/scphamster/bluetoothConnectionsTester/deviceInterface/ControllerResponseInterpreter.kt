@@ -351,7 +351,7 @@ private fun String.toConnectionWithResistance(): Connection {
         .get(2)
         .toFloat()
 
-    return Connection(PinAffinityAndId(board_number, pin_number), null, resistance)
+    return Connection(PinAffinityAndId(board_number, pin_number), null, Resistance(resistance))
 }
 
 fun String.getAllIntegers(): List<Number> {
@@ -400,9 +400,7 @@ private fun String.toConnection(header: ControllerResponseInterpreter.MessageHea
                                             .get(0)
                                             .toInt(), numbers
                                             .get(1)
-                                            .toInt()), numbers
-                           .get(2)
-                           .toFloat())
+                                            .toInt()), Voltage(numbers.get(2).toFloat()))
         }
 
         ControllerResponseInterpreter.MessageHeader.PinConnectivityResistance -> {
@@ -411,9 +409,9 @@ private fun String.toConnection(header: ControllerResponseInterpreter.MessageHea
                                             .get(0)
                                             .toInt(), numbers
                                             .get(1)
-                                            .toInt()), null, numbers
+                                            .toInt()), null, Resistance(numbers
                            .get(2)
-                           .toFloat())
+                           .toFloat()))
         }
 
         else -> throw IllegalArgumentException("header ${header.text} is incompatible")

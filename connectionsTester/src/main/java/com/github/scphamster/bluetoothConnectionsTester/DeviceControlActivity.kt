@@ -46,12 +46,7 @@ class DeviceControlActivity : AppCompatActivity() {
             }
             else {
                 foundConnections.text = pin.connections.joinToString(" ") {
-                    if (it.resistance != null)
-                        "${it.toPin.getPrettyName()}(R${it.resistance.toString()})"
-                    else if (it.voltage != null)
-                        "${it.toPin.getPrettyName()}(V${it.voltage.toString()})"
-                    else
-                        it.toPin.getPrettyName()
+                    it.toString()
                 }
             }
         }
@@ -185,9 +180,8 @@ class DeviceControlActivity : AppCompatActivity() {
                         controller_search_progress.visibility = View.INVISIBLE
                     }
 
-                    if (model.shouldCheckHardware) {
-                        model.measurementsHandler.commander.sendCommand(
-                            ControllerResponseInterpreter.Commands.CheckHardware())
+                    if (model.controllerIsNotConfigured) {
+                        model.initializeHardware()
                     }
                 }
 
@@ -201,6 +195,7 @@ class DeviceControlActivity : AppCompatActivity() {
 
                 BluetoothBridge.ConnectionStatus.DISCONNECTED -> {
                     actionBarText?.text = "Disconnected!"
+                    model.reconnectToController()
                 }
 
             }

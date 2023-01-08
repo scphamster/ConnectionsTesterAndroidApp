@@ -146,27 +146,6 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
                 string_builder.append("${pin.descriptor.getPrettyName()} -> ")
 
                 for (connection in pin.connections) {
-                    val descriptor_of_connected_pin = connection.toPin
-
-//                    val _pin = boardsManager.findPinRefByAffinityAndId(descriptor_of_connected_pin.pinAffinityAndId)
-//
-//                    if (_pin == null) {
-//                        Log.e(Tag, """Pin ${descriptor_of_connected_pin.pinAffinityAndId.boardId}:
-//                                  |${descriptor_of_connected_pin.pinAffinityAndId.idxOnBoard}
-//                                  |is not found""".trimMargin())
-//
-//                        continue
-//                    }
-//
-//                    val connected_pin = _pin.get()
-//                    if (connected_pin == null) {
-//                        Log.e(Tag, """Pin ${descriptor_of_connected_pin.pinAffinityAndId.boardId}:
-//                                  |${descriptor_of_connected_pin.pinAffinityAndId.idxOnBoard}
-//                                  |is null!""".trimMargin())
-//
-//                        continue
-//                    }
-
                     val electrical_parameter = if (connection.resistance != null) {
                         "(R${connection.resistance})"
                     }
@@ -175,7 +154,7 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
                     }
                     else ""
 
-                    string_builder.append(connection.toPin.getPrettyName() + electrical_parameter)
+                    string_builder.append(connection.toString() + ' ')
                     Log.d(Tag, string_builder.toString())
                 }
 
