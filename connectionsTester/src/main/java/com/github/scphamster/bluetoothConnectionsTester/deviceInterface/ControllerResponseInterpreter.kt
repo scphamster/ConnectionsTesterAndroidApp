@@ -1,6 +1,7 @@
 package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
 
 import android.util.Log
+import org.apache.commons.math3.util.IntegerSequence
 
 class ControllerResponseInterpreter {
     enum class VoltageLevel {
@@ -8,11 +9,13 @@ class ControllerResponseInterpreter {
         High
     }
 
-    enum class Headers(val text: String) {
+    enum class MessageHeader(val text: String) {
         //todo: find better way to implement "unknown", empty string will not work btw.
         Unknown("_"),
         VoltageLevel("VOL"),
-        PinConnectivity("CONNECT"),
+        PinConnectivityBoolean("CONNECT"),
+        PinConnectivityResistance("RESISTANCES"),
+        PinConnectivityVoltage("VOLTAGES"),
         HardwareDescription("HW")
     }
 
@@ -37,8 +40,8 @@ class ControllerResponseInterpreter {
 
             enum class AnswerDomain(val text: String) {
                 SimpleConnectionFlag("connections"),
-                Voltage("voltage"),
-                Resistance("resistance")
+                Voltage("voltages"),
+                Resistance("resistances")
             }
         }
 
@@ -46,13 +49,14 @@ class ControllerResponseInterpreter {
     }
 
     sealed class ControllerMessage {
-        class ConnectionsDescription(val ofPin: PinAffinityAndId, val connections: Array<Connection>) : ControllerMessage()
+        class ConnectionsDescription(val ofPin: PinAffinityAndId, val connections: Array<Connection>) :
+            ControllerMessage()
 
         class SelectedVoltageLevel(val level: VoltageLevel) : ControllerMessage()
         class HardwareDescription(val boardsOnLine: Array<IoBoardIndexT>) : ControllerMessage()
     }
 
-    private data class StructuredAnswer(var header: Headers,
+    private data class StructuredAnswer(var header: MessageHeader,
                                         var argument: String = "",
                                         var values: Array<String> = arrayOf<String>(),
                                         var msgIsHealthy: Boolean = false)
@@ -110,9 +114,9 @@ class ControllerResponseInterpreter {
     private fun makeMsgStructured(msg: String): StructuredAnswer {
         // -1 if not found
         var index_of_first_keyword = Int.MAX_VALUE
-        val structuredAnswer = StructuredAnswer(Headers.Unknown)
+        val structuredAnswer = StructuredAnswer(MessageHeader.Unknown)
 
-        for (header in Headers.values()) {
+        for (header in MessageHeader.values()) {
             val header_position = msg.indexOf(header.text)
 
             if (header_position == -1) continue
@@ -223,9 +227,11 @@ class ControllerResponseInterpreter {
 
     private fun parseStructuredMsg(msg: StructuredAnswer): ControllerMessage? {
         when (msg.header) {
-            Headers.PinConnectivity -> return parseConnectivityMsg(msg)
+            MessageHeader.PinConnectivityBoolean -> return parseConnectivityMsg(msg)
+            MessageHeader.PinConnectivityVoltage -> return parseConnectivityMsg(msg)
+            MessageHeader.PinConnectivityResistance -> return parseConnectivityMsg(msg)
 
-            Headers.HardwareDescription -> {
+            MessageHeader.HardwareDescription -> {
                 val boards_addresses = mutableListOf<IoBoardIndexT>()
 
                 for (address_text in msg.values) {
@@ -251,14 +257,23 @@ class ControllerResponseInterpreter {
         val connections = mutableListOf<Connection>()
 
         for (value in msg.values) {
-            val affinity_and_id_of_connected_pin = value.toAffinityAndId()
 
-            if (affinity_and_id_of_connected_pin == null) {
-                Log.e(Tag, "One of pin descriptors is of wrong format!")
-                return null
+            val connection_description = if (msg.header == MessageHeader.PinConnectivityBoolean) {
+                val affinityAndId = value.toAffinityAndId()
+                if (affinityAndId == null) {
+                    Log.e(Tag, "One of pin descriptors is of wrong format!")
+                    return null
+                }
+                Connection(affinity_and_id, null, null)
+            }
+            else if (msg.header == MessageHeader.PinConnectivityVoltage) {
+                value.toConnection(msg.header)
+            }
+            else {
+                value.toConnectionWithResistance()
             }
 
-            connections.add(Connection(affinity_and_id))
+            connections.add(connection_description)
         }
 
         return ControllerMessage.ConnectionsDescription(affinity_and_id, connections.toTypedArray())
@@ -293,21 +308,22 @@ class ControllerResponseInterpreter {
     }
 }
 
+//todo: implement through regex
 private fun String.toAffinityAndId(): PinAffinityAndId? {
     val clean_str = this.trim()
 
-    val pin_and_affinity_text = clean_str.split(ControllerResponseInterpreter.Keywords.ValueAndAffinitySplitter.text)
+    val numbers_as_text_list = clean_str.split(ControllerResponseInterpreter.Keywords.ValueAndAffinitySplitter.text)
 
 
-    if (pin_and_affinity_text.size > ControllerResponseInterpreter.pinAndAffinityNumbersNum) {
+    if (numbers_as_text_list.size > ControllerResponseInterpreter.pinAndAffinityNumbersNum) {
         Log.e(ControllerResponseInterpreter.Tag,
-              """PinDescriptor format error: Number of Numbers: ${pin_and_affinity_text.size}, 
+              """PinDescriptor format error: Number of Numbers: ${numbers_as_text_list.size}, 
                 |when required size is ${ControllerResponseInterpreter.pinAndAffinityNumbersNum}""".trimMargin())
 
         return null
     }
 
-    val affinity = pin_and_affinity_text
+    val affinity = numbers_as_text_list
         .get(0)
         .toIntOrNull()
     if (affinity == null) {
@@ -315,7 +331,7 @@ private fun String.toAffinityAndId(): PinAffinityAndId? {
         return null
     }
 
-    val pin_number = pin_and_affinity_text
+    val pin_number = numbers_as_text_list
         .get(1)
         .toIntOrNull()
     if (pin_number == null) {
@@ -324,4 +340,48 @@ private fun String.toAffinityAndId(): PinAffinityAndId? {
     }
 
     return PinAffinityAndId(affinity, pin_number)
+}
+
+private fun String.toConnectionWithResistance(): Connection {
+    val regex = "\\d[.]?\\d+".toRegex()
+
+    val numbers_as_text = regex
+        .findAll(this)
+        .map { it.value }
+        .toList()
+
+    val board_number = numbers_as_text
+        .get(0)
+        .toInt()
+    val pin_number = numbers_as_text
+        .get(1)
+        .toInt()
+    val resistance = numbers_as_text
+        .get(2)
+        .toFloat()
+
+    return Connection(PinAffinityAndId(board_number, pin_number), null, resistance)
+}
+
+fun String.getAllIntegers() :List<Number> {
+    val LOOKBEHIND_QUANTIFIER_UPPER_LIMIT = 100
+
+    val regex = "(?<!(\\d{0,100}\\.\\d{0,100}))\\d+(?!\\d*\\.\\d*)".toRegex()
+
+    val integers = regex.findAll(this).map{ it.value.toInt() }.toList()
+
+    return integers
+
+}
+
+
+fun String.toConnection(header: ControllerResponseInterpreter.MessageHeader): Connection {
+    // matches pattern of connection description with optional circuit parameter in parentheses, example: 37:1(33.4) or 37:1
+    val regex = "\\d+[:]\\d+([(][-]?\\d+[.]?\\d+[)])?".toRegex()
+
+
+    return Connection(PinAffinityAndId(1,1),null,null)
+
+
+//    return Connection(PinAffinityAndId(board_number, pin_number), voltage, null)
 }

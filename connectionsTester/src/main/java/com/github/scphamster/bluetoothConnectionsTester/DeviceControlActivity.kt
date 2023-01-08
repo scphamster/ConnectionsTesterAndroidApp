@@ -245,7 +245,7 @@ class DeviceControlActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.check_connections).setOnClickListener() {
             model.measurementsHandler.commander.sendCommand(ControllerResponseInterpreter.Commands.CheckConnectivity(
-                ControllerResponseInterpreter.Commands.CheckConnectivity.AnswerDomain.SimpleConnectionFlag))
+                ControllerResponseInterpreter.Commands.CheckConnectivity.AnswerDomain.Resistance))
             Log.d(Tag, "Command sent: ${getString(R.string.set_pin_cmd)}")
         }
 
