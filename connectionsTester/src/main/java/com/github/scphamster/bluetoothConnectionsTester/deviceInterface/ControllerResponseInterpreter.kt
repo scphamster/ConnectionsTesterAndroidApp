@@ -46,8 +46,7 @@ class ControllerResponseInterpreter {
     }
 
     sealed class ControllerMessage {
-        class ConnectionsDescription(val testedPin: PinAffinityAndId, val connectedTo: Array<PinAffinityAndId>) :
-            ControllerMessage()
+        class ConnectionsDescription(val ofPin: PinAffinityAndId, val connections: Array<Connection>) : ControllerMessage()
 
         class SelectedVoltageLevel(val level: VoltageLevel) : ControllerMessage()
         class HardwareDescription(val boardsOnLine: Array<IoBoardIndexT>) : ControllerMessage()
@@ -177,7 +176,7 @@ class ControllerResponseInterpreter {
         .split("\\s+".toRegex())
         .toMutableList()
 
-    private fun stringToPinDescriptor(str: String): PinAffinityAndId? {
+    private fun stringToPinAffinityAndId(str: String): PinAffinityAndId? {
         val clean_str = str.trim()
 
         val pin_and_affinity_text = clean_str.split(Keywords.ValueAndAffinitySplitter.text)
@@ -224,25 +223,7 @@ class ControllerResponseInterpreter {
 
     private fun parseStructuredMsg(msg: StructuredAnswer): ControllerMessage? {
         when (msg.header) {
-            Headers.PinConnectivity -> {
-                val described_pin_descriptor = stringToPinDescriptor(msg.argument)
-                if (described_pin_descriptor == null) return null
-
-                val connections = mutableListOf<PinAffinityAndId>()
-
-                for (value in msg.values) {
-                    val pin_descriptor = stringToPinDescriptor(value)
-
-                    if (pin_descriptor == null) {
-                        Log.e(Tag, "One of pin descriptors is of wrong format!")
-                        return null
-                    }
-
-                    connections.add(pin_descriptor)
-                }
-
-                return ControllerMessage.ConnectionsDescription(described_pin_descriptor, connections.toTypedArray())
-            }
+            Headers.PinConnectivity -> return parseConnectivityMsg(msg)
 
             Headers.HardwareDescription -> {
                 val boards_addresses = mutableListOf<IoBoardIndexT>()
@@ -261,6 +242,26 @@ class ControllerResponseInterpreter {
                 return null
             }
         }
+    }
+
+    private fun parseConnectivityMsg(msg: StructuredAnswer): ControllerMessage? {
+        val affinity_and_id = msg.argument.toAffinityAndId()
+        if (affinity_and_id == null) return null
+
+        val connections = mutableListOf<Connection>()
+
+        for (value in msg.values) {
+            val affinity_and_id_of_connected_pin = value.toAffinityAndId()
+
+            if (affinity_and_id_of_connected_pin == null) {
+                Log.e(Tag, "One of pin descriptors is of wrong format!")
+                return null
+            }
+
+            connections.add(Connection(affinity_and_id))
+        }
+
+        return ControllerMessage.ConnectionsDescription(affinity_and_id, connections.toTypedArray())
     }
 
     fun handleMessage(message: String) {
@@ -292,3 +293,35 @@ class ControllerResponseInterpreter {
     }
 }
 
+private fun String.toAffinityAndId(): PinAffinityAndId? {
+    val clean_str = this.trim()
+
+    val pin_and_affinity_text = clean_str.split(ControllerResponseInterpreter.Keywords.ValueAndAffinitySplitter.text)
+
+
+    if (pin_and_affinity_text.size > ControllerResponseInterpreter.pinAndAffinityNumbersNum) {
+        Log.e(ControllerResponseInterpreter.Tag,
+              """PinDescriptor format error: Number of Numbers: ${pin_and_affinity_text.size}, 
+                |when required size is ${ControllerResponseInterpreter.pinAndAffinityNumbersNum}""".trimMargin())
+
+        return null
+    }
+
+    val affinity = pin_and_affinity_text
+        .get(0)
+        .toIntOrNull()
+    if (affinity == null) {
+        Log.e(ControllerResponseInterpreter.Tag, "Pin descriptor first value is not an integer!")
+        return null
+    }
+
+    val pin_number = pin_and_affinity_text
+        .get(1)
+        .toIntOrNull()
+    if (pin_number == null) {
+        Log.e(ControllerResponseInterpreter.Tag, "Pin descriptor second argument is not an integer!")
+        return null
+    }
+
+    return PinAffinityAndId(affinity, pin_number)
+}

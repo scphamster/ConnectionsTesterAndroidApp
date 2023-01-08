@@ -41,12 +41,17 @@ class DeviceControlActivity : AppCompatActivity() {
         fun setup(pin: Pin) {
             pinNumber.text = pin.descriptor.getPrettyName()
 
-            if (pin.isConnectedTo.isEmpty()) {
+            if (pin.connections.isEmpty()) {
                 foundConnections.text = "Not connected"
             }
             else {
-                foundConnections.text = pin.isConnectedTo.joinToString(" ") {
-                    it.getPrettyName()
+                foundConnections.text = pin.connections.joinToString(" ") {
+                    if (it.resistance != null)
+                        it.toPin.getPrettyName() + it.resistance.toString()
+                    else if (it.voltage != null)
+                        it.toPin.getPrettyName() + it.voltage.toString()
+                    else
+                        it.toPin.getPrettyName()
                 }
             }
         }
@@ -77,7 +82,7 @@ class DeviceControlActivity : AppCompatActivity() {
             var counter = 0
             for (pin in pins) {
                 if (pin.descriptor.affinityAndId == pin_to_update.descriptor.affinityAndId) {
-                    pin.isConnectedTo = pin_to_update.isConnectedTo
+                    pin.connections = pin_to_update.connections
                     notifyItemChanged(counter)
                     return
                 }

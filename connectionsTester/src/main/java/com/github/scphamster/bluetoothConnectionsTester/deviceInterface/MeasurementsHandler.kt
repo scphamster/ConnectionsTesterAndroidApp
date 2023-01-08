@@ -11,7 +11,6 @@ import com.jaiselrahman.filepicker.model.MediaFile
 import kotlinx.coroutines.*
 import org.apache.poi.ss.usermodel.FillPatternType
 import org.apache.poi.ss.usermodel.IndexedColors
-import org.apache.poi.xssf.usermodel.XSSFColor
 
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 
@@ -137,7 +136,7 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
                 val cell_for_this_pin_connections =
                     row_for_this_pin.getCell(column_counter) ?: row_for_this_pin.createCell(column_counter)
 
-                if (pin.isConnectedTo.isEmpty()) {
+                if (pin.connections.isEmpty()) {
                     cell_for_this_pin_connections.setCellValue("${pin.descriptor.getPrettyName()} -> NC")
                     row_counter++
                     continue
@@ -146,12 +145,14 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
                 val string_builder = StringBuilder()
                 string_builder.append("${pin.descriptor.getPrettyName()} -> ")
 
-                for (descriptor_of_connected_pin in pin.isConnectedTo) {
-                    val _pin = boardsManager.findPinRefByAffinityAndId(descriptor_of_connected_pin.affinityAndId)
+                for (connection in pin.connections) {
+                    val descriptor_of_connected_pin = connection.toPin
+
+                    val _pin = boardsManager.findPinRefByAffinityAndId(descriptor_of_connected_pin.pinAffinityAndId)
 
                     if (_pin == null) {
-                        Log.e(Tag, """Pin ${descriptor_of_connected_pin.affinityAndId.boardId}:
-                                  |${descriptor_of_connected_pin.affinityAndId.idxOnBoard} 
+                        Log.e(Tag, """Pin ${descriptor_of_connected_pin.pinAffinityAndId.boardId}:
+                                  |${descriptor_of_connected_pin.pinAffinityAndId.idxOnBoard} 
                                   |is not found""".trimMargin())
 
                         continue
@@ -159,8 +160,8 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
 
                     val connected_pin = _pin.get()
                     if (connected_pin == null) {
-                        Log.e(Tag, """Pin ${descriptor_of_connected_pin.affinityAndId.boardId}:
-                                  |${descriptor_of_connected_pin.affinityAndId.idxOnBoard} 
+                        Log.e(Tag, """Pin ${descriptor_of_connected_pin.pinAffinityAndId.boardId}:
+                                  |${descriptor_of_connected_pin.pinAffinityAndId.idxOnBoard} 
                                   |is null!""".trimMargin())
 
                         continue

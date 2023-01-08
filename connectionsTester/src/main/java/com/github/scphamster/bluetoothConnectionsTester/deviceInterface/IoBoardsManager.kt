@@ -135,23 +135,25 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
         return pins_sorted_by_group.toTypedArray()
     }
 
-    fun updatePinConnections(connections: ControllerMessage.ConnectionsDescription) {
-        val updated_pin = findPinRefByAffinityAndId(connections.testedPin)
+    fun updatePinConnections(connections_description: ControllerMessage.ConnectionsDescription) {
+        val updated_pin = findPinRefByAffinityAndId(connections_description.ofPin)
 
         if (updated_pin == null) {
             Log.e(Tag,
-                  "Pin with descriptor: ${connections.testedPin.boardId}:${connections.testedPin.idxOnBoard} is not found!")
+                  "Pin with descriptor: ${connections_description.ofPin.boardId}:${connections_description.ofPin.idxOnBoard} is not found!")
 
             return
         }
 
-        val descriptors_of_connected_pins = mutableListOf<PinDescriptor>()
+        val new_connections = mutableListOf<Connection>()
 
-        for (affinity_and_id_of_pin in connections.connectedTo) {
-            val pin = findPinRefByAffinityAndId(affinity_and_id_of_pin)
+        for (connection in connections_description.connections) {
+            val affinity_and_id = connection.toPin.pinAffinityAndId
+
+            val pin = findPinRefByAffinityAndId(affinity_and_id)
 
             if (pin == null) {
-                Log.e(Tag, "Pin not found! ${affinity_and_id_of_pin.boardId}:${affinity_and_id_of_pin.idxOnBoard}")
+                Log.e(Tag, "Pin not found! ${affinity_and_id.boardId}:${affinity_and_id.idxOnBoard}")
 
                 return
             }
@@ -161,11 +163,12 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
                 return
             }
 
-            descriptors_of_connected_pins.add(descriptor)
-            Log.i(Tag, "Searched pin Found! ${affinity_and_id_of_pin.boardId}:${affinity_and_id_of_pin.idxOnBoard}")
+            new_connections.add(Connection(descriptor, connection.voltage, connection.resistance))
+            Log.i(Tag, "Searched pin Found! ${affinity_and_id.boardId}:${affinity_and_id.idxOnBoard}")
         }
 
-        updated_pin.get()?.isConnectedTo = descriptors_of_connected_pins
+
+        updated_pin.get()?.connections = new_connections
 
         val pin = updated_pin.get()
         if (pin == null) {
