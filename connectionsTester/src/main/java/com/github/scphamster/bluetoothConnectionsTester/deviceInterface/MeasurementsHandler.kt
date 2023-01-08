@@ -148,26 +148,35 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
                 for (connection in pin.connections) {
                     val descriptor_of_connected_pin = connection.toPin
 
-                    val _pin = boardsManager.findPinRefByAffinityAndId(descriptor_of_connected_pin.pinAffinityAndId)
+//                    val _pin = boardsManager.findPinRefByAffinityAndId(descriptor_of_connected_pin.pinAffinityAndId)
+//
+//                    if (_pin == null) {
+//                        Log.e(Tag, """Pin ${descriptor_of_connected_pin.pinAffinityAndId.boardId}:
+//                                  |${descriptor_of_connected_pin.pinAffinityAndId.idxOnBoard}
+//                                  |is not found""".trimMargin())
+//
+//                        continue
+//                    }
+//
+//                    val connected_pin = _pin.get()
+//                    if (connected_pin == null) {
+//                        Log.e(Tag, """Pin ${descriptor_of_connected_pin.pinAffinityAndId.boardId}:
+//                                  |${descriptor_of_connected_pin.pinAffinityAndId.idxOnBoard}
+//                                  |is null!""".trimMargin())
+//
+//                        continue
+//                    }
 
-                    if (_pin == null) {
-                        Log.e(Tag, """Pin ${descriptor_of_connected_pin.pinAffinityAndId.boardId}:
-                                  |${descriptor_of_connected_pin.pinAffinityAndId.idxOnBoard} 
-                                  |is not found""".trimMargin())
-
-                        continue
+                    val electrical_parameter = if (connection.resistance != null) {
+                        "(R${connection.resistance})"
                     }
-
-                    val connected_pin = _pin.get()
-                    if (connected_pin == null) {
-                        Log.e(Tag, """Pin ${descriptor_of_connected_pin.pinAffinityAndId.boardId}:
-                                  |${descriptor_of_connected_pin.pinAffinityAndId.idxOnBoard} 
-                                  |is null!""".trimMargin())
-
-                        continue
+                    else if (connection.voltage != null) {
+                        "(V${connection.voltage})"
                     }
+                    else ""
 
-                    string_builder.append(", ${connected_pin.descriptor.getPrettyName()}")
+                    string_builder.append(connection.toPin.getPrettyName() + electrical_parameter)
+                    Log.d(Tag, string_builder.toString())
                 }
 
                 if (max_number_of_characters_in_this_column < string_builder.length) max_number_of_characters_in_this_column =
