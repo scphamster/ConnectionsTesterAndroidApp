@@ -9,8 +9,10 @@ import androidx.lifecycle.MutableLiveData
 import com.github.scphamster.bluetoothConnectionsTester.*
 import com.jaiselrahman.filepicker.model.MediaFile
 import kotlinx.coroutines.*
+import org.apache.poi.ss.formula.functions.Index
 import org.apache.poi.ss.usermodel.FillPatternType
 import org.apache.poi.ss.usermodel.IndexedColors
+import org.apache.poi.xssf.usermodel.XSSFRichTextString
 
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 
@@ -121,7 +123,7 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
                 names_row.getCell(column_counter) ?: names_row.createCell(column_counter)
 
             val name_of_congregation = if (congregation.isSortedByGroup) "Group: ${congregation.getCongregationName()}"
-            else "BoardId: ${congregation.getCongregationName()}"
+            else "Board Id: ${congregation.getCongregationName()}"
 
             cell_with_name_of_congregation.setCellValue(name_of_congregation)
 
@@ -130,66 +132,51 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
             new_style.setFillPattern(FillPatternType.SQUARES)
             cell_with_name_of_congregation.cellStyle = (new_style)
 
-            var row_counter = 1
-            for (pin in congregation.pins) {
+            val font_normal = workbook.createFont()
+            val font_difference_found = workbook.createFont()
+            font_difference_found.setColor(IndexedColors.ORANGE.index)
+            for ((row_counter, pin) in congregation.pins.withIndex()) {
                 val row_for_this_pin = sheet.getRow(row_counter) ?: sheet.createRow(row_counter)
                 val cell_for_this_pin_connections =
                     row_for_this_pin.getCell(column_counter) ?: row_for_this_pin.createCell(column_counter)
 
                 if (pin.connections.isEmpty()) {
                     cell_for_this_pin_connections.setCellValue("${pin.descriptor.getPrettyName()} -> NC")
-                    row_counter++
                     continue
                 }
 
                 val string_builder = StringBuilder()
                 string_builder.append("${pin.descriptor.getPrettyName()} -> ")
+                val rich_text = XSSFRichTextString("${pin.descriptor.getPrettyName()} -> ")
+                rich_text.applyFont(font_normal)
 
                 var connections_differ_from_previous_run = false
-
                 for (connection in pin.connections) {
-                    val electrical_parameter = if (connection.resistance != null) {
-                        "(R${connection.resistance})"
-                    }
-                    else if (connection.voltage != null) {
-                        "(V${connection.voltage})"
-                    }
-                    else ""
-
+                    //do not print if resistance is higher than max resistance (user defined)
                     val connection_as_string = if (connection.resistance != null) {
-                        if (connection.resistance.value < maximumResistance) connection.toString()
+                        if (connection.resistance.value < maximumResistance) connection.toString() + ' '
                         else ""
                     }
                     else connection.toString()
 
-                    if (connection.differs_from_previous) connections_differ_from_previous_run = true
+                    if (connection.differs_from_previous) {
+                        rich_text.append(connection_as_string, font_difference_found)
+                    }
+                    else {
+                        rich_text.append(connection_as_string, font_normal)
+                    }
 
-                    string_builder.append(connection_as_string + ' ')
-                    Log.d(Tag, string_builder.toString())
+                    string_builder.append(connection_as_string)
                 }
 
                 if (max_number_of_characters_in_this_column < string_builder.length) max_number_of_characters_in_this_column =
                     string_builder.length
 
-                cell_for_this_pin_connections.setCellValue(string_builder.toString())
-
-                if (connections_differ_from_previous_run) {
-                    val style = workbook.createCellStyle()
-                    style.setFillForegroundColor(IndexedColors.YELLOW.index)
-                    style.setFillPattern(FillPatternType.SOLID_FOREGROUND)
-                    cell_for_this_pin_connections.cellStyle = style
-                }
-
-                row_counter++
+                cell_for_this_pin_connections.setCellValue(rich_text)
             }
 
             //todo: add preference to make this action configurable
-//            sheet.setColumnWidth(column_counter, max_number_of_characters_in_this_column)
             sheet.setColumnWidth(column_counter, 240 * max_number_of_characters_in_this_column)
-//            sheet.setColumnWidth(column_counter, 5000)
-//            val calendar = Calendar.getInstance()
-//            val millis = calendar.time.toString()
-//            Log.d(Tag, "Watermark0: $column_counter ${millis}")
             column_counter++
         }
 
