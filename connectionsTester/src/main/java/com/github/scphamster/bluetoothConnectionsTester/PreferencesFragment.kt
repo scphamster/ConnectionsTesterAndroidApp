@@ -8,6 +8,7 @@ import androidx.preference.*
 import com.jaiselrahman.filepicker.activity.FilePickerActivity
 import com.jaiselrahman.filepicker.config.Configurations
 import com.jaiselrahman.filepicker.model.MediaFile
+import kotlin.math.max
 
 class PreferencesFragment : PreferenceFragmentCompat() {
     companion object {
@@ -26,7 +27,8 @@ class PreferencesFragment : PreferenceFragmentCompat() {
             PinoutConfigFileUri("pref_pinout_config_file_uri"),
             PinoutConfigFileName("pref_pinout_config_file_name"),
             ResultsFileUri("pref_results_file_uri"),
-            ResultsFileName("pref_results_file_name")
+            ResultsFileName("pref_results_file_name"),
+            MaximumResistance("maximum_resistance_as_connection")
         }
 
         private enum class FileExtensions(val text: String) {
@@ -36,26 +38,31 @@ class PreferencesFragment : PreferenceFragmentCompat() {
 
         private enum class PreferenceId(val text: String) {
             Pinout("pref_pinout_descriptor"),
-            Results("pref_results_file")
+            Results("pref_results_file"),
+            MaximumResistance("maximum_resistance_as_connection")
         }
     }
 
-    interface IntentToInvokerTransporter {
+    interface DataBridgeToActivity {
         fun setIntent(intent: Intent)
     }
 
-    private val pinout_file_preference by lazy { findPreference<PreferenceScreen>(PreferenceId.Pinout.text) }
-    private val where_to_store_results_file by lazy { findPreference<PreferenceScreen>(PreferenceId.Results.text) }
-    private lateinit var intentToInvokerTransporter: IntentToInvokerTransporter
+    private val pinoutFilePreference by lazy { findPreference<PreferenceScreen>(PreferenceId.Pinout.text) }
+    private val whereToStoreResultsFile by lazy { findPreference<PreferenceScreen>(PreferenceId.Results.text) }
+    private val maximumResistanceAsConnection by lazy {
+        findPreference<EditTextPreference>(PreferenceId.MaximumResistance.text)
+    }
+    private lateinit var dataBridgeToActivity: DataBridgeToActivity
     override fun onAttach(context: Context) {
         super.onAttach(context)
 
-        intentToInvokerTransporter = context as IntentToInvokerTransporter
+        dataBridgeToActivity = context as DataBridgeToActivity
     }
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.preferences, rootKey)
         setupOnClickCallbacks()
+        setupCallbacks()
         setupButtonsSummary()
     }
 
@@ -72,7 +79,7 @@ class PreferencesFragment : PreferenceFragmentCompat() {
                     return
                 }
 
-                intentToInvokerTransporter.setIntent(
+                dataBridgeToActivity.setIntent(
                     Intent().putExtra(MessageToInvoker.NewPinoutConfigFileChosen.text, true))
 
                 saveFileChoiceToSharedPreferences(PreferenceId.Pinout.text, files.get(0),
@@ -94,8 +101,17 @@ class PreferencesFragment : PreferenceFragmentCompat() {
         }
     }
 
+    private fun setupMaximumResistanceSummary(new_summary: String) {
+        if (new_summary == "") {
+            maximumResistanceAsConnection?.summary = "Not set"
+        }
+        else {
+            maximumResistanceAsConnection?.summary = new_summary
+        }
+    }
+
     private fun setupOnClickCallbacks() {
-        pinout_file_preference?.setOnPreferenceClickListener {
+        pinoutFilePreference?.setOnPreferenceClickListener {
             val intent = Intent(context, FilePickerActivity::class.java)
             intent.putExtra(FilePickerActivity.CONFIGS, Configurations
                 .Builder()
@@ -113,7 +129,7 @@ class PreferencesFragment : PreferenceFragmentCompat() {
             true
         }
 
-        where_to_store_results_file?.setOnPreferenceClickListener {
+        whereToStoreResultsFile?.setOnPreferenceClickListener {
             val intent = Intent(context, FilePickerActivity::class.java)
             intent.putExtra(FilePickerActivity.CONFIGS, Configurations
                 .Builder()
@@ -131,7 +147,13 @@ class PreferencesFragment : PreferenceFragmentCompat() {
             true
         }
     }
-
+    private fun setupCallbacks() {
+        maximumResistanceAsConnection?.setOnPreferenceChangeListener { preference, newValue ->
+            val max_resistance_as_text = newValue.toString()
+            setupMaximumResistanceSummary(max_resistance_as_text)
+            true
+        }
+    }
     private fun setupButtonsSummary() {
         context?.let {
             val pref_manager = PreferenceManager.getDefaultSharedPreferences(it)
@@ -139,20 +161,26 @@ class PreferencesFragment : PreferenceFragmentCompat() {
             val name_of_config_file = pref_manager.getString(SharedPreferenceKey.PinoutConfigFileName.text, "")
             val config_file_uri = pref_manager.getString(SharedPreferenceKey.PinoutConfigFileUri.text, "")
             if (name_of_config_file == "" || config_file_uri == "") {
-                pinout_file_preference?.summary = getString(R.string.pref_pinout_filename_defaultval).toString()
+                pinoutFilePreference?.summary = getString(R.string.pref_pinout_filename_defaultval).toString()
             }
             else {
-                pinout_file_preference?.summary = name_of_config_file.toString()
+                pinoutFilePreference?.summary = name_of_config_file.toString()
             }
 
             val name_of_where_to_store_file = pref_manager.getString(SharedPreferenceKey.ResultsFileName.text, "")
             val where_to_store_file_uri = pref_manager.getString(SharedPreferenceKey.ResultsFileUri.text, "")
             if (name_of_where_to_store_file == "" || where_to_store_file_uri == "") {
-                where_to_store_results_file?.summary = getString(R.string.pref_pinout_filename_defaultval).toString()
+                whereToStoreResultsFile?.summary = getString(R.string.pref_pinout_filename_defaultval).toString()
             }
             else {
-                where_to_store_results_file?.summary = name_of_where_to_store_file.toString()
+                whereToStoreResultsFile?.summary = name_of_where_to_store_file.toString()
             }
+
+            val max_resistance_as_text = pref_manager.getString(PreferenceId.MaximumResistance.text, "")
+            max_resistance_as_text?.let {
+                setupMaximumResistanceSummary(it)
+            }
+
         }
     }
 

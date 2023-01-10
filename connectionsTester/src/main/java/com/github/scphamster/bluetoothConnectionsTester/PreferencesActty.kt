@@ -4,11 +4,10 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import com.github.scphamster.bluetoothConnectionsTester.R
 
 //import com.opencsv.CSVReader
 
-class PreferencesActty : AppCompatActivity(), PreferencesFragment.IntentToInvokerTransporter {
+class PreferencesActty : AppCompatActivity(), PreferencesFragment.DataBridgeToActivity {
     companion object {
         private const val FILE_REQUEST_CODE = 1
     }

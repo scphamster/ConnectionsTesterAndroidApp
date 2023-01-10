@@ -1,11 +1,8 @@
 package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
 
 import java.lang.ref.WeakReference
-import java.lang.Math.getExponent
 import kotlin.math.ln
-import kotlin.math.roundToInt
 import kotlin.math.floor
-import java.text.DecimalFormat
 
 typealias IoBoardIndexT = Int
 typealias PinNumT = Int
@@ -24,11 +21,24 @@ data class PinGroup(val id: Int, val name: String? = null) {
     }
 }
 
+fun getMultiplierFromString(text: String): Double {
+    return when (text) {
+        "p" -> 1e-12
+        "n" -> 1e-9
+        "u" -> 1e-6
+        "m" -> 1e-3
+        "k" -> 1e3
+        "M" -> 1e6
+        "G" -> 1e9
+        else -> 1.0
+    }
+}
+
 interface ElectricalValue {
     val value: CircuitParamT
     val precision: Int
     fun toValueWithMultiplier(): String {
-        val exponent = floor((ln(value)/ln(10.0))).toInt()
+        val exponent = floor((ln(value) / ln(10.0))).toInt()
         val multiplier_and_equalizer = when (exponent) {
             in -15..-13 -> "f" to 1e15
             in -12..-10 -> "p" to 1e12
@@ -52,7 +62,7 @@ interface ElectricalValue {
 //        val value_as_text = decimal_format.format(value * multiplier_and_equalizer.second)
         val value_as_text = String.format(format_pattern, value * multiplier_and_equalizer.second)
 
-        return  "$value_as_text${multiplier_and_equalizer.first}"
+        return "$value_as_text${multiplier_and_equalizer.first}"
     }
 
     override fun toString(): String
@@ -65,6 +75,7 @@ class Resistance(override val value: CircuitParamT, override val precision: Int 
         return "${toValueWithMultiplier()}$sign"
     }
 }
+
 class Voltage(override val value: CircuitParamT, override val precision: Int = 2) : ElectricalValue {
     override fun toString(): String {
         return "${toValueWithMultiplier()}V"
@@ -88,7 +99,10 @@ data class PinAffinityAndId(val boardId: IoBoardIndexT, val idxOnBoard: PinNumT)
         get() = PinAffinityAndId(boardId, idxOnBoard)
 }
 
-class Connection(val toPin: PinIdentifier, val voltage: Voltage? = null, val resistance: Resistance? = null) {
+class Connection(val toPin: PinIdentifier,
+                 val voltage: Voltage? = null,
+                 val resistance: Resistance? = null,
+                 val differs_from_previous: Boolean = false) {
     override fun toString(): String {
         val electrical = if (voltage != null) "(${voltage.toString()})"
         else if (resistance != null) "(${resistance.toString()})"
@@ -138,7 +152,36 @@ data class PinDescriptor(val affinityAndId: PinAffinityAndId,
 
 data class Pin(val descriptor: PinDescriptor,
                var connections: MutableList<Connection> = mutableListOf(),
-               var belongsToBoard: WeakReference<IoBoard> = WeakReference<IoBoard>(null))
+               var belongsToBoard: WeakReference<IoBoard> = WeakReference<IoBoard>(null),
+               var oldConnections: MutableList<Connection> = mutableListOf()) {
+    fun hasConnection(searched_conneciton: Connection): Boolean {
+        if (connections.isEmpty()) return false
+
+        val connection = connections.find { some_connection ->
+            some_connection.toPin.pinAffinityAndId == searched_conneciton.toPin.pinAffinityAndId
+        }
+
+        return connection != null
+    }
+
+    fun hasConnection(searched_pin_affinity_and_id: PinIdentifier): Boolean {
+        if (connections.isEmpty()) return false
+
+        val connection = connections.find { some_connection ->
+            some_connection.toPin.pinAffinityAndId == searched_pin_affinity_and_id
+        }
+
+        return connection != null
+    }
+
+    fun getConnection(searched_pin_affinity_and_id: PinIdentifier): Connection? {
+        if (connections.isEmpty()) return null
+
+        return connections.find { some_connection ->
+            some_connection.toPin.pinAffinityAndId == searched_pin_affinity_and_id
+        }
+    }
+}
 
 data class IoBoard(val id: IoBoardIndexT, val pins: MutableList<Pin> = mutableListOf()) {
     companion object {
@@ -147,3 +190,33 @@ data class IoBoard(val id: IoBoardIndexT, val pins: MutableList<Pin> = mutableLi
 }
 
 data class Connections(val pin: Pin, var connectedWith: MutableList<Pin>) {}
+
+fun String.toResistance(): Resistance? {
+    val integers = getAllIntegers()
+    val floats = getAllFloats()
+
+    var resistance = if (!integers.isEmpty()) {
+        integers
+            .get(0)
+            .toFloat()
+    }
+    else if (!floats.isEmpty()) {
+        floats.get(0)
+    }
+    else null
+
+    if (resistance == null) return null
+
+    val multiplier_pattern = "[kM]".toRegex()
+
+    if (contains(multiplier_pattern)) {
+        val multiplier_regex = "[a-zA-Z]".toRegex()
+        val multiplier_character = multiplier_regex.find(this)?.value
+        multiplier_character?.let {
+            val multiplier = getMultiplierFromString(multiplier_character)
+            resistance *= multiplier.toFloat()
+        }
+    }
+
+    return Resistance(resistance)
+}

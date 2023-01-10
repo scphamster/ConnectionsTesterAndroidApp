@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto"
+                  xmlns:android="http://schemas.android.com/apk/res/android">
     <PreferenceScreen
             android:selectAllOnFocus="true"
             android:singleLine="true"
@@ -14,6 +15,13 @@
             android:key="pref_results_file"
             android:defaultValue="@string/pref_pinout_filename_defaultval"
             />
+    <EditTextPreference
+            android:defaultValue="0"
+            android:selectAllOnFocus="true"
+            android:singleLine="true"
+            android:title="Do not show connections with resistance higher than"
+            android:key="maximum_resistance_as_connection"
+            app:isPreferenceVisible="true"/>
 
     <!--    <ListPreference-->
 <!--            android:key="pref_key_list"-->

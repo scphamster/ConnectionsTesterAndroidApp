@@ -5,4 +5,6 @@
     <color name="colorAccent">#FF4081</color>
     <color name="color_last_used_device">#26FF08</color>
     <color name="ctl_actty_status_bar">#000000</color>
+    <color name="modified_connection">#BEB131</color>
+    <color name="unmodified_connection">#63BE61</color>
 </resources>

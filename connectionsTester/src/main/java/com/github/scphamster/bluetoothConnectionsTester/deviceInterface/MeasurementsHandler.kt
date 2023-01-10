@@ -100,7 +100,7 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
     }
 
     //todo: refactor
-    suspend fun storeMeasurementsResultsToFile(): Boolean {
+    suspend fun storeMeasurementsResultsToFile(maximumResistance: Float): Boolean {
         val pins_congregations = boardsManager.getPinsSortedByGroupOrAffinity()
 
         if (pins_congregations == null) {
@@ -154,7 +154,13 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
                     }
                     else ""
 
-                    string_builder.append(connection.toString() + ' ')
+                    val connection_as_string = if (connection.resistance != null) {
+                        if (connection.resistance.value < maximumResistance) connection.toString()
+                        else ""
+                    }
+                    else connection.toString()
+
+                    string_builder.append(connection_as_string + ' ')
                     Log.d(Tag, string_builder.toString())
                 }
 

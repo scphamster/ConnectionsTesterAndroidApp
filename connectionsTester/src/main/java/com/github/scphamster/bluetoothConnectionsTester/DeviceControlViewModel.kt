@@ -6,10 +6,7 @@ import android.app.Application
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.BluetoothBridge
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ErrorHandler
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.MeasurementsHandler
+import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
@@ -30,7 +27,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
         get() {
             return measurementsHandler.boardsManager.boards.value?.isEmpty() ?: true
         }
-
+    var thresholdResistanceBeforeNoise: Float = 0f
     init {
         isInitialized = false
         errorHandler = ErrorHandler(app)
@@ -74,7 +71,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
 
     fun storeMeasurementsToFile() = viewModelScope.launch {
         val job = viewModelScope.async(Dispatchers.Default) {
-            measurementsHandler.storeMeasurementsResultsToFile()
+            measurementsHandler.storeMeasurementsResultsToFile(thresholdResistanceBeforeNoise)
         }
 
         try {
@@ -109,6 +106,14 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             measurementsHandler.commander.sendCommand(
                 ControllerResponseInterpreter.Commands.SetOutputVoltageLevel(
                     ControllerResponseInterpreter.Commands.SetOutputVoltageLevel.VoltageLevel.Low))
+        }
+    }
+
+    fun setMinimumResistanceToBeRecognizedAsConnection(value_as_text: String) {
+        val resistance = value_as_text.toResistance()
+
+        resistance?.let {
+            thresholdResistanceBeforeNoise = resistance.value
         }
     }
 

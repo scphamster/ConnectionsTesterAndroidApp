@@ -49,7 +49,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
             return id
         }
 
-    init{
+    init {
         pinDescriptionInterpreter = PinDescriptionInterpreter()
     }
 
@@ -163,12 +163,27 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
                 return
             }
 
-            new_connections.add(Connection(descriptor, connection.voltage, connection.resistance))
+            //todo: refactor his section
+            val previous_connection_to_this_pin = updated_pin
+                .get()
+                ?.getConnection(affinity_and_id)
+
+            var differs_from_previous = false
+
+            previous_connection_to_this_pin?.let{
+                if (it.resistance?.value != connection.resistance?.value) differs_from_previous = true
+                else if (it.voltage?.value != connection.voltage?.value) differs_from_previous = true
+            }
+
+            val new_connection = Connection(descriptor, connection.voltage, connection.resistance, differs_from_previous)
+
+            new_connections.add(new_connection)
             Log.i(Tag, "Searched pin Found! ${affinity_and_id.boardId}:${affinity_and_id.idxOnBoard}")
         }
 
-
+        val old_connections = updated_pin.get()?.connections
         updated_pin.get()?.connections = new_connections
+        old_connections?.let { updated_pin.get()?.oldConnections = it }
 
         val pin = updated_pin.get()
         if (pin == null) {

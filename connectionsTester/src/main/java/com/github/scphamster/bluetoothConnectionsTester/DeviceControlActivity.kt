@@ -12,6 +12,7 @@ import androidx.appcompat.app.ActionBar
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
+import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.*
@@ -40,14 +41,30 @@ class DeviceControlActivity : AppCompatActivity() {
 
         fun setup(pin: Pin) {
             pinNumber.text = pin.descriptor.getPrettyName()
+            val maximumResistance = model.thresholdResistanceBeforeNoise
 
             if (pin.connections.isEmpty()) {
                 foundConnections.text = "Not connected"
             }
             else {
-                foundConnections.text = pin.connections.joinToString(" ") {
-                    it.toString()
+                foundConnections.text = pin.connections.joinToString(" ") { connection ->
+                    if (connection.resistance != null) {
+                        if (connection.resistance.value < maximumResistance) connection.toString()
+                        else ""
+                    }
+                    else connection.toString()
                 }
+
+                var different_connection_found = false
+
+                for (connection in pin.connections) {
+                    if (connection.differs_from_previous) different_connection_found = true
+                }
+
+                if (different_connection_found) {
+                    foundConnections.setTextColor(resources.getColor(R.color.modified_connection))
+                }
+                else foundConnections.setTextColor(resources.getColor(R.color.unmodified_connection))
             }
         }
     }
@@ -132,6 +149,8 @@ class DeviceControlActivity : AppCompatActivity() {
         setupObservers()
         setupClickListeners()
 
+        setupThresholdResistance()
+
         if (!model.setupViewModel(intent.getStringExtra("name")!!, intent.getStringExtra("mac"))) {
             Log.e(Tag, "No arguments obtained in DeviceControlActivity onCreate method!")
 
@@ -215,6 +234,8 @@ class DeviceControlActivity : AppCompatActivity() {
                         model.configuePinoutAccordingToFile()
                     }
                 }
+
+                onPreferencesActivityClosed()
             }
 
         menu.setOnMenuItemClickListener { menuItem ->
@@ -246,6 +267,19 @@ class DeviceControlActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.ctl_actty_save_results_button).setOnClickListener() {
             model.storeMeasurementsToFile()
+        }
+    }
+
+    private fun onPreferencesActivityClosed() {
+        setupThresholdResistance()
+    }
+
+    private fun setupThresholdResistance() {
+        val pref_manager = PreferenceManager.getDefaultSharedPreferences(this)
+        val max_resistance =
+            pref_manager.getString(PreferencesFragment.Companion.SharedPreferenceKey.MaximumResistance.text, "")
+        max_resistance?.let {
+            model.setMinimumResistanceToBeRecognizedAsConnection(it)
         }
     }
 
