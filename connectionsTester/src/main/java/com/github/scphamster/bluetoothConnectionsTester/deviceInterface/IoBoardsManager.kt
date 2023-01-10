@@ -4,6 +4,7 @@ import androidx.lifecycle.MutableLiveData
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter.ControllerMessage
 import java.lang.ref.WeakReference
 import android.util.Log
+import kotlin.math.absoluteValue
 
 class IoBoardsManager(val errorHandler: ErrorHandler) {
     companion object {
@@ -170,12 +171,18 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
 
             var differs_from_previous = false
 
-            previous_connection_to_this_pin?.let{
-                if (it.resistance?.value != connection.resistance?.value) differs_from_previous = true
-                else if (it.voltage?.value != connection.voltage?.value) differs_from_previous = true
+            val min_diff = 10
+
+            previous_connection_to_this_pin?.let { prev_connection ->
+                if (prev_connection.resistance != null) {
+                    if (connection.resistance == null) differs_from_previous = true
+                    else if ((connection.resistance.value - prev_connection.resistance.value).absoluteValue > (50 + 0.2 * prev_connection.resistance.value)) differs_from_previous =
+                        true
+                }
             }
 
-            val new_connection = Connection(descriptor, connection.voltage, connection.resistance, differs_from_previous)
+            val new_connection =
+                Connection(descriptor, connection.voltage, connection.resistance, differs_from_previous)
 
             new_connections.add(new_connection)
             Log.i(Tag, "Searched pin Found! ${affinity_and_id.boardId}:${affinity_and_id.idxOnBoard}")

@@ -108,7 +108,8 @@ class Connection(val toPin: PinIdentifier,
         else if (resistance != null) "(${resistance.toString()})"
         else ""
 
-        return toPin.pinAffinityAndId.getPrettyName() + electrical
+//        return toPin.pinAffinityAndId.getPrettyName() + electrical
+        return toPin.getPrettyName() + electrical
     }
 }
 
