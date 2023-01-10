@@ -145,6 +145,8 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
                 val string_builder = StringBuilder()
                 string_builder.append("${pin.descriptor.getPrettyName()} -> ")
 
+                var connections_differ_from_previous_run = false
+
                 for (connection in pin.connections) {
                     val electrical_parameter = if (connection.resistance != null) {
                         "(R${connection.resistance})"
@@ -160,6 +162,8 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
                     }
                     else connection.toString()
 
+                    if (connection.differs_from_previous) connections_differ_from_previous_run = true
+
                     string_builder.append(connection_as_string + ' ')
                     Log.d(Tag, string_builder.toString())
                 }
@@ -168,6 +172,14 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
                     string_builder.length
 
                 cell_for_this_pin_connections.setCellValue(string_builder.toString())
+
+                if (connections_differ_from_previous_run) {
+                    val style = workbook.createCellStyle()
+                    style.setFillForegroundColor(IndexedColors.YELLOW.index)
+                    style.setFillPattern(FillPatternType.SOLID_FOREGROUND)
+                    cell_for_this_pin_connections.cellStyle = style
+                }
+
                 row_counter++
             }
 
