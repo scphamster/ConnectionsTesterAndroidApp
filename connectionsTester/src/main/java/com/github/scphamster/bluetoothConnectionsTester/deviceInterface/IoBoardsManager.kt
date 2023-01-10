@@ -163,17 +163,11 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
                 return
             }
 
-            //todo: refactor his section
             val previous_connection_to_this_pin = updated_pin
                 .get()
                 ?.getConnection(affinity_and_id)
 
-            var differs_from_previous = false
-
-            previous_connection_to_this_pin?.let{
-                if (it.resistance?.value != connection.resistance?.value) differs_from_previous = true
-                else if (it.voltage?.value != connection.voltage?.value) differs_from_previous = true
-            }
+            val differs_from_previous = connection.differsFromOther(previous_connection_to_this_pin) ?: false
 
             val new_connection = Connection(descriptor, connection.voltage, connection.resistance, differs_from_previous)
 
