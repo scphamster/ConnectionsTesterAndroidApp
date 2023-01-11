@@ -35,7 +35,9 @@ class ControllerResponseInterpreter {
             }
         }
 
-        class CheckConnectivity(val domain: AnswerDomain, val pinAffinityAndId: PinAffinityAndId? = null) {
+        class CheckConnectivity(val domain: AnswerDomain,
+                                val pinAffinityAndId: PinAffinityAndId? = null,
+                                val sequential: Boolean = false) {
             val base = "check"
 
             enum class AnswerDomain(val text: String) {
@@ -404,7 +406,9 @@ private fun String.toConnection(header: ControllerResponseInterpreter.MessageHea
                                             .get(0)
                                             .toInt(), numbers
                                             .get(1)
-                                            .toInt()), Voltage(numbers.get(2).toFloat()))
+                                            .toInt()), Voltage(numbers
+                                                                   .get(2)
+                                                                   .toFloat()))
         }
 
         ControllerResponseInterpreter.MessageHeader.PinConnectivityResistance -> {
@@ -414,8 +418,8 @@ private fun String.toConnection(header: ControllerResponseInterpreter.MessageHea
                                             .toInt(), numbers
                                             .get(1)
                                             .toInt()), null, Resistance(numbers
-                           .get(2)
-                           .toFloat()))
+                                                                            .get(2)
+                                                                            .toFloat()))
         }
 
         else -> throw IllegalArgumentException("header ${header.text} is incompatible")

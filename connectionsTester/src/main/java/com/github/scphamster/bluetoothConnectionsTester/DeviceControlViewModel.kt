@@ -6,8 +6,11 @@ import android.app.Application
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.preference.PreferenceManager
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.*
 import kotlinx.coroutines.*
+
+import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter.Commands
 
 typealias BoardCountT = Int
 
@@ -96,14 +99,12 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
 
     fun initializeHardware() {
         viewModelScope.launch(Dispatchers.IO) {
-            measurementsHandler.commander.sendCommand(
-                ControllerResponseInterpreter.Commands.CheckHardware())
+            measurementsHandler.commander.sendCommand(ControllerResponseInterpreter.Commands.CheckHardware())
 
             delay(1000)
 
-            measurementsHandler.commander.sendCommand(
-                ControllerResponseInterpreter.Commands.SetOutputVoltageLevel(
-                    ControllerResponseInterpreter.Commands.SetOutputVoltageLevel.VoltageLevel.Low))
+            measurementsHandler.commander.sendCommand(ControllerResponseInterpreter.Commands.SetOutputVoltageLevel(
+                ControllerResponseInterpreter.Commands.SetOutputVoltageLevel.VoltageLevel.Low))
         }
     }
 
@@ -116,6 +117,16 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             }
 
         }
+    }
+
+    fun checkConnections() {
+        val if_sequential = PreferenceManager
+            .getDefaultSharedPreferences(app)
+            .getBoolean(PreferencesFragment.Companion.SharedPreferenceKey.SequentialModeScan.text, false)
+
+        measurementsHandler.commander.sendCommand(
+            Commands.CheckConnectivity(Commands.CheckConnectivity.AnswerDomain.Resistance,
+                                       sequential = if_sequential))
     }
 
     fun setMinimumResistanceToBeRecognizedAsConnection(value_as_text: String) {

@@ -22,6 +22,10 @@
             android:title="Do not show connections with resistance higher than"
             android:key="maximum_resistance_as_connection"
             app:isPreferenceVisible="true"/>
+    <SwitchPreference
+            android:defaultValue="false"
+            android:title="Sequential scan (slower but more acurate)"
+            android:key="sequential_boards_scan"/>
 
     <!--    <ListPreference-->
 <!--            android:key="pref_key_list"-->
