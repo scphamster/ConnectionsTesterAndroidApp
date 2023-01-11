@@ -135,7 +135,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
         return pins_sorted_by_group.toTypedArray()
     }
 
-    fun updatePinConnections(connections_description: ControllerMessage.ConnectionsDescription) {
+    fun updateConnections(connections_description: ControllerMessage.ConnectionsDescription) {
         val updated_pin = findPinRefByAffinityAndId(connections_description.ofPin)
 
         if (updated_pin == null) {
@@ -213,7 +213,16 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
 
         return null
     }
-
+    fun calibrate() {
+        val boards = boards.value
+        boards?.let{
+            for (board in boards) {
+                for (pin in board.pins) {
+                    //todo: implement
+                }
+            }
+        }
+    }
     suspend fun updateIOBoards(boards_id: Array<IoBoardIndexT>) {
         val new_boards = mutableListOf<IoBoard>()
         var boards_counter = 0

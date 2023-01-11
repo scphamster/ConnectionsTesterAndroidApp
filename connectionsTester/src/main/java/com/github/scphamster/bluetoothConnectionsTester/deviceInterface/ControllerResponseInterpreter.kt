@@ -275,9 +275,13 @@ class ControllerResponseInterpreter {
 
         while (msg != null) {
             val (controller_msg, rest) = parseAndSplitSingleCommandFromString(msg)
-            if (controller_msg == null) return
+            if (controller_msg == null) {
+                Log.e(Tag, "Bad msg arrived! $msg")
+                msg = rest
+                continue
+            }
+            else msg = rest
 
-            msg = rest
             handleControllerMsg(controller_msg)
         }
     }

@@ -79,17 +79,6 @@ class DeviceControlActivity : AppCompatActivity() {
                     else connection.toString()
                 }
 
-//                var different_connection_found = false
-//
-//                for (connection in pin.connections) {
-//                    if (connection.differs_from_previous) different_connection_found = true
-//                }
-//
-//                if (different_connection_found) {
-//                    foundConnections.setTextColor(resources.getColor(R.color.modified_connection))
-//                }
-//                else foundConnections.setTextColor(resources.getColor(R.color.unmodified_connection))
-
                 foundConnections.text = span_text_builder
             }
         }
@@ -272,7 +261,10 @@ class DeviceControlActivity : AppCompatActivity() {
 
                     return@setOnMenuItemClickListener true
                 }
-
+                R.id.ctl_actty_menu_calibrate_button -> {
+                    model.calibrate()
+                    return@setOnMenuItemClickListener true
+                }
                 else -> {
                     return@setOnMenuItemClickListener true
                 }

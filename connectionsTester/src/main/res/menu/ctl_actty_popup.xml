@@ -3,4 +3,7 @@
     <item
             android:id="@+id/ctl_actty_menu_settings_button"
             android:title="Settings"/>
+    <item
+            android:title="Calibrate"
+            android:id="@+id/ctl_actty_menu_calibrate_button"/>
 </menu>
