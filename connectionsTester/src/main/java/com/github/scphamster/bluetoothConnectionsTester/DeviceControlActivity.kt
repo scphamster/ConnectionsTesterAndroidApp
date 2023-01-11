@@ -3,7 +3,11 @@ package com.github.scphamster.bluetoothConnectionsTester
 //import android.R
 import android.app.Activity
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
+import android.text.SpannableStringBuilder
+import android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+import android.text.style.ForegroundColorSpan
 import android.util.Log
 import android.view.*
 import android.widget.*
@@ -55,16 +59,27 @@ class DeviceControlActivity : AppCompatActivity() {
                     else connection.toString()
                 }
 
-                var different_connection_found = false
-
+                val span_text_builder = SpannableStringBuilder()
+                val normal_color = Color.GREEN
+                val difference_color = Color.YELLOW
                 for (connection in pin.connections) {
-                    if (connection.differs_from_previous) different_connection_found = true
+                    if (connection.resistance != null) {
+                        if (connection.resistance.value < maximumResistance) {
+                            if (connection.differs_from_previous) {
+                                span_text_builder.append(connection.toString(), ForegroundColorSpan(difference_color),
+                                                         SPAN_EXCLUSIVE_EXCLUSIVE)
+                            }
+                            else {
+                                span_text_builder.append(connection.toString() + ' ', ForegroundColorSpan(normal_color),
+                                                         SPAN_EXCLUSIVE_EXCLUSIVE)
+                            }
+                        }
+                        else ""
+                    }
+                    else connection.toString()
                 }
 
-                if (different_connection_found) {
-                    foundConnections.setTextColor(resources.getColor(R.color.modified_connection))
-                }
-                else foundConnections.setTextColor(resources.getColor(R.color.unmodified_connection))
+                foundConnections.text = span_text_builder
             }
         }
     }
@@ -246,7 +261,10 @@ class DeviceControlActivity : AppCompatActivity() {
 
                     return@setOnMenuItemClickListener true
                 }
-
+                R.id.ctl_actty_menu_calibrate_button -> {
+                    model.calibrate()
+                    return@setOnMenuItemClickListener true
+                }
                 else -> {
                     return@setOnMenuItemClickListener true
                 }

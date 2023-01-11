@@ -7,10 +7,7 @@ import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 
 typealias BoardCountT = Int
 
@@ -28,6 +25,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             return measurementsHandler.boardsManager.boards.value?.isEmpty() ?: true
         }
     var thresholdResistanceBeforeNoise: Float = 0f
+
     init {
         isInitialized = false
         errorHandler = ErrorHandler(app)
@@ -106,6 +104,17 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             measurementsHandler.commander.sendCommand(
                 ControllerResponseInterpreter.Commands.SetOutputVoltageLevel(
                     ControllerResponseInterpreter.Commands.SetOutputVoltageLevel.VoltageLevel.Low))
+        }
+    }
+
+    fun calibrate() {
+        viewModelScope.launch {
+            measurementsHandler.calibrate { result_message ->
+                viewModelScope.launch(Dispatchers.Main) {
+                    toast(result_message)
+                }
+            }
+
         }
     }
 

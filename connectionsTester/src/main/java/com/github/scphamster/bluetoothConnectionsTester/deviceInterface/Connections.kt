@@ -1,6 +1,7 @@
 package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
 
 import java.lang.ref.WeakReference
+import kotlin.math.absoluteValue
 import kotlin.math.ln
 import kotlin.math.floor
 
@@ -108,8 +109,28 @@ class Connection(val toPin: PinIdentifier,
         else if (resistance != null) "(${resistance.toString()})"
         else ""
 
-//        return toPin.pinAffinityAndId.getPrettyName() + electrical
         return toPin.getPrettyName() + electrical
+    }
+
+    fun differsFromOther(connection: Connection?,
+                    min_difference_abs: Number = 20,
+                    min_difference_percent: Number = 20): Boolean? {
+        if (connection == null) return null
+
+        val multiplier = min_difference_percent.toDouble() / 100
+
+        resistance?.let {
+            if (connection.resistance == null) return true
+            else if ((resistance.value - connection.resistance.value).absoluteValue > (min_difference_abs.toDouble() + multiplier * resistance.value)) return true
+            else return false
+        }
+        voltage?.let {
+            if (connection.voltage == null) return true
+            else if ((voltage.value - connection.voltage.value).absoluteValue > (min_difference_abs.toDouble() + multiplier * voltage.value)) return true
+            else return false
+        }
+
+        return false
     }
 }
 

@@ -4,7 +4,6 @@ import androidx.lifecycle.MutableLiveData
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter.ControllerMessage
 import java.lang.ref.WeakReference
 import android.util.Log
-import kotlin.math.absoluteValue
 
 class IoBoardsManager(val errorHandler: ErrorHandler) {
     companion object {
@@ -136,7 +135,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
         return pins_sorted_by_group.toTypedArray()
     }
 
-    fun updatePinConnections(connections_description: ControllerMessage.ConnectionsDescription) {
+    fun updateConnections(connections_description: ControllerMessage.ConnectionsDescription) {
         val updated_pin = findPinRefByAffinityAndId(connections_description.ofPin)
 
         if (updated_pin == null) {
@@ -164,25 +163,13 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
                 return
             }
 
-            //todo: refactor his section
             val previous_connection_to_this_pin = updated_pin
                 .get()
                 ?.getConnection(affinity_and_id)
 
-            var differs_from_previous = false
+            val differs_from_previous = connection.differsFromOther(previous_connection_to_this_pin) ?: false
 
-            val min_diff = 10
-
-            previous_connection_to_this_pin?.let { prev_connection ->
-                if (prev_connection.resistance != null) {
-                    if (connection.resistance == null) differs_from_previous = true
-                    else if ((connection.resistance.value - prev_connection.resistance.value).absoluteValue > (50 + 0.2 * prev_connection.resistance.value)) differs_from_previous =
-                        true
-                }
-            }
-
-            val new_connection =
-                Connection(descriptor, connection.voltage, connection.resistance, differs_from_previous)
+            val new_connection = Connection(descriptor, connection.voltage, connection.resistance, differs_from_previous)
 
             new_connections.add(new_connection)
             Log.i(Tag, "Searched pin Found! ${affinity_and_id.boardId}:${affinity_and_id.idxOnBoard}")
@@ -226,7 +213,16 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
 
         return null
     }
-
+    fun calibrate() {
+        val boards = boards.value
+        boards?.let{
+            for (board in boards) {
+                for (pin in board.pins) {
+                    //todo: implement
+                }
+            }
+        }
+    }
     suspend fun updateIOBoards(boards_id: Array<IoBoardIndexT>) {
         val new_boards = mutableListOf<IoBoard>()
         var boards_counter = 0
