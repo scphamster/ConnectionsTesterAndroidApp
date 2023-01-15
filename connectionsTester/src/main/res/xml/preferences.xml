@@ -32,6 +32,12 @@
             android:entries="@array/voltage_levels"
             android:entryValues="@array/voltage_levels"
             android:key="output_voltage_level"/>
+    <ListPreference
+            android:defaultValue="1"
+            android:title="Connection value domain"
+            android:entries="@array/connection_value_domains"
+            android:entryValues="@array/connection_value_domains"
+            android:key="connection_domain"/>
 
     <!--    <ListPreference-->
 <!--            android:key="pref_key_list"-->

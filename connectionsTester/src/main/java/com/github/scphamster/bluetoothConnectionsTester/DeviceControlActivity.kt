@@ -250,6 +250,16 @@ class DeviceControlActivity : AppCompatActivity() {
                     return@setOnMenuItemClickListener true
                 }
 
+                R.id.ctl_actty_menu_disconnect_button -> {
+                    model.disconnect()
+                    return@setOnMenuItemClickListener true
+                }
+
+                R.id.ctl_actty_menu_refresh_button -> {
+                    model.refreshHardware()
+                    return@setOnMenuItemClickListener true
+                }
+
                 else -> {
                     return@setOnMenuItemClickListener true
                 }

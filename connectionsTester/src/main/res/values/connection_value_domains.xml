@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="connection_value_domains">
+        <item>Raw</item>
+        <item>Voltage</item>
+        <item>Resistance</item>
+        <item>SimpleBoolean</item>
+    </string-array>
+</resources>

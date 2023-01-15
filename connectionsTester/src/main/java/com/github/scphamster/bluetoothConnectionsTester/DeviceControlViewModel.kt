@@ -55,7 +55,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             .getDefaultSharedPreferences(app)
             .getString("output_voltage_level", "")
         val voltage_level = when (selected_voltage_level) {
-            "Low(0.7V)"-> Commands.SetOutputVoltageLevel.VoltageLevel.Low
+            "Low(0.7V)" -> Commands.SetOutputVoltageLevel.VoltageLevel.Low
             "High(1.0V)" -> Commands.SetOutputVoltageLevel.VoltageLevel.High
             else -> Commands.SetOutputVoltageLevel.VoltageLevel.Low
         }
@@ -138,9 +138,19 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             .getDefaultSharedPreferences(app)
             .getBoolean(PreferencesFragment.Companion.SharedPreferenceKey.SequentialModeScan.text, false)
 
-        measurementsHandler.commander.sendCommand(
-            Commands.CheckConnectivity(Commands.CheckConnectivity.AnswerDomain.Voltage,
-                                       sequential = if_sequential))
+        val domain = PreferenceManager
+            .getDefaultSharedPreferences(app)
+            .getString("connection_domain", "");
+
+        val answer_domain = when (domain) {
+            "Raw" -> Commands.CheckConnectivity.AnswerDomain.Voltage
+            "Voltage" -> Commands.CheckConnectivity.AnswerDomain.Voltage
+            "Resistance" -> Commands.CheckConnectivity.AnswerDomain.Resistance
+            "SimpleBoolean" -> Commands.CheckConnectivity.AnswerDomain.SimpleConnectionFlag
+            else -> Commands.CheckConnectivity.AnswerDomain.Resistance
+        }
+
+        measurementsHandler.commander.sendCommand(Commands.CheckConnectivity(answer_domain, sequential = if_sequential))
     }
 
     fun setMinimumResistanceToBeRecognizedAsConnection(value_as_text: String) {
@@ -149,6 +159,14 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
         resistance?.let {
             thresholdResistanceBeforeNoise = resistance.value
         }
+    }
+
+    fun disconnect() {
+        bluetooth.disconnect()
+    }
+
+    fun refreshHardware() {
+        measurementsHandler.commander.sendCommand(Commands.CheckHardware())
     }
 
     private fun toast(msg: String?) {
