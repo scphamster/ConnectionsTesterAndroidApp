@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="voltage_levels">
+        <item>Low(0.7V)</item>
+        <item>High(1.0V)</item>
+    </string-array>
+
+</resources>

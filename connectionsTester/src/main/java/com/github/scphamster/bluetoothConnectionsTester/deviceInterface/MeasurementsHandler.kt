@@ -169,7 +169,10 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
             val font_normal = workbook.createFont()
             val font_difference_found = workbook.createFont()
             font_difference_found.setColor(IndexedColors.ORANGE.index)
-            for ((row_counter, pin) in congregation.pins.withIndex()) {
+
+            val first_row_offset = 1
+            for ((counter, pin) in congregation.pins.withIndex()) {
+                val row_counter = counter + first_row_offset
                 val row_for_this_pin = sheet.getRow(row_counter) ?: sheet.createRow(row_counter)
                 val cell_for_this_pin_connections =
                     row_for_this_pin.getCell(column_counter) ?: row_for_this_pin.createCell(column_counter)

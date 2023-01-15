@@ -43,10 +43,24 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             bluetooth.connect()
 
             configuePinoutAccordingToFile()
+            setupVoltageLevel()
 
             isInitialized = true
         }
         return true
+    }
+
+    fun setupVoltageLevel() {
+        val selected_voltage_level = PreferenceManager
+            .getDefaultSharedPreferences(app)
+            .getString("output_voltage_level", "")
+        val voltage_level = when (selected_voltage_level) {
+            "Low(0.7V)"-> Commands.SetOutputVoltageLevel.VoltageLevel.Low
+            "High(1.0V)" -> Commands.SetOutputVoltageLevel.VoltageLevel.High
+            else -> Commands.SetOutputVoltageLevel.VoltageLevel.Low
+        }
+
+        measurementsHandler.commander.sendCommand(Commands.SetOutputVoltageLevel(voltage_level))
     }
 
     fun configuePinoutAccordingToFile() {
@@ -125,7 +139,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             .getBoolean(PreferencesFragment.Companion.SharedPreferenceKey.SequentialModeScan.text, false)
 
         measurementsHandler.commander.sendCommand(
-            Commands.CheckConnectivity(Commands.CheckConnectivity.AnswerDomain.Resistance,
+            Commands.CheckConnectivity(Commands.CheckConnectivity.AnswerDomain.Voltage,
                                        sequential = if_sequential))
     }
 

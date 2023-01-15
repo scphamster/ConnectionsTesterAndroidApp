@@ -21,9 +21,9 @@ class Commander(val dataLink: BluetoothBridge, val context: Context) {
         val command_argument: String
 
         command = context.getString(R.string.set_output_voltage)
-        command_argument = cmd.level.toString()
+        command_argument = cmd.level.text
 
-        dataLink.sendRawCommand(command + " " + command_argument)
+        dataLink.sendRawCommand(command + ' ' + command_argument)
     }
 
     fun sendCommand(cmd: ControllerResponseInterpreter.Commands.CheckConnectivity) {
