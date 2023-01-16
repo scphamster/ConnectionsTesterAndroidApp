@@ -53,14 +53,8 @@ interface ElectricalValue {
             in 12..14 -> "T" to 1e-12
             else -> "" to 1.0
         }
-//        val base_value = value * multiplier_and_equalizer.second
-//        return base_value.toString()
 
         val format_pattern = "%.${precision}f"
-//        val decimal_format = DecimalFormat("###,###.###")
-//        decimal_format.setMaximumFractionDigits(precision)
-//        decimal_format.setMinimumFractionDigits(1)
-//        val value_as_text = decimal_format.format(value * multiplier_and_equalizer.second)
         val value_as_text = String.format(format_pattern, value * multiplier_and_equalizer.second)
 
         return "$value_as_text${multiplier_and_equalizer.first}"
@@ -103,7 +97,7 @@ data class PinAffinityAndId(val boardId: IoBoardIndexT, val idxOnBoard: PinNumT)
 class Connection(val toPin: PinIdentifier,
                  val voltage: Voltage? = null,
                  val resistance: Resistance? = null,
-                 val differs_from_previous: Boolean = false) {
+                 val value_changed_from_previous_check: Boolean = false) {
     override fun toString(): String {
         val electrical = if (voltage != null) "(${voltage.toString()})"
         else if (resistance != null) "(${resistance.toString()})"
@@ -113,8 +107,8 @@ class Connection(val toPin: PinIdentifier,
     }
 
     fun differsFromOther(connection: Connection?,
-                    min_difference_abs: Number = 20,
-                    min_difference_percent: Number = 20): Boolean? {
+                         min_difference_abs: Number = 20,
+                         min_difference_percent: Number = 20): Boolean? {
         if (connection == null) return null
 
         val multiplier = min_difference_percent.toDouble() / 100
@@ -175,12 +169,12 @@ data class PinDescriptor(val affinityAndId: PinAffinityAndId,
 data class Pin(val descriptor: PinDescriptor,
                var connections: MutableList<Connection> = mutableListOf(),
                var belongsToBoard: WeakReference<IoBoard> = WeakReference<IoBoard>(null),
-               var oldConnections: MutableList<Connection> = mutableListOf()) {
-    fun hasConnection(searched_conneciton: Connection): Boolean {
+               var connectionsListChangedFromPreviousCheck: Boolean = false) {
+    fun hasConnection(connection: Connection): Boolean {
         if (connections.isEmpty()) return false
 
         val connection = connections.find { some_connection ->
-            some_connection.toPin.pinAffinityAndId == searched_conneciton.toPin.pinAffinityAndId
+            some_connection.toPin.pinAffinityAndId == connection.toPin.pinAffinityAndId
         }
 
         return connection != null

@@ -196,7 +196,7 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
                     }
                     else connection.toString()
 
-                    if (connection.differs_from_previous) {
+                    if (connection.value_changed_from_previous_check) {
                         rich_text.append(connection_as_string, font_difference_found)
                     }
                     else {

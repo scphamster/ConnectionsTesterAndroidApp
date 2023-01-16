@@ -177,7 +177,6 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
 
         val old_connections = updated_pin.get()?.connections
         updated_pin.get()?.connections = new_connections
-        old_connections?.let { updated_pin.get()?.oldConnections = it }
 
         val pin = updated_pin.get()
         if (pin == null) {

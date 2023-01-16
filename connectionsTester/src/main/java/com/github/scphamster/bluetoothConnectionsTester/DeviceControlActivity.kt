@@ -55,7 +55,7 @@ class DeviceControlActivity : AppCompatActivity() {
                 val normal_color = Color.GREEN
                 val difference_color = Color.YELLOW
                 for (connection in pin.connections) {
-                    val text_color = if (connection.differs_from_previous) ForegroundColorSpan(difference_color)
+                    val text_color = if (connection.value_changed_from_previous_check) ForegroundColorSpan(difference_color)
                     else ForegroundColorSpan(normal_color)
 
                     if (connection.resistance != null) {
