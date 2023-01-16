@@ -136,7 +136,6 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
     }
 
     fun updateConnectionsForPin(updated_pin: Pin, connections: Array<Connection>) {
-
         val new_connections = mutableListOf<Connection>()
 
         for (connection in connections) {
@@ -166,12 +165,14 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
             Log.i(Tag, "Searched pin Found! ${affinity_and_id.boardId}:${affinity_and_id.idxOnBoard}")
         }
 
+        updated_pin.connectionsListChangedFromPreviousCheck =
+            updated_pin.checkIfConnectionsListIsDifferent(new_connections)
         updated_pin.connections = new_connections
 
         pinChangeCallback?.invoke(updated_pin)
     }
 
-    fun updateConnectionsForPin(connections_description: ControllerMessage.ConnectionsDescription) {
+    fun updateConnectionsByControllerMsg(connections_description: ControllerMessage.ConnectionsDescription) {
         val updated_pin_ref = findPinRefByAffinityAndId(connections_description.ofPin)
 
         if (updated_pin_ref == null) {

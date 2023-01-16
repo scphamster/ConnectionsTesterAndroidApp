@@ -197,6 +197,16 @@ data class Pin(val descriptor: PinDescriptor,
             some_connection.toPin.pinAffinityAndId == searched_pin_affinity_and_id
         }
     }
+
+    fun checkIfConnectionsListIsDifferent(checked_connections: List<Connection>) : Boolean{
+        if (checked_connections.size != connections.size) return true
+
+        for (connection in checked_connections) {
+            if (!hasConnection(connection)) return true
+        }
+
+        return false
+    }
 }
 
 data class IoBoard(val id: IoBoardIndexT, val pins: MutableList<Pin> = mutableListOf()) {
