@@ -7,4 +7,7 @@
     <color name="ctl_actty_status_bar">#000000</color>
     <color name="modified_connection">#BEB131</color>
     <color name="unmodified_connection">#63BE61</color>
+    <color name="connections_changed">#B833BE</color>
+    <color name="connections_not_changed">#2173BE</color>
+    <color name="pin_unhealthy">#BE0D17</color>
 </resources>

@@ -167,9 +167,16 @@ data class PinDescriptor(val affinityAndId: PinAffinityAndId,
 }
 
 data class Pin(val descriptor: PinDescriptor,
-               var connections: MutableList<Connection> = mutableListOf(),
                var belongsToBoard: WeakReference<IoBoard> = WeakReference<IoBoard>(null),
                var connectionsListChangedFromPreviousCheck: Boolean = false) {
+    var connections: MutableList<Connection> = mutableListOf()
+        set(connections) {
+            field = connections
+            isHealthy = hasConnection(descriptor.pinAffinityAndId)
+        }
+    var isHealthy = false
+        private set
+
     fun hasConnection(connection: Connection): Boolean {
         if (connections.isEmpty()) return false
 
@@ -198,7 +205,7 @@ data class Pin(val descriptor: PinDescriptor,
         }
     }
 
-    fun checkIfConnectionsListIsDifferent(checked_connections: List<Connection>) : Boolean{
+    fun checkIfConnectionsListIsDifferent(checked_connections: List<Connection>): Boolean {
         if (checked_connections.size != connections.size) return true
 
         for (connection in checked_connections) {

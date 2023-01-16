@@ -47,7 +47,7 @@ class DeviceControlActivity : AppCompatActivity() {
             pinNumber.text = pin.descriptor.getPrettyName()
             val maximumResistance = model.thresholdResistanceBeforeNoise
 
-            if (pin.connections.isEmpty()) {
+            if (pin.connections.size == 1 && pin.hasConnection(pin.descriptor.pinAffinityAndId)) {
                 foundConnections.text = "Not connected"
             }
             else {
@@ -55,8 +55,11 @@ class DeviceControlActivity : AppCompatActivity() {
                 val normal_color = Color.GREEN
                 val difference_color = Color.YELLOW
                 for (connection in pin.connections) {
-                    val text_color = if (connection.value_changed_from_previous_check) ForegroundColorSpan(difference_color)
-                    else ForegroundColorSpan(normal_color)
+                    if (connection.toPin.pinAffinityAndId == pin.descriptor.pinAffinityAndId) continue
+
+                    val text_color =
+                        if (connection.value_changed_from_previous_check) ForegroundColorSpan(difference_color)
+                        else ForegroundColorSpan(normal_color)
 
                     if (connection.resistance != null) {
                         if (connection.resistance.value < maximumResistance) span_text_builder.append(
@@ -66,6 +69,17 @@ class DeviceControlActivity : AppCompatActivity() {
                 }
 
                 foundConnections.text = span_text_builder
+            }
+
+            if (!pin.isHealthy) {
+                pinNumber.setTextColor(resources.getColor(R.color.pin_unhealthy))
+                pinNumber.text = "UNHEALTHY!"
+            }
+            else if (pin.connectionsListChangedFromPreviousCheck) {
+                pinNumber.setTextColor(resources.getColor(R.color.connections_changed))
+            }
+            else {
+                pinNumber.setTextColor(resources.getColor(R.color.connections_not_changed))
             }
         }
     }
