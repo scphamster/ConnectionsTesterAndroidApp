@@ -60,7 +60,7 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
 
     init {
         responseInterpreter.onConnectionsDescriptionCallback = { new_connections ->
-            boardsManager.updateConnections(new_connections)
+            boardsManager.updateConnectionsForPin(new_connections)
             connectionDescriptorMessageCounter++
         }
         responseInterpreter.onHardwareDescriptionCallback = { message ->

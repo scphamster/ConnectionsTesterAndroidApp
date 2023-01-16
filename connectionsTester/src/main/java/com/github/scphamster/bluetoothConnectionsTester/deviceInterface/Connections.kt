@@ -106,7 +106,7 @@ class Connection(val toPin: PinIdentifier,
         return toPin.getPrettyName() + electrical
     }
 
-    fun differsFromOther(connection: Connection?,
+    fun checkIfDifferent(connection: Connection?,
                          min_difference_abs: Number = 20,
                          min_difference_percent: Number = 20): Boolean? {
         if (connection == null) return null
@@ -129,7 +129,7 @@ class Connection(val toPin: PinIdentifier,
 }
 
 data class PinDescriptor(val affinityAndId: PinAffinityAndId,
-                         val uniqueIdx: PinNumT? = null,
+                         val UID: PinNumT? = null,
                          var name: String? = null,
                          var group: PinGroup? = null) : PinIdentifier {
     override fun getPrettyName(): String {
