@@ -22,6 +22,22 @@
             android:title="Do not show connections with resistance higher than"
             android:key="maximum_resistance_as_connection"
             app:isPreferenceVisible="true"/>
+    <SwitchPreference
+            android:defaultValue="false"
+            android:title="Sequential scan (slower but more acurate)"
+            android:key="sequential_boards_scan"/>
+    <ListPreference
+            android:defaultValue="1"
+            android:title="Output voltage level"
+            android:entries="@array/voltage_levels"
+            android:entryValues="@array/voltage_levels"
+            android:key="output_voltage_level"/>
+    <ListPreference
+            android:defaultValue="1"
+            android:title="Connection value domain"
+            android:entries="@array/connection_value_domains"
+            android:entryValues="@array/connection_value_domains"
+            android:key="connection_domain"/>
 
     <!--    <ListPreference-->
 <!--            android:key="pref_key_list"-->

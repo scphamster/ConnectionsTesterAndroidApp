@@ -1,7 +1,6 @@
 package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
 
 import android.util.Log
-import org.apache.commons.math3.util.IntegerSequence
 
 class ControllerResponseInterpreter {
     enum class VoltageLevel {
@@ -12,7 +11,6 @@ class ControllerResponseInterpreter {
     enum class MessageHeader(val text: String) {
         //todo: find better way to implement "unknown", empty string will not work btw.
         Unknown("_"),
-        VoltageLevel("VOL"),
         PinConnectivityBoolean("CONNECT"),
         PinConnectivityResistance("RESISTANCES"),
         PinConnectivityVoltage("VOLTAGES"),
@@ -29,13 +27,17 @@ class ControllerResponseInterpreter {
         abstract class AbstractCommand {}
         class SetVoltageAtPin(val pin: PinNumT) : AbstractCommand() {}
         class SetOutputVoltageLevel(val level: VoltageLevel) : AbstractCommand() {
-            enum class VoltageLevel(lvl: String) {
+            val base = "voltage"
+
+            enum class VoltageLevel(val text: String) {
                 High("high"),
                 Low("low")
             }
         }
 
-        class CheckConnectivity(val domain: AnswerDomain, val pinAffinityAndId: PinAffinityAndId? = null) {
+        class CheckConnectivity(val domain: AnswerDomain,
+                                val pinAffinityAndId: PinAffinityAndId? = null,
+                                val sequential: Boolean = false) {
             val base = "check"
 
             enum class AnswerDomain(val text: String) {
@@ -398,13 +400,15 @@ private fun String.toConnection(header: ControllerResponseInterpreter.MessageHea
                                             .toInt()))
         }
 
-        ControllerResponseInterpreter.MessageHeader.VoltageLevel -> {
+        ControllerResponseInterpreter.MessageHeader.PinConnectivityVoltage -> {
             val numbers = getAllIntegers() + getAllFloats()
             Connection(PinAffinityAndId(numbers
                                             .get(0)
                                             .toInt(), numbers
                                             .get(1)
-                                            .toInt()), Voltage(numbers.get(2).toFloat()))
+                                            .toInt()), Voltage(numbers
+                                                                   .get(2)
+                                                                   .toFloat()))
         }
 
         ControllerResponseInterpreter.MessageHeader.PinConnectivityResistance -> {
@@ -414,8 +418,8 @@ private fun String.toConnection(header: ControllerResponseInterpreter.MessageHea
                                             .toInt(), numbers
                                             .get(1)
                                             .toInt()), null, Resistance(numbers
-                           .get(2)
-                           .toFloat()))
+                                                                            .get(2)
+                                                                            .toFloat()))
         }
 
         else -> throw IllegalArgumentException("header ${header.text} is incompatible")

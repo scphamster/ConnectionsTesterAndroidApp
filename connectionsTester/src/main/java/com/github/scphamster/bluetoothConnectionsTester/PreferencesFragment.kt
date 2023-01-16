@@ -28,7 +28,8 @@ class PreferencesFragment : PreferenceFragmentCompat() {
             PinoutConfigFileName("pref_pinout_config_file_name"),
             ResultsFileUri("pref_results_file_uri"),
             ResultsFileName("pref_results_file_name"),
-            MaximumResistance("maximum_resistance_as_connection")
+            MaximumResistance("maximum_resistance_as_connection"),
+            SequentialModeScan("sequential_boards_scan")
         }
 
         private enum class FileExtensions(val text: String) {

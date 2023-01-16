@@ -51,32 +51,16 @@ class DeviceControlActivity : AppCompatActivity() {
                 foundConnections.text = "Not connected"
             }
             else {
-                foundConnections.text = pin.connections.joinToString(" ") { connection ->
-                    if (connection.resistance != null) {
-                        if (connection.resistance.value < maximumResistance) connection.toString()
-                        else ""
-                    }
-                    else connection.toString()
-                }
-
                 val span_text_builder = SpannableStringBuilder()
                 val normal_color = Color.GREEN
                 val difference_color = Color.YELLOW
                 for (connection in pin.connections) {
-                    if (connection.resistance != null) {
-                        if (connection.resistance.value < maximumResistance) {
-                            if (connection.differs_from_previous) {
-                                span_text_builder.append(connection.toString(), ForegroundColorSpan(difference_color),
-                                                         SPAN_EXCLUSIVE_EXCLUSIVE)
-                            }
-                            else {
-                                span_text_builder.append(connection.toString() + ' ', ForegroundColorSpan(normal_color),
-                                                         SPAN_EXCLUSIVE_EXCLUSIVE)
-                            }
-                        }
-                        else ""
-                    }
-                    else connection.toString()
+                    val text_color = if (connection.differs_from_previous) ForegroundColorSpan(difference_color)
+                    else ForegroundColorSpan(normal_color)
+
+                    if (connection.resistance != null && connection.resistance.value < maximumResistance) span_text_builder.append(
+                        connection.toString(), text_color, SPAN_EXCLUSIVE_EXCLUSIVE)
+                    else span_text_builder.append(connection.toString(), text_color, SPAN_EXCLUSIVE_EXCLUSIVE)
                 }
 
                 foundConnections.text = span_text_builder
@@ -242,8 +226,7 @@ class DeviceControlActivity : AppCompatActivity() {
             registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { answer ->
                 if (answer.resultCode == Activity.RESULT_OK) {
                     val new_pinout_file_has_been_chosen = answer.data?.getBooleanExtra(
-                        PreferencesFragment.Companion.MessageToInvoker.NewPinoutConfigFileChosen.text,
-                        false)
+                        PreferencesFragment.Companion.MessageToInvoker.NewPinoutConfigFileChosen.text, false)
 
                     if (new_pinout_file_has_been_chosen != null && new_pinout_file_has_been_chosen) {
                         model.configuePinoutAccordingToFile()
@@ -261,10 +244,22 @@ class DeviceControlActivity : AppCompatActivity() {
 
                     return@setOnMenuItemClickListener true
                 }
+
                 R.id.ctl_actty_menu_calibrate_button -> {
                     model.calibrate()
                     return@setOnMenuItemClickListener true
                 }
+
+                R.id.ctl_actty_menu_disconnect_button -> {
+                    model.disconnect()
+                    return@setOnMenuItemClickListener true
+                }
+
+                R.id.ctl_actty_menu_refresh_button -> {
+                    model.refreshHardware()
+                    return@setOnMenuItemClickListener true
+                }
+
                 else -> {
                     return@setOnMenuItemClickListener true
                 }
@@ -278,8 +273,7 @@ class DeviceControlActivity : AppCompatActivity() {
             }
 
         findViewById<Button>(R.id.check_connections).setOnClickListener() {
-            model.measurementsHandler.commander.sendCommand(ControllerResponseInterpreter.Commands.CheckConnectivity(
-                ControllerResponseInterpreter.Commands.CheckConnectivity.AnswerDomain.Resistance))
+            model.checkConnections()
             Log.d(Tag, "Command sent: ${getString(R.string.set_pin_cmd)}")
         }
 
@@ -290,6 +284,7 @@ class DeviceControlActivity : AppCompatActivity() {
 
     private fun onPreferencesActivityClosed() {
         setupThresholdResistance()
+        model.setupVoltageLevel()
     }
 
     private fun setupThresholdResistance() {

@@ -15,7 +15,7 @@ class PinDescriptionInterpreter {
         private const val maxBoardIndex = 255
         private const val maxPinIndexOnBoard = 31
         private const val minPinIndexOnBoard = 0
-        private const val groupHeaderToActualDataHorizontalIndent = 2
+        private const val groupHeaderToActualDataVerticalIndent = 2
         private const val Tag = "PinDecoder"
     }
 
@@ -156,7 +156,7 @@ class PinDescriptionInterpreter {
             .substring(groupHeaderTag.length)
         if (group_name.isEmpty()) return null
 
-        val usable_data_begins_at_row = cell.rowIndex + groupHeaderToActualDataHorizontalIndent
+        val usable_data_begins_at_row = cell.rowIndex + groupHeaderToActualDataVerticalIndent
         val usable_data_begins_at_column = cell.columnIndex
 
         val pins_mappings = mutableMapOf<String, PinAffinityAndId>()
@@ -167,6 +167,8 @@ class PinDescriptionInterpreter {
             if (row_idx < usable_data_begins_at_row) continue
 
             val cell_probably_with_mapping = row.getCell(usable_data_begins_at_column) ?: continue
+            if (cell_probably_with_mapping.cellType == CellType.BLANK) continue
+
             val mapping = getSinglePinMappingFromCell(cell_probably_with_mapping) ?: continue
 
             if (pins_mappings.contains(mapping.first)) {

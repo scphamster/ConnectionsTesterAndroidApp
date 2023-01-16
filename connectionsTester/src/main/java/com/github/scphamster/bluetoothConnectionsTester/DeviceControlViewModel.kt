@@ -6,8 +6,11 @@ import android.app.Application
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.preference.PreferenceManager
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.*
 import kotlinx.coroutines.*
+
+import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter.Commands
 
 typealias BoardCountT = Int
 
@@ -40,10 +43,24 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             bluetooth.connect()
 
             configuePinoutAccordingToFile()
+            setupVoltageLevel()
 
             isInitialized = true
         }
         return true
+    }
+
+    fun setupVoltageLevel() {
+        val selected_voltage_level = PreferenceManager
+            .getDefaultSharedPreferences(app)
+            .getString("output_voltage_level", "")
+        val voltage_level = when (selected_voltage_level) {
+            "Low(0.7V)" -> Commands.SetOutputVoltageLevel.VoltageLevel.Low
+            "High(1.0V)" -> Commands.SetOutputVoltageLevel.VoltageLevel.High
+            else -> Commands.SetOutputVoltageLevel.VoltageLevel.Low
+        }
+
+        measurementsHandler.commander.sendCommand(Commands.SetOutputVoltageLevel(voltage_level))
     }
 
     fun configuePinoutAccordingToFile() {
@@ -96,14 +113,12 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
 
     fun initializeHardware() {
         viewModelScope.launch(Dispatchers.IO) {
-            measurementsHandler.commander.sendCommand(
-                ControllerResponseInterpreter.Commands.CheckHardware())
+            measurementsHandler.commander.sendCommand(ControllerResponseInterpreter.Commands.CheckHardware())
 
             delay(1000)
 
-            measurementsHandler.commander.sendCommand(
-                ControllerResponseInterpreter.Commands.SetOutputVoltageLevel(
-                    ControllerResponseInterpreter.Commands.SetOutputVoltageLevel.VoltageLevel.Low))
+            measurementsHandler.commander.sendCommand(ControllerResponseInterpreter.Commands.SetOutputVoltageLevel(
+                ControllerResponseInterpreter.Commands.SetOutputVoltageLevel.VoltageLevel.Low))
         }
     }
 
@@ -118,12 +133,40 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun checkConnections() {
+        val if_sequential = PreferenceManager
+            .getDefaultSharedPreferences(app)
+            .getBoolean(PreferencesFragment.Companion.SharedPreferenceKey.SequentialModeScan.text, false)
+
+        val domain = PreferenceManager
+            .getDefaultSharedPreferences(app)
+            .getString("connection_domain", "");
+
+        val answer_domain = when (domain) {
+            "Raw" -> Commands.CheckConnectivity.AnswerDomain.Voltage
+            "Voltage" -> Commands.CheckConnectivity.AnswerDomain.Voltage
+            "Resistance" -> Commands.CheckConnectivity.AnswerDomain.Resistance
+            "SimpleBoolean" -> Commands.CheckConnectivity.AnswerDomain.SimpleConnectionFlag
+            else -> Commands.CheckConnectivity.AnswerDomain.Resistance
+        }
+
+        measurementsHandler.commander.sendCommand(Commands.CheckConnectivity(answer_domain, sequential = if_sequential))
+    }
+
     fun setMinimumResistanceToBeRecognizedAsConnection(value_as_text: String) {
         val resistance = value_as_text.toResistance()
 
         resistance?.let {
             thresholdResistanceBeforeNoise = resistance.value
         }
+    }
+
+    fun disconnect() {
+        bluetooth.disconnect()
+    }
+
+    fun refreshHardware() {
+        measurementsHandler.commander.sendCommand(Commands.CheckHardware())
     }
 
     private fun toast(msg: String?) {

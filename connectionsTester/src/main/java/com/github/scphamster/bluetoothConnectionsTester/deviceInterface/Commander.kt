@@ -21,9 +21,9 @@ class Commander(val dataLink: BluetoothBridge, val context: Context) {
         val command_argument: String
 
         command = context.getString(R.string.set_output_voltage)
-        command_argument = cmd.level.toString()
+        command_argument = cmd.level.text
 
-        dataLink.sendRawCommand(command + " " + command_argument)
+        dataLink.sendRawCommand(command + ' ' + command_argument)
     }
 
     fun sendCommand(cmd: ControllerResponseInterpreter.Commands.CheckConnectivity) {
@@ -34,7 +34,11 @@ class Commander(val dataLink: BluetoothBridge, val context: Context) {
         else {
             "${cmd.pinAffinityAndId.boardId}:${cmd.pinAffinityAndId.idxOnBoard}"
         }
-        val composed_command = (cmd.base + ' ' + cmd.domain.text + ' ' + command_argument).trim()
+
+        val if_sequential = if (cmd.sequential) "sequential"
+        else ""
+
+        val composed_command = (cmd.base + ' ' + cmd.domain.text + ' ' + command_argument + ' ' + if_sequential).trim()
         dataLink.sendRawCommand(composed_command)
     }
 

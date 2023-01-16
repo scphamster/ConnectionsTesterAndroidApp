@@ -6,4 +6,13 @@
     <item
             android:title="Calibrate"
             android:id="@+id/ctl_actty_menu_calibrate_button"/>
+    <item
+            android:title="Disconnect"
+            android:id="@+id/ctl_actty_menu_disconnect_button"
+        />
+    <item
+            android:title="Refresh boards"
+            android:id="@+id/ctl_actty_menu_refresh_button"
+        />
+
 </menu>
