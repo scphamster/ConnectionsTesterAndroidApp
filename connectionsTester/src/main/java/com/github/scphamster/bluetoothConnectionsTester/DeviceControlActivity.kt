@@ -58,8 +58,10 @@ class DeviceControlActivity : AppCompatActivity() {
                     val text_color = if (connection.differs_from_previous) ForegroundColorSpan(difference_color)
                     else ForegroundColorSpan(normal_color)
 
-                    if (connection.resistance != null && connection.resistance.value < maximumResistance) span_text_builder.append(
-                        connection.toString(), text_color, SPAN_EXCLUSIVE_EXCLUSIVE)
+                    if (connection.resistance != null) {
+                        if (connection.resistance.value < maximumResistance) span_text_builder.append(
+                            connection.toString(), text_color, SPAN_EXCLUSIVE_EXCLUSIVE)
+                    }
                     else span_text_builder.append(connection.toString(), text_color, SPAN_EXCLUSIVE_EXCLUSIVE)
                 }
 
