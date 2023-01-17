@@ -27,7 +27,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
         get() {
             return measurementsHandler.boardsManager.boards.value?.isEmpty() ?: true
         }
-    var thresholdResistanceBeforeNoise: Float = 0f
+    var maxDetectableResistance: Float = 0f
 
     init {
         isInitialized = false
@@ -86,7 +86,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
 
     fun storeMeasurementsToFile() = viewModelScope.launch {
         val job = viewModelScope.async(Dispatchers.Default) {
-            measurementsHandler.storeMeasurementsResultsToFile(thresholdResistanceBeforeNoise)
+            measurementsHandler.storeMeasurementsResultsToFile(maxDetectableResistance)
         }
 
         try {
@@ -157,7 +157,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
         val resistance = value_as_text.toResistance()
 
         resistance?.let {
-            thresholdResistanceBeforeNoise = resistance.value
+            maxDetectableResistance = resistance.value
         }
     }
 
