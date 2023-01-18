@@ -135,57 +135,57 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
         return pins_sorted_by_group.toTypedArray()
     }
 
-    fun updateConnections(connections_description: ControllerMessage.ConnectionsDescription) {
-        val updated_pin = findPinRefByAffinityAndId(connections_description.ofPin)
-
-        if (updated_pin == null) {
-            Log.e(Tag,
-                  "Pin with descriptor: ${connections_description.ofPin.boardId}:${connections_description.ofPin.idxOnBoard} is not found!")
-
-            return
-        }
-
+    fun updateConnectionsForPin(updated_pin: Pin, connections: Array<Connection>) {
         val new_connections = mutableListOf<Connection>()
 
-        for (connection in connections_description.connections) {
+        for (connection in connections) {
             val affinity_and_id = connection.toPin.pinAffinityAndId
 
             val pin = findPinRefByAffinityAndId(affinity_and_id)
 
             if (pin == null) {
                 Log.e(Tag, "Pin not found! ${affinity_and_id.boardId}:${affinity_and_id.idxOnBoard}")
-
                 return
             }
+
             val descriptor = pin.get()?.descriptor
             if (descriptor == null) {
                 Log.e(Tag, "descriptor is null!")
                 return
             }
 
-            val previous_connection_to_this_pin = updated_pin
-                .get()
-                ?.getConnection(affinity_and_id)
+            val previous_connection_to_this_pin = updated_pin.getConnection(affinity_and_id)
 
-            val differs_from_previous = connection.differsFromOther(previous_connection_to_this_pin) ?: false
+            val differs_from_previous = connection.checkIfDifferent(previous_connection_to_this_pin) ?: false
 
-            val new_connection = Connection(descriptor, connection.voltage, connection.resistance, differs_from_previous)
+            val new_connection =
+                Connection(descriptor, connection.voltage, connection.resistance, differs_from_previous)
 
             new_connections.add(new_connection)
             Log.i(Tag, "Searched pin Found! ${affinity_and_id.boardId}:${affinity_and_id.idxOnBoard}")
         }
 
-        val old_connections = updated_pin.get()?.connections
-        updated_pin.get()?.connections = new_connections
-        old_connections?.let { updated_pin.get()?.oldConnections = it }
+        updated_pin.connectionsListChangedFromPreviousCheck =
+            updated_pin.checkIfConnectionsListIsDifferent(new_connections)
+        updated_pin.connections = new_connections
 
-        val pin = updated_pin.get()
-        if (pin == null) {
-            Log.e(Tag, "Pin is null!")
+        pinChangeCallback?.invoke(updated_pin)
+    }
+
+    fun updateConnectionsByControllerMsg(connections_description: ControllerMessage.ConnectionsDescription) {
+        val updated_pin_ref = findPinRefByAffinityAndId(connections_description.ofPin)
+
+        if (updated_pin_ref == null) {
+            Log.e(Tag,
+                  "Pin with descriptor: ${connections_description.ofPin.boardId}:${connections_description.ofPin.idxOnBoard} is not found!")
+
             return
         }
 
-        pinChangeCallback?.invoke(pin)
+        val updated_pin = updated_pin_ref.get()
+        if (updated_pin == null) return
+
+        updateConnectionsForPin(updated_pin, connections_description.connections)
     }
 
     fun getBoardsCount(): Int {
@@ -213,9 +213,10 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
 
         return null
     }
+
     fun calibrate() {
         val boards = boards.value
-        boards?.let{
+        boards?.let {
             for (board in boards) {
                 for (pin in board.pins) {
                     //todo: implement
@@ -223,6 +224,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
             }
         }
     }
+
     suspend fun updateIOBoards(boards_id: Array<IoBoardIndexT>) {
         val new_boards = mutableListOf<IoBoard>()
         var boards_counter = 0
@@ -233,7 +235,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
 
             for (pin_num in 0..(IoBoard.pinsCountOnSingleBoard - 1)) {
                 val descriptor =
-                    PinDescriptor(PinAffinityAndId(id, pin_num), group = new_pin_group, uniqueIdx = nextUniquePinId)
+                    PinDescriptor(PinAffinityAndId(id, pin_num), group = new_pin_group, UID = nextUniquePinId)
 
                 val new_pin = Pin(descriptor, belongsToBoard = WeakReference(new_board))
                 new_board.pins.add(new_pin)

@@ -60,7 +60,7 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
 
     init {
         responseInterpreter.onConnectionsDescriptionCallback = { new_connections ->
-            boardsManager.updateConnections(new_connections)
+            boardsManager.updateConnectionsByControllerMsg(new_connections)
             connectionDescriptorMessageCounter++
         }
         responseInterpreter.onHardwareDescriptionCallback = { message ->
@@ -86,7 +86,7 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
         withContext(Dispatchers.Default) {
             var pin_descriptor_messages_count_last_check = connectionDescriptorMessageCounter
 
-            while(true) {
+            while (true) {
                 delay(max_delay_for_result_arrival_ms.toLong())
 
                 if (connectionDescriptorMessageCounter == pin_descriptor_messages_count_last_check) {
@@ -177,7 +177,7 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
                 val cell_for_this_pin_connections =
                     row_for_this_pin.getCell(column_counter) ?: row_for_this_pin.createCell(column_counter)
 
-                if (pin.connections.isEmpty()) {
+                if (pin.connections.size == 1 && pin.hasConnection(pin.descriptor.pinAffinityAndId)) {
                     cell_for_this_pin_connections.setCellValue("${pin.descriptor.getPrettyName()} -> NC")
                     continue
                 }
@@ -189,6 +189,8 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
 
                 var connections_differ_from_previous_run = false
                 for (connection in pin.connections) {
+                    if (connection.toPin.pinAffinityAndId == pin.descriptor.affinityAndId) continue
+
                     //do not print if resistance is higher than max resistance (user defined)
                     val connection_as_string = if (connection.resistance != null) {
                         if (connection.resistance.value < maximumResistance) connection.toString() + ' '
@@ -196,7 +198,7 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
                     }
                     else connection.toString()
 
-                    if (connection.differs_from_previous) {
+                    if (connection.value_changed_from_previous_check) {
                         rich_text.append(connection_as_string, font_difference_found)
                     }
                     else {
@@ -208,6 +210,15 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
 
                 if (max_number_of_characters_in_this_column < string_builder.length) max_number_of_characters_in_this_column =
                     string_builder.length
+
+                val style = workbook.createCellStyle()
+                if (!pin.isHealthy) style.setFillBackgroundColor(IndexedColors.RED.index)
+                else if (pin.connectionsListChangedFromPreviousCheck) style.setFillBackgroundColor(IndexedColors.PINK.index)
+                else style.setFillBackgroundColor((IndexedColors.WHITE.index))
+
+
+                style.setFillPattern(FillPatternType.SQUARES)
+                cell_for_this_pin_connections.cellStyle = style
 
                 cell_for_this_pin_connections.setCellValue(rich_text)
             }

@@ -45,26 +45,51 @@ class DeviceControlActivity : AppCompatActivity() {
 
         fun setup(pin: Pin) {
             pinNumber.text = pin.descriptor.getPrettyName()
-            val maximumResistance = model.thresholdResistanceBeforeNoise
+            val RMax = model.maxDetectableResistance
 
-            if (pin.connections.isEmpty()) {
-                foundConnections.text = "Not connected"
-            }
-            else {
-                val span_text_builder = SpannableStringBuilder()
-                val normal_color = Color.GREEN
-                val difference_color = Color.YELLOW
-                for (connection in pin.connections) {
-                    val text_color = if (connection.differs_from_previous) ForegroundColorSpan(difference_color)
+            val span_text_builder = SpannableStringBuilder()
+            val normal_color = Color.GREEN
+            val difference_color = Color.YELLOW
+            for (connection in pin.connections) {
+                if (connection.toPin.pinAffinityAndId == pin.descriptor.pinAffinityAndId) continue
+
+                val text_color =
+                    if (connection.value_changed_from_previous_check) ForegroundColorSpan(difference_color)
                     else ForegroundColorSpan(normal_color)
 
-                    if (connection.resistance != null && connection.resistance.value < maximumResistance) span_text_builder.append(
+                if (connection.resistance != null) {
+                    if (connection.resistance.value < RMax) span_text_builder.append(
                         connection.toString(), text_color, SPAN_EXCLUSIVE_EXCLUSIVE)
-                    else span_text_builder.append(connection.toString(), text_color, SPAN_EXCLUSIVE_EXCLUSIVE)
                 }
-
-                foundConnections.text = span_text_builder
+                else span_text_builder.append(connection.toString(), text_color, SPAN_EXCLUSIVE_EXCLUSIVE)
             }
+
+            if (!pin.isHealthy) {
+                foundConnections.text = "Unhealthy!"
+                pinNumber.setTextColor(resources.getColor(R.color.pin_unhealthy))
+                foundConnections.setTextColor(resources.getColor(R.color.pin_unhealthy))
+            }
+            else {
+                if (pin.connections.size == 1){
+                    foundConnections.text = "Not connected";
+                    foundConnections.setTextColor(Color.GRAY)
+                }
+                else if (span_text_builder.isEmpty()){
+                    foundConnections.text = "Not connected (High R connections not shown)"
+                    foundConnections.setTextColor(Color.GRAY)
+                }
+                else
+                    foundConnections.text = span_text_builder
+
+                if (pin.connectionsListChangedFromPreviousCheck) {
+                    pinNumber.setTextColor(resources.getColor(R.color.connections_changed))
+                }
+                else {
+                    pinNumber.setTextColor(resources.getColor(R.color.connections_not_changed))
+                }
+            }
+
+
         }
     }
 
