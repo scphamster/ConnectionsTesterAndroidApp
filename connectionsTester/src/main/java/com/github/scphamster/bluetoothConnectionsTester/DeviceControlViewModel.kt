@@ -153,6 +153,28 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
         measurementsHandler.commander.sendCommand(Commands.CheckConnectivity(answer_domain, sequential = if_sequential))
     }
 
+    fun checkConnections(for_pin: Pin) {
+        val if_sequential = PreferenceManager
+            .getDefaultSharedPreferences(app)
+            .getBoolean(PreferencesFragment.Companion.SharedPreferenceKey.SequentialModeScan.text, false)
+
+        val domain = PreferenceManager
+            .getDefaultSharedPreferences(app)
+            .getString("connection_domain", "");
+
+        val answer_domain = when (domain) {
+            "Raw" -> Commands.CheckConnectivity.AnswerDomain.Voltage
+            "Voltage" -> Commands.CheckConnectivity.AnswerDomain.Voltage
+            "Resistance" -> Commands.CheckConnectivity.AnswerDomain.Resistance
+            "SimpleBoolean" -> Commands.CheckConnectivity.AnswerDomain.SimpleConnectionFlag
+            else -> Commands.CheckConnectivity.AnswerDomain.Resistance
+        }
+
+
+        measurementsHandler.commander.sendCommand(
+            Commands.CheckConnectivity(answer_domain, for_pin.descriptor.pinAffinityAndId, if_sequential))
+    }
+
     fun setMinimumResistanceToBeRecognizedAsConnection(value_as_text: String) {
         val resistance = value_as_text.toResistance()
 
