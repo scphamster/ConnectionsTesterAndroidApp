@@ -180,6 +180,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
 
         resistance?.let {
             maxDetectableResistance = resistance.value
+            measurementsHandler.boardsManager.maxResistanceAsConnection = maxDetectableResistance
         }
     }
 

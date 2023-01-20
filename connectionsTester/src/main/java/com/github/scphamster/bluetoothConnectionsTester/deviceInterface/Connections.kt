@@ -206,11 +206,30 @@ data class Pin(val descriptor: PinDescriptor,
         }
     }
 
-    fun checkIfConnectionsListIsDifferent(checked_connections: List<Connection>): Boolean {
-        if (checked_connections.size != connections.size) return true
+    fun checkIfConnectionsListIsDifferent(checked_connections: List<Connection>, maxResistance: Float = 0f): Boolean {
 
-        for (connection in checked_connections) {
-            if (!hasConnection(connection)) return true
+        val connections_not_in_my_list = checked_connections.filter {
+            !hasConnection(it)
+        }
+
+        for (connection in connections_not_in_my_list) {
+            if (connection.resistance != null) {
+                if (connection.resistance.value < maxResistance) return true
+            }
+            else return true
+        }
+
+        val connections_not_in_checked = connections.filter { my_connection ->
+            checked_connections.find {
+                my_connection.toPin == it.toPin
+            } == null
+        }
+
+        for (connection in connections_not_in_checked) {
+            if (connection.resistance != null) {
+                if (connection.resistance.value < maxResistance) return true
+            }
+            else return true
         }
 
         return false

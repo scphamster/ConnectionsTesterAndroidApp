@@ -42,6 +42,8 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
             return id
         }
 
+    var maxResistanceAsConnection = 0f
+
     private var nextUniquePinId = 0
         get() {
             val id = field
@@ -140,16 +142,15 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
 
         for (connection in connections) {
             val affinity_and_id = connection.toPin.pinAffinityAndId
+            val connected_to_pin = findPinRefByAffinityAndId(affinity_and_id)
 
-            val pin = findPinRefByAffinityAndId(affinity_and_id)
-
-            if (pin == null) {
+            if (connected_to_pin == null) {
                 Log.e(Tag, "Pin not found! ${affinity_and_id.boardId}:${affinity_and_id.idxOnBoard}")
                 return
             }
 
-            val descriptor = pin.get()?.descriptor
-            if (descriptor == null) {
+            val descriptor_of_connected_pin = connected_to_pin.get()?.descriptor
+            if (descriptor_of_connected_pin == null) {
                 Log.e(Tag, "descriptor is null!")
                 return
             }
@@ -160,14 +161,15 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
             val first_occurrence = previous_connection_to_this_pin == null;
 
             val new_connection =
-                Connection(descriptor, connection.voltage, connection.resistance, differs_from_previous, first_occurrence)
+                Connection(descriptor_of_connected_pin, connection.voltage, connection.resistance,
+                           differs_from_previous, first_occurrence)
 
             new_connections.add(new_connection)
             Log.i(Tag, "Searched pin Found! ${affinity_and_id.boardId}:${affinity_and_id.idxOnBoard}")
         }
 
         updated_pin.connectionsListChangedFromPreviousCheck =
-            updated_pin.checkIfConnectionsListIsDifferent(new_connections)
+            updated_pin.checkIfConnectionsListIsDifferent(new_connections, maxResistanceAsConnection)
         updated_pin.connections = new_connections
 
         pinChangeCallback?.invoke(updated_pin)
