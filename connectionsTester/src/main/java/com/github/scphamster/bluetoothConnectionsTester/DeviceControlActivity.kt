@@ -42,8 +42,19 @@ class DeviceControlActivity : AppCompatActivity() {
         private val layout: RelativeLayout by lazy { view.findViewById(R.id.single_check_result) }
         private val pinNumber: TextView by lazy { view.findViewById(R.id.pin_description) }
         private val foundConnections: TextView by lazy { view.findViewById(R.id.connections) }
+        private var results_are_for_pin: Pin? = null
+
+        init{
+            layout.setOnClickListener{
+                val my_pin = results_are_for_pin
+                if (my_pin == null) return@setOnClickListener
+
+                model.checkConnections(my_pin)
+            }
+        }
 
         fun setup(pin: Pin) {
+            results_are_for_pin = pin
             pinNumber.text = pin.descriptor.getPrettyName()
             val RMax = model.maxDetectableResistance
 
@@ -89,8 +100,6 @@ class DeviceControlActivity : AppCompatActivity() {
                     pinNumber.setTextColor(resources.getColor(R.color.connections_not_changed))
                 }
             }
-
-
         }
     }
 
@@ -100,9 +109,11 @@ class DeviceControlActivity : AppCompatActivity() {
             get() = pins.size
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CheckResultViewHolder {
-            return CheckResultViewHolder(LayoutInflater
-                                             .from(parent.context)
-                                             .inflate(R.layout.ctl_actty_recycler_view_item, parent, false))
+            val vh = CheckResultViewHolder(LayoutInflater
+                                               .from(parent.context)
+                                               .inflate(R.layout.ctl_actty_recycler_view_item, parent, false))
+
+            return vh
         }
 
         override fun getItemCount() = itemsCount
