@@ -12,11 +12,11 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
 
     data class SortedPins(val group: PinGroup? = null, val affinity: IoBoardIndexT? = null, val pins: Array<Pin>) {
         fun getCongregationName(): String {
-            group?.let {
-                return it.getPrettyName()
-            }
-
-            return affinity.toString()
+            if (group != null)
+                return group.getPrettyName()
+            else if (affinity != null)
+                return affinity.toString()
+            else return "FAILGROUP"
         }
 
         val isSortedByGroup: Boolean = group != null
@@ -130,8 +130,8 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
             val sorted_pins = SortedPins(group = null, affinity = board.id, pins = pins_without_group.toTypedArray())
             pins_sorted_by_affinity.add(sorted_pins)
         }
-
         pins_sorted_by_group.addAll(pins_sorted_by_affinity)
+
         return pins_sorted_by_group.toTypedArray()
     }
 
@@ -157,9 +157,10 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
             val previous_connection_to_this_pin = updated_pin.getConnection(affinity_and_id)
 
             val differs_from_previous = connection.checkIfDifferent(previous_connection_to_this_pin) ?: false
+            val first_occurrence = previous_connection_to_this_pin == null;
 
             val new_connection =
-                Connection(descriptor, connection.voltage, connection.resistance, differs_from_previous)
+                Connection(descriptor, connection.voltage, connection.resistance, differs_from_previous, first_occurrence)
 
             new_connections.add(new_connection)
             Log.i(Tag, "Searched pin Found! ${affinity_and_id.boardId}:${affinity_and_id.idxOnBoard}")

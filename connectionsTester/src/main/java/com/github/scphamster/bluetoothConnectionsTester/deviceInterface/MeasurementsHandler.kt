@@ -149,7 +149,6 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
         val names_row = sheet.getRow(0) ?: sheet.createRow(0)
 
         var column_counter = 0
-
         for (congregation in pins_congregations) {
             var max_number_of_characters_in_this_column = 0
 
@@ -159,61 +158,69 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
             val name_of_congregation = if (congregation.isSortedByGroup) "Group: ${congregation.getCongregationName()}"
             else "Board Id: ${congregation.getCongregationName()}"
 
-            cell_with_name_of_congregation.setCellValue(name_of_congregation)
+            Log.d(Tag, "Congregation: $name_of_congregation")
 
             val new_style = workbook.createCellStyle()
             new_style.setFillBackgroundColor(IndexedColors.LIGHT_CORNFLOWER_BLUE.index)
             new_style.setFillPattern(FillPatternType.SQUARES)
+            cell_with_name_of_congregation.setCellValue(name_of_congregation)
             cell_with_name_of_congregation.cellStyle = (new_style)
 
             val font_normal = workbook.createFont()
-            val font_difference_found = workbook.createFont()
-            font_difference_found.setColor(IndexedColors.ORANGE.index)
+            val font_for_connection_with_changes = workbook.createFont()
+            val font_for_unhealthy_pins = workbook
+                .createFont()
+            font_for_connection_with_changes.setColor(IndexedColors.ORANGE.index)
+            font_for_unhealthy_pins.setColor(IndexedColors.RED.index)
 
-            val first_row_offset = 1
-            for ((counter, pin) in congregation.pins.withIndex()) {
-                val row_counter = counter + first_row_offset
-                val row_for_this_pin = sheet.getRow(row_counter) ?: sheet.createRow(row_counter)
+            val results_start_row_number = 1
+            for ((pin_counter, pin) in congregation.pins.withIndex()) {
+                val row_num = pin_counter + results_start_row_number
+                val row = sheet.getRow(row_num) ?: sheet.createRow(row_num)
                 val cell_for_this_pin_connections =
-                    row_for_this_pin.getCell(column_counter) ?: row_for_this_pin.createCell(column_counter)
-
-                if (pin.connections.size == 1 && pin.hasConnection(pin.descriptor.pinAffinityAndId)) {
-                    cell_for_this_pin_connections.setCellValue("${pin.descriptor.getPrettyName()} -> NC")
-                    continue
-                }
+                    row.getCell(column_counter) ?: row.createCell(column_counter)
 
                 val string_builder = StringBuilder()
                 string_builder.append("${pin.descriptor.getPrettyName()} -> ")
                 val rich_text = XSSFRichTextString("${pin.descriptor.getPrettyName()} -> ")
                 rich_text.applyFont(font_normal)
 
-                var connections_differ_from_previous_run = false
-                for (connection in pin.connections) {
-                    if (connection.toPin.pinAffinityAndId == pin.descriptor.affinityAndId) continue
-
-                    //do not print if resistance is higher than max resistance (user defined)
-                    val connection_as_string = if (connection.resistance != null) {
-                        if (connection.resistance.value < maximumResistance) connection.toString() + ' '
-                        else ""
-                    }
-                    else connection.toString()
-
-                    if (connection.value_changed_from_previous_check) {
-                        rich_text.append(connection_as_string, font_difference_found)
-                    }
-                    else {
-                        rich_text.append(connection_as_string, font_normal)
-                    }
-
-                    string_builder.append(connection_as_string)
+                if (pin.connections.size == 1 && pin.hasConnection(pin.descriptor.pinAffinityAndId) && pin.isHealthy) {
+                    string_builder.append("NC")
+                    rich_text.append("NC")
                 }
+                else if (!pin.isHealthy){
+                    string_builder.append("UNHEALTHY!")
+                    rich_text.append("UNHEALTHY!", font_for_unhealthy_pins)
+                }
+                else
+                    for (connection in pin.connections) {
+                        if (connection.toPin.pinAffinityAndId == pin.descriptor.affinityAndId) continue
+
+                        //do not print if resistance is higher than max resistance (user defined)
+                        val connection_as_string = if (connection.resistance != null) {
+                            if (connection.resistance.value < maximumResistance) connection.toString() + ' '
+                            else ""
+                        }
+                        else connection.toString()
+
+                        if (connection.value_changed_from_previous_check) {
+                            rich_text.append(connection_as_string, font_for_connection_with_changes)
+                        }
+                        else {
+                            rich_text.append(connection_as_string, font_normal)
+                        }
+
+                        string_builder.append(connection_as_string)
+                    }
 
                 if (max_number_of_characters_in_this_column < string_builder.length) max_number_of_characters_in_this_column =
                     string_builder.length
 
                 val style = workbook.createCellStyle()
                 if (!pin.isHealthy) style.setFillBackgroundColor(IndexedColors.RED.index)
-                else if (pin.connectionsListChangedFromPreviousCheck) style.setFillBackgroundColor(IndexedColors.PINK.index)
+                else if (pin.connectionsListChangedFromPreviousCheck) style.setFillBackgroundColor(
+                    IndexedColors.PINK.index)
                 else style.setFillBackgroundColor((IndexedColors.WHITE.index))
 
 
@@ -224,7 +231,13 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
             }
 
             //todo: add preference to make this action configurable
-            sheet.setColumnWidth(column_counter, 240 * max_number_of_characters_in_this_column)
+            val one_char_width = 260
+            val max_column_width = 60 * one_char_width
+            val column_width =
+                if (one_char_width * max_number_of_characters_in_this_column > max_column_width) max_column_width
+                else one_char_width * max_number_of_characters_in_this_column
+
+            sheet.setColumnWidth(column_counter, column_width)
             column_counter++
         }
 

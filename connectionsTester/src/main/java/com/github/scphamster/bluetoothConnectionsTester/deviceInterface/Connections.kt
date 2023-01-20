@@ -97,7 +97,8 @@ data class PinAffinityAndId(val boardId: IoBoardIndexT, val idxOnBoard: PinNumT)
 class Connection(val toPin: PinIdentifier,
                  val voltage: Voltage? = null,
                  val resistance: Resistance? = null,
-                 val value_changed_from_previous_check: Boolean = false) {
+                 val value_changed_from_previous_check: Boolean = false,
+                 val first_occurrence: Boolean = true) {
     override fun toString(): String {
         val electrical = if (voltage != null) "(${voltage.toString()})"
         else if (resistance != null) "(${resistance.toString()})"

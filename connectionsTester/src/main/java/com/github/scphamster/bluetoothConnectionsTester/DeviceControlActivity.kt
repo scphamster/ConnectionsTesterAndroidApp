@@ -55,6 +55,7 @@ class DeviceControlActivity : AppCompatActivity() {
 
                 val text_color =
                     if (connection.value_changed_from_previous_check) ForegroundColorSpan(difference_color)
+                    else if (connection.first_occurrence) ForegroundColorSpan(Color.MAGENTA)
                     else ForegroundColorSpan(normal_color)
 
                 if (connection.resistance != null) {

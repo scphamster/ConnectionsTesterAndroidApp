@@ -11,6 +11,25 @@ import java.io.OutputStream
 
 class Storage {
     companion object {
+        suspend fun getWorkBookFromFile(context: Context): XSSFWorkbook = withContext(Dispatchers.IO){
+            val file_uri = PreferenceManager
+                .getDefaultSharedPreferences(context)
+                .getString(PreferencesFragment.Companion.SharedPreferenceKey.PinoutConfigFileUri.text, "")
+
+            val file_name = PreferenceManager
+                .getDefaultSharedPreferences(context)
+                .getString(PreferencesFragment.Companion.SharedPreferenceKey.PinoutConfigFileName.text, "")
+
+            if (file_uri == "") throw Error("No file for pinout description found!")
+
+            val inputStream = context.contentResolver.openInputStream(Uri.parse(file_uri))
+            val workbook = XSSFWorkbook(inputStream)
+
+            inputStream?.close()
+
+            workbook
+        }
+
         suspend fun storeToFile(workbook: XSSFWorkbook, context: Context) =
             withContext(Dispatchers.IO) {
                 val file_storage_uri = PreferenceManager
@@ -40,24 +59,5 @@ class Storage {
                 workbook.write(outputStream)
                 outputStream.close()
             }
-
-        suspend fun getWorkBookFromFile(context: Context): XSSFWorkbook = withContext(Dispatchers.IO){
-            val file_uri = PreferenceManager
-                .getDefaultSharedPreferences(context)
-                .getString(PreferencesFragment.Companion.SharedPreferenceKey.PinoutConfigFileUri.text, "")
-
-            val file_name = PreferenceManager
-                .getDefaultSharedPreferences(context)
-                .getString(PreferencesFragment.Companion.SharedPreferenceKey.PinoutConfigFileName.text, "")
-
-            if (file_uri == "") throw Error("No file for pinout description found!")
-
-            val inputStream = context.contentResolver.openInputStream(Uri.parse(file_uri))
-            val workbook = XSSFWorkbook(inputStream)
-
-            inputStream?.close()
-
-            workbook
-        }
     }
 }
