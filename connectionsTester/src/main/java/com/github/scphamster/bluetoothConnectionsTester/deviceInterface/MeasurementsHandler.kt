@@ -147,15 +147,12 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
 
             val workbook = Storage.getWorkBookFromFile(context)
 
-            val sheet =try{
-                workbook.getSheet("Measurements")
-            }
-            catch(e:Exception){
-                Log.d(Tag, "No sheet with specified name found, creating one")
-                workbook.createSheet("Measurements")
-            }
+            Log.d(Tag, "Marker-1")
+            val sheet = if (workbook.getSheet("Measurements") != null) workbook.getSheet("Measurements")
+            else workbook.createSheet("Measurements")
 
             Log.d(Tag, "Marker0")
+            Log.d(Tag, "Number of sheets: ${workbook.numberOfSheets}")
             val names_row = sheet.getRow(0) ?: sheet.createRow(0)
 
             var column_counter = 0
