@@ -24,8 +24,7 @@
 
 <!--    activity preferences-->
     <string name="pref_pinout_filename_defaultval">not selected</string>
-    <string name="pref_pinout_descriptor_buttonName">Specify file with pinout namings</string>
-    <string name="pref_pinout_results_buttonName">Specify file where to store results</string>
+    <string name="pref_pinout_and_results_file">Specify XLSX work file</string>
 
 <!--    activity deviceControl-->
     <string name="ctl_actty_tittle_connecting">Connecting to device: %s</string>

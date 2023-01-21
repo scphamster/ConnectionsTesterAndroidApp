@@ -101,14 +101,13 @@ class PinDescriptionInterpreter {
         }
 
     private fun getInterpretation(document: XSSFWorkbook?): Interpretation? {
-        if (document == null){
+        if (document == null) {
             Log.e(Tag, "Document is NULL")
             return null
         }
 
-        Log.d(Tag, "Start of decode...")
-
-        val sheet = document.getSheetAt(0) ?: throw BadFileException("document has no sheets!")
+        val sheet = if (document.getSheet("Description") != null) document.getSheet("Description")
+        else throw (BadFileException("Specified file does not have \"Description\" tab!"))
 
         val cells_with_group_names = findCellsWithGroupHeadersAtSheet(sheet)
 
@@ -213,9 +212,11 @@ private fun Cell.getStringRepresentationOfValue(): String {
                 .toInt()
                 .toString()
         }
+
         CellType.STRING -> {
             stringCellValue
         }
+
         else -> {
             throw Exception("Group header from cell: ${
                 CellReference(rowIndex, columnIndex)

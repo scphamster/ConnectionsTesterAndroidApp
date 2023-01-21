@@ -16,7 +16,6 @@ class PreferencesFragment : PreferenceFragmentCompat() {
 
         public enum class IntentResultCode(val value: Int) {
             ChooseConfigsFile(1),
-            ChooseWhereToStoreFile(2)
         }
 
         public enum class MessageToInvoker(val text: String) {
@@ -26,8 +25,6 @@ class PreferencesFragment : PreferenceFragmentCompat() {
         public enum class SharedPreferenceKey(val text: String) {
             PinoutConfigFileUri("pref_pinout_config_file_uri"),
             PinoutConfigFileName("pref_pinout_config_file_name"),
-            ResultsFileUri("pref_results_file_uri"),
-            ResultsFileName("pref_results_file_name"),
             MaximumResistance("maximum_resistance_as_connection"),
             SequentialModeScan("sequential_boards_scan")
         }
@@ -39,7 +36,6 @@ class PreferencesFragment : PreferenceFragmentCompat() {
 
         private enum class PreferenceId(val text: String) {
             Pinout("pref_pinout_descriptor"),
-            Results("pref_results_file"),
             MaximumResistance("maximum_resistance_as_connection")
         }
     }
@@ -49,7 +45,6 @@ class PreferencesFragment : PreferenceFragmentCompat() {
     }
 
     private val pinoutFilePreference by lazy { findPreference<PreferenceScreen>(PreferenceId.Pinout.text) }
-    private val whereToStoreResultsFile by lazy { findPreference<PreferenceScreen>(PreferenceId.Results.text) }
     private val maximumResistanceAsConnection by lazy {
         findPreference<EditTextPreference>(PreferenceId.MaximumResistance.text)
     }
@@ -87,18 +82,6 @@ class PreferencesFragment : PreferenceFragmentCompat() {
                                                   SharedPreferenceKey.PinoutConfigFileUri.text,
                                                   SharedPreferenceKey.PinoutConfigFileName.text)
             }
-
-            IntentResultCode.ChooseWhereToStoreFile.value -> {
-                val files: ArrayList<MediaFile> = data!!.getParcelableArrayListExtra(FilePickerActivity.MEDIA_FILES)!!
-
-                if (files.size > 1) {
-                    return
-                }
-
-                saveFileChoiceToSharedPreferences(PreferenceId.Results.text, files.get(0),
-                                                  SharedPreferenceKey.ResultsFileUri.text,
-                                                  SharedPreferenceKey.ResultsFileName.text)
-            }
         }
     }
 
@@ -129,25 +112,8 @@ class PreferencesFragment : PreferenceFragmentCompat() {
 
             true
         }
-
-        whereToStoreResultsFile?.setOnPreferenceClickListener {
-            val intent = Intent(context, FilePickerActivity::class.java)
-            intent.putExtra(FilePickerActivity.CONFIGS, Configurations
-                .Builder()
-                .setCheckPermission(true)
-                .setShowImages(false)
-                .setShowVideos(false)
-                .setSuffixes(FileExtensions.Results.text)
-                .setShowFiles(true)
-                .setSingleChoiceMode(true)
-                .enableImageCapture(false)
-                .setSkipZeroSizeFiles(false)
-                .build())
-            startActivityForResult(intent, IntentResultCode.ChooseWhereToStoreFile.value)
-
-            true
-        }
     }
+
     private fun setupCallbacks() {
         maximumResistanceAsConnection?.setOnPreferenceChangeListener { preference, newValue ->
             val max_resistance_as_text = newValue.toString()
@@ -155,6 +121,7 @@ class PreferencesFragment : PreferenceFragmentCompat() {
             true
         }
     }
+
     private fun setupButtonsSummary() {
         context?.let {
             val pref_manager = PreferenceManager.getDefaultSharedPreferences(it)
@@ -166,15 +133,6 @@ class PreferencesFragment : PreferenceFragmentCompat() {
             }
             else {
                 pinoutFilePreference?.summary = name_of_config_file.toString()
-            }
-
-            val name_of_where_to_store_file = pref_manager.getString(SharedPreferenceKey.ResultsFileName.text, "")
-            val where_to_store_file_uri = pref_manager.getString(SharedPreferenceKey.ResultsFileUri.text, "")
-            if (name_of_where_to_store_file == "" || where_to_store_file_uri == "") {
-                whereToStoreResultsFile?.summary = getString(R.string.pref_pinout_filename_defaultval).toString()
-            }
-            else {
-                whereToStoreResultsFile?.summary = name_of_where_to_store_file.toString()
             }
 
             val max_resistance_as_text = pref_manager.getString(PreferenceId.MaximumResistance.text, "")

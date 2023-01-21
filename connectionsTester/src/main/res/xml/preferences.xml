@@ -4,17 +4,10 @@
     <PreferenceScreen
             android:selectAllOnFocus="true"
             android:singleLine="true"
-            android:title="@string/pref_pinout_descriptor_buttonName"
+            android:title="@string/pref_pinout_and_results_file"
             android:key="pref_pinout_descriptor"
             android:defaultValue="@string/pref_pinout_filename_defaultval">
     </PreferenceScreen>
-    <PreferenceScreen
-            android:selectAllOnFocus="true"
-            android:singleLine="true"
-            android:title="@string/pref_pinout_results_buttonName"
-            android:key="pref_results_file"
-            android:defaultValue="@string/pref_pinout_filename_defaultval"
-            />
     <EditTextPreference
             android:defaultValue="0"
             android:selectAllOnFocus="true"
