@@ -28,6 +28,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             return measurementsHandler.boardsManager.boards.value?.isEmpty() ?: true
         }
     var maxDetectableResistance: Float = 0f
+    private val logger by lazy { ToFileLogger(app) }
 
     init {
         isInitialized = false
@@ -79,11 +80,10 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
                 measurementsHandler.boardsManager.fetchPinsInfoFromExcelToPins()
             }
             catch (e: Throwable) {
-                e.message?.let{
+                e.message?.let {
                     Log.e(Tag, "Error while opening XLSX file: " + it)
                 }
                 toast("Error while opening XLSX file: " + e.message)
-
             }
         }
     }
@@ -156,6 +156,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
         }
 
         measurementsHandler.commander.sendCommand(Commands.CheckConnectivity(answer_domain, sequential = if_sequential))
+        logger.LogI("Model", "Check command sent")
     }
 
     fun checkConnections(for_pin: Pin) {
