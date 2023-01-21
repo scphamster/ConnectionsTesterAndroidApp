@@ -34,11 +34,11 @@ class Storage {
             withContext(Dispatchers.IO) {
                 val file_storage_uri = PreferenceManager
                     .getDefaultSharedPreferences(context)
-                    .getString(PreferencesFragment.Companion.SharedPreferenceKey.ResultsFileUri.text, "")
+                    .getString(PreferencesFragment.Companion.SharedPreferenceKey.PinoutConfigFileUri.text, "")
 
                 val file_storage_name = PreferenceManager
                     .getDefaultSharedPreferences(context)
-                    .getString(PreferencesFragment.Companion.SharedPreferenceKey.ResultsFileName.text, "")
+                    .getString(PreferencesFragment.Companion.SharedPreferenceKey.PinoutConfigFileName.text, "")
 
                 if (file_storage_uri == "") {
                     throw Error(

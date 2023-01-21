@@ -79,7 +79,11 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
                 measurementsHandler.boardsManager.fetchPinsInfoFromExcelToPins()
             }
             catch (e: Throwable) {
+                e.message?.let{
+                    Log.e(Tag, it)
+                }
                 toast(e.message)
+
             }
         }
     }

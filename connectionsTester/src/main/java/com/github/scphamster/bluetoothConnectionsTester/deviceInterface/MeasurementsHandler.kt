@@ -15,7 +15,7 @@ import kotlinx.coroutines.*
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter.Commands
 import org.apache.poi.ss.usermodel.*
 import org.apache.poi.xssf.usermodel.*
-import org.apache.poi.xssf.usermodel.extensions.XSSFCellBorder
+import java.lang.Exception
 
 typealias CommandArgsT = Int
 
@@ -106,7 +106,7 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
             cell.cellStyle = style
         }
 
-        private fun convertConnectionsToString(pin: Pin, max_resistance: Float): XSSFRichTextString {
+        private fun convertPinConnectionsToRichText(pin: Pin, max_resistance: Float): XSSFRichTextString {
             val header = "${pin.descriptor.getPrettyName()} -> "
             val rich_text = XSSFRichTextString(header).also { it.applyFont(font_normal) }
 
@@ -145,8 +145,17 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
                 throw Error("Internal error")
             }
 
-            val workbook = XSSFWorkbook()
-            val sheet = workbook.createSheet("Measurements")
+            val workbook = Storage.getWorkBookFromFile(context)
+
+            val sheet =try{
+                workbook.getSheet("Measurements")
+            }
+            catch(e:Exception){
+                Log.d(Tag, "No sheet with specified name found, creating one")
+                workbook.createSheet("Measurements")
+            }
+
+            Log.d(Tag, "Marker0")
             val names_row = sheet.getRow(0) ?: sheet.createRow(0)
 
             var column_counter = 0
@@ -183,13 +192,12 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
                                                                                        PinConnectionsStatus.AlteredConnectionsList)
                     else setCellStyle(cell_for_this_pin_connections, workbook, PinConnectionsStatus.DoubleChecked)
 
-                    val cell_text = convertConnectionsToString(pin, maximumResistance)
+                    val cell_text = convertPinConnectionsToRichText(pin, maximumResistance)
                     cell_for_this_pin_connections.setCellValue(cell_text)
                     if (max_number_of_characters_in_this_column < cell_text.length()) max_number_of_characters_in_this_column =
                         cell_text.length()
                 }
 
-                //todo: add preference to make this action configurable
                 val one_char_width = 260
                 val max_column_width = 60 * one_char_width
                 val column_width =
