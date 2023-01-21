@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.MutableLiveData
+import androidx.preference.PreferenceManager
 import com.github.scphamster.bluetoothConnectionsTester.*
 import com.jaiselrahman.filepicker.model.MediaFile
 import kotlinx.coroutines.*
@@ -97,6 +98,10 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
             style.borderTop = BorderStyle.THIN
             style.borderLeft = BorderStyle.THIN
             style.borderRight = BorderStyle.THIN
+            val to_wrap = PreferenceManager
+                .getDefaultSharedPreferences(context)
+                .getBoolean("xlsx_wrap_long_text", true)
+            style.wrapText = to_wrap
 
             cell.cellStyle = style
         }
@@ -294,9 +299,6 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
 
         boardsManager.boards.value = new_boards
     }
-
-    //todo: refactor
-
 }
 
 private fun XSSFColor.fromInt(color: Int): XSSFColor {
