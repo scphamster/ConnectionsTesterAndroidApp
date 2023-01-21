@@ -21,6 +21,7 @@ data class PinGroup(val id: Int, val name: String? = null) {
     }
 }
 
+//todo: remove from global
 fun getMultiplierFromString(text: String): Double {
     return when (text) {
         "p" -> 1e-12

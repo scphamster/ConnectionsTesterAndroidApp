@@ -8,7 +8,9 @@ import org.apache.poi.ss.util.CellReference
 import org.apache.poi.xssf.usermodel.XSSFSheet
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 
-class PinDescriptionInterpreter {
+data class ExpectedConnections(val for_pin: Pair<String, String>, val is_connected_to: List<Pair<String, String>>)
+
+class PinoutFileInterpreter {
     companion object {
         private const val groupHeaderTag = "Group: "
         private const val minBoardIndex = 0
@@ -21,31 +23,7 @@ class PinDescriptionInterpreter {
 
     class BadFileException(msg: String) : Exception(msg)
     data class Group(val name: String, val pinsMap: Map<String, PinAffinityAndId>)
-    class Interpretation(val pinGroups: List<Group>) {
-//        data class DuplicatesDescription(val numberOfDuplicates: Int)
-
-//        fun checkForDuplicates() {
-//            val used_boards_with_pins = mutableMapOf<Int, MutableList<Int>>()
-//            val used_groups_with_pins = mutableMapOf<String, MutableList<String>>()
-//            var number_of_duplicates = 0
-//            val duplicated_group_names = mutableListOf<String>()
-//
-//
-//            for (pin_group in pinGroups) {
-//                if (used_groups_with_pins.contains(pin_group.name)) {
-//                    number_of_duplicates++
-//
-//                    if (!duplicated_group_names.contains(pin_group.name))
-//                        duplicated_group_names.add(pin_group.name)
-//                }
-//
-//
-//
-//                used_groups_with_pins[pin_group.name] = mutableListOf()
-//            }
-//        }
-
-    }
+    data class Interpretation(val pinGroups: List<Group>)
 
     private class GroupsManager(val groups: MutableList<Group> = mutableListOf()) {
         fun addNewGroup(new_group: Group) {
@@ -127,6 +105,36 @@ class PinDescriptionInterpreter {
 
     fun getInterpretation(): Interpretation? {
         return getInterpretation(document)
+    }
+
+    fun getExpectedConnections(): List<ExpectedConnections>? {
+
+        val doc = document
+
+        if (doc == null) {
+            Log.d(Tag, "expected connections read fail, document is null")
+            return null
+        }
+
+        val sheet = doc.getSheet("ExpectedResults")
+        if (sheet == null) {
+            throw (BadFileException("File does not have \"ExpectedResults\" tab!"))
+        }
+
+        val row_iterator = sheet.rowIterator()
+
+        val list_of_expected_connections: MutableList<ExpectedConnections> = mutableListOf()
+
+        while(row_iterator.hasNext()){
+            val row = row_iterator.next()
+            val cell_iterator = row.cellIterator()
+            while(cell_iterator.hasNext()){
+                val cell = cell_iterator.next()
+                cell.parseForExpectedConnections()?.let{list_of_expected_connections.add(it)}
+            }
+        }
+
+        return list_of_expected_connections
     }
 
     private fun findCellsWithGroupHeadersAtSheet(sheet: XSSFSheet): Array<Cell>? {
@@ -223,4 +231,32 @@ private fun Cell.getStringRepresentationOfValue(): String {
             } is not of string nor integer type")
         }
     }
+}
+
+private fun Cell.parseForExpectedConnections(): ExpectedConnections? {
+    if (cellType != CellType.STRING) return null
+
+    val cell_text = stringCellValue
+
+    if (!cell_text.contains("->")) return null
+
+    val text_before_arrow = cell_text.substringBefore("->")
+    val text_after_arrow = cell_text.substringAfter("->")
+
+    val main_pin = text_before_arrow.toAffinityAndIds()
+    if (main_pin.isEmpty()) return null
+
+    val connected_to_pins = text_after_arrow.toAffinityAndIds()
+
+    return ExpectedConnections(main_pin.get(0), connected_to_pins)
+}
+
+private fun String.toAffinityAndIds(): List<Pair<String, String>> {
+    val pin_group_and_id_regex = "\\w+[:]\\w+".toRegex()
+    val list_of_affinity_and_ids = pin_group_and_id_regex
+        .findAll(this)
+        .map { Pair(it.value.substringBefore(":"), it.value.substringAfter(":")) }
+        .toList()
+
+    return list_of_affinity_and_ids
 }

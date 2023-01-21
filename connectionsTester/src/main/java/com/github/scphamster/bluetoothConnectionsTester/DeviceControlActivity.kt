@@ -266,7 +266,7 @@ class DeviceControlActivity : AppCompatActivity() {
                         PreferencesFragment.Companion.MessageToInvoker.NewPinoutConfigFileChosen.text, false)
 
                     if (new_pinout_file_has_been_chosen != null && new_pinout_file_has_been_chosen) {
-                        model.configuePinoutAccordingToFile()
+                        model.getPinoutConfigFile()
                     }
                 }
 

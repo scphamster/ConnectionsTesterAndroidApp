@@ -57,7 +57,6 @@ data class PinDescriptor(val affinityAndId: PinAffinityAndId,
     }
 }
 
-
 class Pin(val descriptor: PinDescriptor,
           var belongsToBoard: WeakReference<IoBoard> = WeakReference<IoBoard>(null),
           var connectionsListChangedFromPreviousCheck: Boolean = false) {
@@ -65,18 +64,30 @@ class Pin(val descriptor: PinDescriptor,
         set(connections) {
             field = connections
             isHealthy = hasConnection(descriptor.pinAffinityAndId)
+            expectedConnections?.let { expected ->
+                notPresentExpectedConnections = expected.filter {
+                    !hasConnection(it)
+                }
+
+                unexpectedConnections = field.filter { some_present_connection ->
+                    (some_present_connection.toPin.pinAffinityAndId != descriptor.pinAffinityAndId) &&
+                    (expected.find { some_present_connection.toPin.pinAffinityAndId == it.toPin.pinAffinityAndId } == null)
+
+                }
+            }
         }
+    var expectedConnections: List<Connection>? = null
+    var unexpectedConnections: List<Connection>? = null
+    var notPresentExpectedConnections: List<Connection>? = null
     var isHealthy = false
         private set
 
     fun hasConnection(connection: Connection): Boolean {
         if (connections.isEmpty()) return false
 
-        val connection = connections.find { some_connection ->
+        return connections.find { some_connection ->
             some_connection.toPin.pinAffinityAndId == connection.toPin.pinAffinityAndId
-        }
-
-        return connection != null
+        } != null
     }
 
     fun hasConnection(searched_pin_affinity_and_id: PinIdentifier): Boolean {

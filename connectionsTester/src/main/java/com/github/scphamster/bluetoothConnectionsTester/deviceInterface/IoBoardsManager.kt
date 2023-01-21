@@ -12,10 +12,8 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
 
     data class SortedPins(val group: PinGroup? = null, val affinity: IoBoardIndexT? = null, val pins: Array<Pin>) {
         fun getCongregationName(): String {
-            if (group != null)
-                return group.getPrettyName()
-            else if (affinity != null)
-                return affinity.toString()
+            if (group != null) return group.getPrettyName()
+            else if (affinity != null) return affinity.toString()
             else return "FAILGROUP"
         }
 
@@ -24,7 +22,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
     }
 
     val boards = MutableLiveData<MutableList<IoBoard>>()
-    val pinDescriptionInterpreter: PinDescriptionInterpreter
+    val pinoutInterpreter: PinoutFileInterpreter
     private val boardsCount = MutableLiveData<Int>()
     var pinChangeCallback: ((Pin) -> Unit)? = null
     var nextUniqueBoardId = 0
@@ -52,7 +50,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
         }
 
     init {
-        pinDescriptionInterpreter = PinDescriptionInterpreter()
+        pinoutInterpreter = PinoutFileInterpreter()
     }
 
     fun getNamedPinGroups(): Array<PinGroup>? {
@@ -160,9 +158,8 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
             val differs_from_previous = connection.checkIfDifferent(previous_connection_to_this_pin) ?: false
             val first_occurrence = previous_connection_to_this_pin == null;
 
-            val new_connection =
-                Connection(descriptor_of_connected_pin, connection.voltage, connection.resistance,
-                           differs_from_previous, first_occurrence)
+            val new_connection = Connection(descriptor_of_connected_pin, connection.voltage, connection.resistance,
+                                            differs_from_previous, first_occurrence)
 
             new_connections.add(new_connection)
             Log.i(Tag, "Searched pin Found! ${affinity_and_id.boardId}:${affinity_and_id.idxOnBoard}")
@@ -217,6 +214,28 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
         return null
     }
 
+    fun findPinByGroupAndName(group: String, name: String): Pin? {
+        val current_boards = boards.value
+        if (current_boards == null) return null
+
+        var pin_with_board_id_same_as_group_name: Pin? = null
+        var pin_with_group_and_name_as_requested: Pin? = null
+
+        for (board in current_boards) {
+            for (pin in board.pins) {
+                if (pin.descriptor.pinAffinityAndId.idxOnBoard.toString() == name && pin.descriptor.pinAffinityAndId.boardId.toString() == group) {
+                    pin_with_board_id_same_as_group_name = pin
+                }
+                if (pin.descriptor.name == name && pin.descriptor.group?.name == group) return pin
+            }
+        }
+
+        if (pin_with_board_id_same_as_group_name!= null)
+            return pin_with_board_id_same_as_group_name
+
+        return null
+    }
+
     fun calibrate() {
         val boards = boards.value
         boards?.let {
@@ -259,12 +278,12 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
         if (boards.isEmpty()) return
 
         Log.d(Tag, "entering fetch procedure")
-        Log.d(Tag, "checking for null document: Is null? = ${pinDescriptionInterpreter.document == null}")
+        Log.d(Tag, "checking for null document: Is null? = ${pinoutInterpreter.document == null}")
 
         val pinout_interpretation = try {
-            pinDescriptionInterpreter.getInterpretation()
+            pinoutInterpreter.getInterpretation()
         }
-        catch (e: PinDescriptionInterpreter.BadFileException) {
+        catch (e: PinoutFileInterpreter.BadFileException) {
             errorHandler.handleError("Error ${e.message}")
             Log.e(Tag, "${e.message}");
             return
@@ -275,7 +294,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
             return
         }
 
-        Log.d(Tag, "checking for null document2: Is null? = ${pinDescriptionInterpreter.document == null}")
+        Log.d(Tag, "checking for null document2: Is null? = ${pinoutInterpreter.document == null}")
         Log.d(Tag, "Interpretation obtained, is null? : ${pinout_interpretation == null}")
 
         if (pinout_interpretation == null) return
@@ -303,6 +322,34 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
         }
 
         this.boards.value = boards
+
+        fetchExpectedConnectionsToPinsFromFile()
+    }
+
+    suspend fun fetchExpectedConnectionsToPinsFromFile() {
+        val expected_connections = pinoutInterpreter.getExpectedConnections()
+        if (expected_connections == null) {
+            Log.e(Tag, "expected connections are null")
+            return
+        }
+
+        for (connections_for_pin in expected_connections) {
+            findPinByGroupAndName(connections_for_pin.for_pin.first,
+                                  connections_for_pin.for_pin.second)?.let { pin_of_interest ->
+                val expected = mutableListOf<Connection>()
+
+                for (pin_expected_to_be_connected in connections_for_pin.is_connected_to) {
+                    findPinByGroupAndName(pin_expected_to_be_connected.first,
+                                          pin_expected_to_be_connected.second)?.let {
+                        expected.add(Connection(it.descriptor))
+                    }
+                }
+
+                Log.d(Tag,"Found ${expected.size} expected connection for pin ${connections_for_pin.for_pin}")
+
+                pin_of_interest.expectedConnections = expected
+            }
+        }
     }
 
     private fun cleanAllPinsAndGroupsNaming_silently() {

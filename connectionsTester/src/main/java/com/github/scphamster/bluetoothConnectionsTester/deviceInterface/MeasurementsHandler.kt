@@ -16,7 +16,6 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
                           private val context: Context,
                           val coroutineScope: CoroutineScope) {
 
-
     enum class PinConnectionsStatus {
         AlteredConnectionsList,
         DoubleChecked,
@@ -38,11 +37,10 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
         }
         val font_for_unhealthy_pins by lazy {
             XSSFFont().also {
-                it.setColor(context
-                                .getColor(R.color.unhealthy_pin)
-                                .toShort())
+                it.setColor(xssfColorFromInt(context.getColor(R.color.unhealthy_pin)))
             }
         }
+        val font_good_value by lazy { XSSFFont().also { it.color = IndexedColors.GREEN.index } }
 
         private fun setCellStyle(cell: Cell, workbook: XSSFWorkbook, status: PinConnectionsStatus) {
             val style = workbook.createCellStyle()
@@ -76,6 +74,60 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
             cell.cellStyle = style
         }
 
+        private fun convertPinConnectionDifferencesToRichText(pin: Pin, max_resistance: Float): XSSFRichTextString {
+            val header = pin.descriptor.getPrettyName() + " ::"
+            val rich_text = XSSFRichTextString(header).also { it.applyFont(font_normal) }
+
+            val not_present_connections = pin.notPresentExpectedConnections
+
+            if (not_present_connections != null) {
+                if (!not_present_connections.isEmpty()) {
+                    rich_text.append(" Not present: (")
+
+                    for (connection in not_present_connections) {
+                        rich_text.append(connection.toString() + ' ', font_for_unhealthy_pins)
+                    }
+
+                    rich_text.append(")")
+                }
+                else {
+                    rich_text.append(" All requested are present", font_good_value)
+                }
+            }
+            else {
+                rich_text.append(" not checked for requested")
+            }
+
+            val unexpected_connection = pin.unexpectedConnections
+            if (unexpected_connection != null) {
+                if (!unexpected_connection.isEmpty()) {
+                    val string_builder = StringBuilder()
+                    for (connection in unexpected_connection) {
+                        if (connection.resistance != null) if (connection.resistance.value < max_resistance) string_builder.append(
+                            connection.toString() + ' ')
+                        else string_builder.append(connection.toString() + ' ')
+                    }
+
+                    if (string_builder.length != 0) {
+                        rich_text.append(", Unexpected connections: (")
+                        rich_text.append(string_builder.toString(), font_for_unhealthy_pins)
+                        rich_text.append(")")
+                    }
+                    else {
+                        rich_text.append(", No unexpected connections", font_good_value)
+                    }
+                }
+                else {
+                    rich_text.append(", No unexpected connections", font_good_value)
+                }
+            }
+            else {
+                rich_text.append(", not checked for unexpected connections")
+            }
+
+            return rich_text
+        }
+
         private fun convertPinConnectionsToRichText(pin: Pin, max_resistance: Float): XSSFRichTextString {
             val header = "${pin.descriptor.getPrettyName()} -> "
             val rich_text = XSSFRichTextString(header).also { it.applyFont(font_normal) }
@@ -107,7 +159,7 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
             return rich_text
         }
 
-        suspend fun storeMeasurementsResultsToFile(maximumResistance: Float): Boolean {
+        suspend fun storeMeasurements(maximumResistance: Float): Boolean {
             val pins_congregations = boardsManager.getPinsSortedByGroupOrAffinity()
 
             if (pins_congregations == null) {
@@ -116,7 +168,6 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
             }
 
             val workbook = Storage.getWorkBookFromFile(context)
-
             val sheet = if (workbook.getSheet("Measurements") != null) workbook.getSheet("Measurements")
             else workbook.createSheet("Measurements")
 
@@ -172,6 +223,60 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
             Storage.storeToFile(workbook, context)
 
             return true
+        }
+
+        suspend fun storeExpectedToMeasuredDifferences(maximumResistance: Float) {
+            val pins_congregations = boardsManager.getPinsSortedByGroupOrAffinity()
+            if (pins_congregations == null) throw (Exception("sorted pins array is  empty!"))
+
+            val workbook = Storage.getWorkBookFromFile(context)
+            val name_of_tab = "Differences"
+            val sheet = if (workbook.getSheet(name_of_tab) != null) workbook.getSheet(name_of_tab)
+            else workbook.createSheet(name_of_tab)
+
+            val congregation_names_row = sheet.getRow(0) ?: sheet.createRow(0)
+
+            var column_counter = 0
+            for (congregation in pins_congregations) {
+                var max_number_of_characters_in_this_column = 0
+
+                val cell_with_name_of_congregation =
+                    congregation_names_row.getCell(column_counter) ?: congregation_names_row.createCell(column_counter)
+
+                val name_of_congregation =
+                    if (congregation.isSortedByGroup) "Group: ${congregation.getCongregationName()}"
+                    else "Board Id: ${congregation.getCongregationName()}"
+
+                val new_style = workbook.createCellStyle()
+                cell_with_name_of_congregation.setCellValue(name_of_congregation)
+                new_style.setFillBackgroundColor(IndexedColors.LIGHT_CORNFLOWER_BLUE.index)
+                new_style.setFillPattern(FillPatternType.SQUARES)
+                cell_with_name_of_congregation.cellStyle = (new_style)
+
+                val results_start_row_number = 1
+                for ((pin_counter, pin) in congregation.pins.withIndex()) {
+                    val row_num = pin_counter + results_start_row_number
+                    val row = sheet.getRow(row_num) ?: sheet.createRow(row_num)
+                    val cell_for_this_pin_differences = row.getCell(column_counter) ?: row.createCell(column_counter)
+
+                    val cell_text = convertPinConnectionDifferencesToRichText(pin, maximumResistance)
+                    Log.d("TEST", cell_text.toString())
+                    cell_for_this_pin_differences.setCellValue(cell_text)
+                    if (max_number_of_characters_in_this_column < cell_text.length()) max_number_of_characters_in_this_column =
+                        cell_text.length()
+                }
+
+                val one_char_width = 260
+                val max_column_width = 60 * one_char_width
+                val column_width =
+                    if (one_char_width * max_number_of_characters_in_this_column > max_column_width) max_column_width
+                    else one_char_width * max_number_of_characters_in_this_column
+
+                sheet.setColumnWidth(column_counter, column_width)
+                column_counter++
+            }
+
+            Storage.storeToFile(workbook, context)
         }
     }
 

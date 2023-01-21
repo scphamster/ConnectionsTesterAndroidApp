@@ -42,7 +42,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             bluetooth.mac = mac
             bluetooth.connect()
 
-            configuePinoutAccordingToFile()
+            getPinoutConfigFile()
             setupVoltageLevel()
 
             isInitialized = true
@@ -63,7 +63,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
         measurementsHandler.commander.sendCommand(Commands.SetOutputVoltageLevel(voltage_level))
     }
 
-    fun configuePinoutAccordingToFile() {
+    fun getPinoutConfigFile() {
         viewModelScope.launch {
             val workbook = viewModelScope.async {
                 Storage.getWorkBookFromFile(app)
@@ -73,16 +73,16 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
                 val workbook_instance = workbook.await()
                 Log.d(Tag, "Workbook obtained, Not null? : ${workbook != null}")
 
-                measurementsHandler.boardsManager.pinDescriptionInterpreter.document = workbook_instance
+                measurementsHandler.boardsManager.pinoutInterpreter.document = workbook_instance
 
                 toast("Pinout descriptor found")
                 measurementsHandler.boardsManager.fetchPinsInfoFromExcelToPins()
             }
             catch (e: Throwable) {
                 e.message?.let{
-                    Log.e(Tag, it)
+                    Log.e(Tag, "Error while opening XLSX file: " + it)
                 }
-                toast(e.message)
+                toast("Error while opening XLSX file: " + e.message)
 
             }
         }
@@ -90,7 +90,8 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
 
     fun storeMeasurementsToFile() = viewModelScope.launch {
         val job = viewModelScope.async(Dispatchers.Default) {
-            measurementsHandler.resultsSaver.storeMeasurementsResultsToFile(maxDetectableResistance)
+            measurementsHandler.resultsSaver.storeMeasurements(maxDetectableResistance)
+            measurementsHandler.resultsSaver.storeExpectedToMeasuredDifferences(maxDetectableResistance)
         }
 
         try {

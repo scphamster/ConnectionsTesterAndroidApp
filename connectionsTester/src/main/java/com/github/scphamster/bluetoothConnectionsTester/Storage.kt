@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.preference.PreferenceManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.apache.poi.openxml4j.util.ZipSecureFile
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.io.FileNotFoundException
 import java.io.OutputStream
@@ -23,6 +24,7 @@ class Storage {
             if (file_uri == "") throw Error("No file for pinout description found!")
 
             val inputStream = context.contentResolver.openInputStream(Uri.parse(file_uri))
+            ZipSecureFile.setMinInflateRatio(0.001)
             val workbook = XSSFWorkbook(inputStream)
 
             inputStream?.close()
