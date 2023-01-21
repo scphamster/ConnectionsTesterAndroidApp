@@ -223,15 +223,17 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
 
         for (board in current_boards) {
             for (pin in board.pins) {
-                if (pin.descriptor.pinAffinityAndId.idxOnBoard.toString() == name && pin.descriptor.pinAffinityAndId.boardId.toString() == group) {
+                if (pin.descriptor.pinAffinityAndId.idxOnBoard.toString() == name && board.id.toString() == group) {
                     pin_with_board_id_same_as_group_name = pin
                 }
                 if (pin.descriptor.name == name && pin.descriptor.group?.name == group) return pin
             }
         }
 
-        if (pin_with_board_id_same_as_group_name!= null)
+        if (pin_with_board_id_same_as_group_name!= null){
+            Log.d("pinSearch","found pin without group: ${pin_with_board_id_same_as_group_name.descriptor.pinAffinityAndId}")
             return pin_with_board_id_same_as_group_name
+        }
 
         return null
     }
