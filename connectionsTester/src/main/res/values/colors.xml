@@ -5,9 +5,11 @@
     <color name="colorAccent">#FF4081</color>
     <color name="color_last_used_device">#26FF08</color>
     <color name="ctl_actty_status_bar">#000000</color>
-    <color name="modified_connection">#BEB131</color>
+    <color name="modified_connection">#d89100</color>
+    <color name="new_connection">#9C2F89</color>
     <color name="unmodified_connection">#63BE61</color>
-    <color name="connections_changed">#B833BE</color>
-    <color name="connections_not_changed">#2173BE</color>
-    <color name="pin_unhealthy">#BE0D17</color>
+    <color name="pin_with_altered_connections">#d398cd</color>
+    <color name="pin_with_unaltered_connections">#2173BE</color>
+    <color name="unhealthy_pin">#BE0D17</color>
+    <color name="pin_with_double_checked_connections">#c9e4c8</color>
 </resources>

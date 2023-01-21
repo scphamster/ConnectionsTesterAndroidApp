@@ -3,18 +3,18 @@ package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
 import java.lang.ref.WeakReference
 
 import android.content.Context
+import android.graphics.Color
 import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.MutableLiveData
 import com.github.scphamster.bluetoothConnectionsTester.*
 import com.jaiselrahman.filepicker.model.MediaFile
 import kotlinx.coroutines.*
-import org.apache.poi.ss.usermodel.FillPatternType
-import org.apache.poi.ss.usermodel.IndexedColors
-import org.apache.poi.xssf.usermodel.XSSFRichTextString
 
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter.Commands
+import org.apache.poi.ss.usermodel.*
+import org.apache.poi.xssf.usermodel.*
+import org.apache.poi.xssf.usermodel.extensions.XSSFCellBorder
 
 typealias CommandArgsT = Int
 
@@ -41,6 +41,165 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
     }
 
     private data class Measurements(private var pinId: String = "", private var isConnectedTo: String = "") {}
+    enum class PinConnectionsStatus {
+        AlteredConnectionsList,
+        DoubleChecked,
+        Unhealthy
+    }
+
+    enum class PinConnectionStatus {
+        FirstOccurrence,
+        DoubleChecked,
+        ValueChanged,
+    }
+
+    inner class MeasurementsToFileSaver {
+        val font_normal by lazy { XSSFFont() }
+        val font_for_connection_with_changes by lazy {
+            XSSFFont().also {
+                it.setColor(XSSFColor().fromInt(context.getColor(R.color.modified_connection)))
+            }
+        }
+        val font_for_unhealthy_pins by lazy {
+            XSSFFont().also {
+                it.setColor(context
+                                .getColor(R.color.unhealthy_pin)
+                                .toShort())
+            }
+        }
+
+        private fun setCellStyle(cell: Cell, workbook: XSSFWorkbook, status: PinConnectionsStatus) {
+            val style = workbook.createCellStyle()
+            val borderBottom = style.borderBottom
+            val borderTop = style.borderTop
+            val borderLeft = style.borderLeft
+            val borderRight = style.borderRight
+
+            when (status) {
+                PinConnectionsStatus.AlteredConnectionsList -> {
+                    style.setFillForegroundColor(
+                        XSSFColor().fromInt(context.getColor(R.color.pin_with_altered_connections)))
+                }
+
+                PinConnectionsStatus.DoubleChecked -> {
+                    style.setFillForegroundColor(
+                        XSSFColor().fromInt(context.getColor(R.color.pin_with_double_checked_connections)))
+                }
+
+                PinConnectionsStatus.Unhealthy -> {
+                    style.setFillForegroundColor(XSSFColor().fromInt(context.getColor(R.color.unhealthy_pin)))
+                }
+            }
+
+            style.fillPattern = FillPatternType.SOLID_FOREGROUND
+
+            style.borderBottom = BorderStyle.THIN
+            style.borderTop = BorderStyle.THIN
+            style.borderLeft = BorderStyle.THIN
+            style.borderRight = BorderStyle.THIN
+
+            cell.cellStyle = style
+        }
+
+        private fun convertConnectionsToString(pin: Pin, max_resistance: Float): XSSFRichTextString {
+            val header = "${pin.descriptor.getPrettyName()} -> "
+            val rich_text = XSSFRichTextString(header).also { it.applyFont(font_normal) }
+
+            if (!pin.isHealthy) {
+                rich_text.append("UNHEALTHY!", font_for_unhealthy_pins)
+            }
+            else if (pin.connections.size == 1 && pin.hasConnection(pin.descriptor.pinAffinityAndId) && pin.isHealthy) {
+                rich_text.append("NC")
+            }
+            else for (connection in pin.connections) {
+                if (connection.toPin.pinAffinityAndId == pin.descriptor.affinityAndId) continue
+
+                //do not print if resistance is higher than max resistance (user defined)
+                val connection_as_string = if (connection.resistance != null) {
+                    if (connection.resistance.value < max_resistance) connection.toString() + ' '
+                    else ""
+                }
+                else connection.toString()
+
+                if (connection.value_changed_from_previous_check) {
+                    rich_text.append(connection_as_string, font_for_connection_with_changes)
+                }
+                else {
+                    rich_text.append(connection_as_string, font_normal)
+                }
+            }
+
+            return rich_text
+        }
+
+        suspend fun storeMeasurementsResultsToFile(maximumResistance: Float): Boolean {
+            val pins_congregations = boardsManager.getPinsSortedByGroupOrAffinity()
+
+            if (pins_congregations == null) {
+                Log.e(Tag, "sorted pins array is null!")
+                throw Error("Internal error")
+            }
+
+            val workbook = XSSFWorkbook()
+            val sheet = workbook.createSheet("Measurements")
+            val names_row = sheet.getRow(0) ?: sheet.createRow(0)
+
+            var column_counter = 0
+            for (congregation in pins_congregations) {
+                var max_number_of_characters_in_this_column = 0
+
+                val cell_with_name_of_congregation =
+                    names_row.getCell(column_counter) ?: names_row.createCell(column_counter)
+
+                val name_of_congregation =
+                    if (congregation.isSortedByGroup) "Group: ${congregation.getCongregationName()}"
+                    else "Board Id: ${congregation.getCongregationName()}"
+
+                Log.d(Tag, "Congregation: $name_of_congregation")
+
+                val new_style = workbook.createCellStyle()
+                val bot_border = new_style.borderBottom
+                cell_with_name_of_congregation.setCellValue(name_of_congregation)
+                new_style.setFillBackgroundColor(IndexedColors.LIGHT_CORNFLOWER_BLUE.index)
+                new_style.setFillPattern(FillPatternType.SQUARES)
+                cell_with_name_of_congregation.cellStyle = (new_style)
+
+                val results_start_row_number = 1
+                for ((pin_counter, pin) in congregation.pins.withIndex()) {
+                    val row_num = pin_counter + results_start_row_number
+                    val row = sheet.getRow(row_num) ?: sheet.createRow(row_num)
+                    val cell_for_this_pin_connections = row.getCell(column_counter) ?: row.createCell(column_counter)
+
+
+                    if (!pin.isHealthy) setCellStyle(cell_for_this_pin_connections, workbook,
+                                                     PinConnectionsStatus.Unhealthy)
+                    else if (pin.connectionsListChangedFromPreviousCheck) setCellStyle(cell_for_this_pin_connections,
+                                                                                       workbook,
+                                                                                       PinConnectionsStatus.AlteredConnectionsList)
+                    else setCellStyle(cell_for_this_pin_connections, workbook, PinConnectionsStatus.DoubleChecked)
+
+                    val cell_text = convertConnectionsToString(pin, maximumResistance)
+                    cell_for_this_pin_connections.setCellValue(cell_text)
+                    if (max_number_of_characters_in_this_column < cell_text.length()) max_number_of_characters_in_this_column =
+                        cell_text.length()
+                }
+
+                //todo: add preference to make this action configurable
+                val one_char_width = 260
+                val max_column_width = 60 * one_char_width
+                val column_width =
+                    if (one_char_width * max_number_of_characters_in_this_column > max_column_width) max_column_width
+                    else one_char_width * max_number_of_characters_in_this_column
+
+                sheet.setColumnWidth(column_counter, column_width)
+                column_counter++
+            }
+
+            Storage.storeToFile(workbook, context)
+
+            return true
+        }
+    }
 
     companion object {
         //        val Tag = this::class.simpleName.toString()
@@ -54,6 +213,7 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
     val boardsManager by lazy { IoBoardsManager(errorHandler) }
     var outputFile: MediaFile? = null
     val responseInterpreter by lazy { ControllerResponseInterpreter() }
+    val resultsSaver by lazy { MeasurementsToFileSaver() }
     private var connectionDescriptorMessageCounter = 0
 
     val commander = Commander(bluetoothBridge, context)
@@ -136,113 +296,13 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
     }
 
     //todo: refactor
-    suspend fun storeMeasurementsResultsToFile(maximumResistance: Float): Boolean {
-        val pins_congregations = boardsManager.getPinsSortedByGroupOrAffinity()
 
-        if (pins_congregations == null) {
-            Log.e(Tag, "sorted pins array is null!")
-            throw Error("Internal error")
-        }
+}
 
-        val workbook = XSSFWorkbook()
-        val sheet = workbook.createSheet("Measurements")
-        val names_row = sheet.getRow(0) ?: sheet.createRow(0)
+private fun XSSFColor.fromInt(color: Int): XSSFColor {
+    val red = Color.red(color)
+    val green = Color.green(color)
+    val blue = Color.blue(color)
 
-        var column_counter = 0
-        for (congregation in pins_congregations) {
-            var max_number_of_characters_in_this_column = 0
-
-            val cell_with_name_of_congregation =
-                names_row.getCell(column_counter) ?: names_row.createCell(column_counter)
-
-            val name_of_congregation = if (congregation.isSortedByGroup) "Group: ${congregation.getCongregationName()}"
-            else "Board Id: ${congregation.getCongregationName()}"
-
-            Log.d(Tag, "Congregation: $name_of_congregation")
-
-            val new_style = workbook.createCellStyle()
-            new_style.setFillBackgroundColor(IndexedColors.LIGHT_CORNFLOWER_BLUE.index)
-            new_style.setFillPattern(FillPatternType.SQUARES)
-            cell_with_name_of_congregation.setCellValue(name_of_congregation)
-            cell_with_name_of_congregation.cellStyle = (new_style)
-
-            val font_normal = workbook.createFont()
-            val font_for_connection_with_changes = workbook.createFont()
-            val font_for_unhealthy_pins = workbook
-                .createFont()
-            font_for_connection_with_changes.setColor(IndexedColors.ORANGE.index)
-            font_for_unhealthy_pins.setColor(IndexedColors.RED.index)
-
-            val results_start_row_number = 1
-            for ((pin_counter, pin) in congregation.pins.withIndex()) {
-                val row_num = pin_counter + results_start_row_number
-                val row = sheet.getRow(row_num) ?: sheet.createRow(row_num)
-                val cell_for_this_pin_connections =
-                    row.getCell(column_counter) ?: row.createCell(column_counter)
-
-                val string_builder = StringBuilder()
-                string_builder.append("${pin.descriptor.getPrettyName()} -> ")
-                val rich_text = XSSFRichTextString("${pin.descriptor.getPrettyName()} -> ")
-                rich_text.applyFont(font_normal)
-
-                if (pin.connections.size == 1 && pin.hasConnection(pin.descriptor.pinAffinityAndId) && pin.isHealthy) {
-                    string_builder.append("NC")
-                    rich_text.append("NC")
-                }
-                else if (!pin.isHealthy){
-                    string_builder.append("UNHEALTHY!")
-                    rich_text.append("UNHEALTHY!", font_for_unhealthy_pins)
-                }
-                else
-                    for (connection in pin.connections) {
-                        if (connection.toPin.pinAffinityAndId == pin.descriptor.affinityAndId) continue
-
-                        //do not print if resistance is higher than max resistance (user defined)
-                        val connection_as_string = if (connection.resistance != null) {
-                            if (connection.resistance.value < maximumResistance) connection.toString() + ' '
-                            else ""
-                        }
-                        else connection.toString()
-
-                        if (connection.value_changed_from_previous_check) {
-                            rich_text.append(connection_as_string, font_for_connection_with_changes)
-                        }
-                        else {
-                            rich_text.append(connection_as_string, font_normal)
-                        }
-
-                        string_builder.append(connection_as_string)
-                    }
-
-                if (max_number_of_characters_in_this_column < string_builder.length) max_number_of_characters_in_this_column =
-                    string_builder.length
-
-                val style = workbook.createCellStyle()
-                if (!pin.isHealthy) style.setFillBackgroundColor(IndexedColors.RED.index)
-                else if (pin.connectionsListChangedFromPreviousCheck) style.setFillBackgroundColor(
-                    IndexedColors.PINK.index)
-                else style.setFillBackgroundColor((IndexedColors.WHITE.index))
-
-
-                style.setFillPattern(FillPatternType.SQUARES)
-                cell_for_this_pin_connections.cellStyle = style
-
-                cell_for_this_pin_connections.setCellValue(rich_text)
-            }
-
-            //todo: add preference to make this action configurable
-            val one_char_width = 260
-            val max_column_width = 60 * one_char_width
-            val column_width =
-                if (one_char_width * max_number_of_characters_in_this_column > max_column_width) max_column_width
-                else one_char_width * max_number_of_characters_in_this_column
-
-            sheet.setColumnWidth(column_counter, column_width)
-            column_counter++
-        }
-
-        Storage.storeToFile(workbook, context)
-
-        return true
-    }
+    return XSSFColor(byteArrayOf(red.toByte(), green.toByte(), blue.toByte()))
 }

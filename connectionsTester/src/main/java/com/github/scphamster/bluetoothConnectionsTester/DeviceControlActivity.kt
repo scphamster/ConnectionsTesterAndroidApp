@@ -78,8 +78,8 @@ class DeviceControlActivity : AppCompatActivity() {
 
             if (!pin.isHealthy) {
                 foundConnections.text = "Unhealthy!"
-                pinNumber.setTextColor(resources.getColor(R.color.pin_unhealthy))
-                foundConnections.setTextColor(resources.getColor(R.color.pin_unhealthy))
+                pinNumber.setTextColor(resources.getColor(R.color.unhealthy_pin))
+                foundConnections.setTextColor(resources.getColor(R.color.unhealthy_pin))
             }
             else {
                 if (pin.connections.size == 1){
@@ -94,10 +94,10 @@ class DeviceControlActivity : AppCompatActivity() {
                     foundConnections.text = span_text_builder
 
                 if (pin.connectionsListChangedFromPreviousCheck) {
-                    pinNumber.setTextColor(resources.getColor(R.color.connections_changed))
+                    pinNumber.setTextColor(resources.getColor(R.color.pin_with_altered_connections))
                 }
                 else {
-                    pinNumber.setTextColor(resources.getColor(R.color.connections_not_changed))
+                    pinNumber.setTextColor(resources.getColor(R.color.pin_with_unaltered_connections))
                 }
             }
         }

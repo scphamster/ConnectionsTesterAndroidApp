@@ -86,7 +86,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
 
     fun storeMeasurementsToFile() = viewModelScope.launch {
         val job = viewModelScope.async(Dispatchers.Default) {
-            measurementsHandler.storeMeasurementsResultsToFile(maxDetectableResistance)
+            measurementsHandler.resultsSaver.storeMeasurementsResultsToFile(maxDetectableResistance)
         }
 
         try {
