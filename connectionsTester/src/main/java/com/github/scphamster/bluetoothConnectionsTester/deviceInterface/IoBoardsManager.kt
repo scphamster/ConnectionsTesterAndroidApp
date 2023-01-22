@@ -8,6 +8,11 @@ import android.util.Log
 class IoBoardsManager(val errorHandler: ErrorHandler) {
     companion object {
         val Tag = "IoBoardsManagerLive"
+        private const val STANDARD_INPUT_R: ResistanceT = 1100f
+        private const val STANDARD_OUTPUT_R: ResistanceT = 210f
+        private const val STANDARD_SHUNT_R: ResistanceT = 330f
+        private const val STANDARD_OUTPUT_VOLTAGE_LOW: VoltageT = 0.69f
+        private const val STANDARD_OUTPUT_VOLTAGE_HIGH: VoltageT = 0.93f
     }
 
     data class SortedPins(val group: PinGroup? = null, val affinity: IoBoardIndexT? = null, val pins: Array<Pin>) {
@@ -135,10 +140,60 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
         return pins_sorted_by_group.toTypedArray()
     }
 
+    fun setOutputVoltageLevelForBoards(level: Boolean) {
+        val boards = boards.value
+        if (boards == null) return
+
+        for (board in boards) {
+            board.voltage_level_is_high = level
+            val internals = board.internal_parameters
+
+            if (internals != null) {
+                for (pin in board.pins) {
+                    pin.outVoltage = if (level) internals.outputVoltageHigh
+                    else internals.outputVoltageLow
+                }
+            }
+        }
+    }
+
+    private fun getConnectionFromRawForPin(pin: Pin, connection: Connection): Connection {
+        if (connection.raw == null) throw Exception("raw is null!")
+
+        val pin_of_connection = findPinRefByAffinityAndId(connection.toPin.pinAffinityAndId)
+        val input_resistance = pin_of_connection?.get()?.inResistance ?: STANDARD_INPUT_R
+
+        val output_resistance = pin.outResistance ?: STANDARD_OUTPUT_R
+        val shunt_r = pin_of_connection?.get()?.shuntResistance ?: STANDARD_SHUNT_R
+        val master_board = pin.belongsToBoard.get()
+
+        val voltage_level_is_high: Boolean = if (master_board == null) {
+            Log.e(Tag, "master board is null!")
+            false
+        }
+        else if (master_board.voltage_level_is_high) true
+        else false
+
+        val output_voltage = if (voltage_level_is_high) pin.outVoltage ?: STANDARD_OUTPUT_VOLTAGE_HIGH
+        else pin.outVoltage ?: STANDARD_OUTPUT_VOLTAGE_LOW
+
+        val sensed_voltage = (connection.raw / 1023f) * 1.1f
+        val circuit_current = sensed_voltage / shunt_r
+        val overall_resistance = output_voltage / circuit_current
+        val sensed_resistance = overall_resistance - input_resistance - output_resistance - shunt_r
+        Log.d(Tag, "sensed Voltage: $sensed_voltage, resistance = $sensed_resistance")
+
+        return Connection(connection.toPin, Voltage(sensed_voltage), Resistance(sensed_resistance), connection.raw)
+    }
+
     fun updateConnectionsForPin(updated_pin: Pin, connections: Array<Connection>) {
         val new_connections = mutableListOf<Connection>()
 
-        for (connection in connections) {
+        for (found_connection in connections) {
+            val connection = if (found_connection.raw != null)
+                getConnectionFromRawForPin(updated_pin, found_connection)
+            else found_connection
+
             val affinity_and_id = connection.toPin.pinAffinityAndId
             val connected_to_pin = findPinRefByAffinityAndId(affinity_and_id)
 
@@ -158,8 +213,9 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
             val differs_from_previous = connection.checkIfDifferent(previous_connection_to_this_pin) ?: false
             val first_occurrence = previous_connection_to_this_pin == null;
 
-            val new_connection = Connection(descriptor_of_connected_pin, connection.voltage, connection.resistance,
-                                            differs_from_previous, first_occurrence)
+            val new_connection =
+                Connection(descriptor_of_connected_pin, connection.voltage, connection.resistance, connection.raw,
+                           differs_from_previous, first_occurrence)
 
             new_connections.add(new_connection)
             Log.i(Tag, "Searched pin Found! ${affinity_and_id.boardId}:${affinity_and_id.idxOnBoard}")
@@ -260,11 +316,31 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
 
         for (board in boards) {
             if (board.id == board_addr) {
+                board.internal_parameters = board_internals
+
                 for (pin in board.pins) {
-                    //todo: make full implementation
-                    pin.inResistance = board_internals.inputResistance0
-                    pin.outResistance = board_internals.outputResistance0
-                    pin.outVoltage = board_internals.outputVoltageHigh
+                    val logical_pin_num = pin.descriptor.getLogicalPinNumber()
+                    if (logical_pin_num == null) {
+                        Log.e(Tag, "logical pin num is null!")
+                        continue
+                    }
+
+                    val single_mux_pin_count = 16
+                    val is_of_second_mux = logical_pin_num >= single_mux_pin_count
+
+                    if (is_of_second_mux) {
+                        pin.inResistance = board_internals.inputResistance1
+                        pin.outResistance = board_internals.outputResistance1
+                    }
+                    else {
+                        pin.inResistance = board_internals.inputResistance0
+                        pin.outResistance = board_internals.outputResistance0
+                    }
+
+                    pin.outVoltage = if (board.voltage_level_is_high) board_internals.outputVoltageHigh
+                    else board_internals.outputVoltageLow
+
+                    pin.shuntResistance = board_internals.shuntResistance
                 }
 
                 Log.d("Test",

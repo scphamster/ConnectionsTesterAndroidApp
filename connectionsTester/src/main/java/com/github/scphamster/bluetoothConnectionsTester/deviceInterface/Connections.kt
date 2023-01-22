@@ -80,11 +80,12 @@ class Voltage(override val value: CircuitParamT, override val precision: Int = 2
 class Connection(val toPin: PinIdentifier,
                  val voltage: Voltage? = null,
                  val resistance: Resistance? = null,
+                 val raw: Int? = null,
                  val value_changed_from_previous_check: Boolean = false,
                  val first_occurrence: Boolean = true) {
     override fun toString(): String {
-        val electrical = if (voltage != null) "(${voltage.toString()})"
-        else if (resistance != null) "(${resistance.toString()})"
+        val electrical = if (resistance != null) "(${resistance.toString()})"
+        else if (voltage != null) "(${voltage.toString()})"
         else ""
 
         return toPin.getPrettyName() + electrical
@@ -117,13 +118,15 @@ data class IoBoardInternalParameters(
     val outputResistance0: ResistanceT,
     val inputResistance1: ResistanceT,
     val outputResistance1: ResistanceT,
+    val shuntResistance: ResistanceT,
     val outputVoltageLow: VoltageT,
     val outputVoltageHigh: VoltageT,
 )
 
 data class IoBoard(val id: IoBoardIndexT,
                    val pins: MutableList<Pin> = mutableListOf(),
-                   val internal_parameters: IoBoardInternalParameters? = null) {
+                   var internal_parameters: IoBoardInternalParameters? = null,
+                   var voltage_level_is_high: Boolean = false) {
     companion object {
         const val pinsCountOnSingleBoard = 32
     }

@@ -14,6 +14,7 @@ class ControllerResponseInterpreter {
         PinConnectivityBoolean("CONNECT"),
         PinConnectivityResistance("RESISTANCES"),
         PinConnectivityVoltage("VOLTAGES"),
+        PinConnectivityRaw("CONN_RAW"),
         HardwareDescription("HW"),
         InternalParameters("INTERNALS")
     }
@@ -43,7 +44,8 @@ class ControllerResponseInterpreter {
             enum class AnswerDomain(val text: String) {
                 SimpleConnectionFlag("connections"),
                 Voltage("voltages"),
-                Resistance("resistances")
+                Resistance("resistances"),
+                Raw("raw")
             }
         }
 
@@ -73,7 +75,8 @@ class ControllerResponseInterpreter {
 
     lateinit var onConnectionsDescriptionCallback: ((ControllerMessage.ConnectionsDescription) -> Unit)
     lateinit var onHardwareDescriptionCallback: ((ControllerMessage.HardwareDescription) -> Unit)
-    lateinit var onInternalParametersCallback: ((ControllerMessage.InternalParameters)-> Unit)
+    lateinit var onInternalParametersCallback: ((ControllerMessage.InternalParameters) -> Unit)
+
     /**
      * @brief Returns interpreted message from controller and remains of that same message string after first
      *          Keywords.EndOfMessage word
@@ -235,6 +238,7 @@ class ControllerResponseInterpreter {
             MessageHeader.PinConnectivityBoolean -> return parseConnectivityMsg(msg)
             MessageHeader.PinConnectivityVoltage -> return parseConnectivityMsg(msg)
             MessageHeader.PinConnectivityResistance -> return parseConnectivityMsg(msg)
+            MessageHeader.PinConnectivityRaw -> return parseConnectivityMsg(msg)
             MessageHeader.HardwareDescription -> {
                 val boards_addresses = mutableListOf<IoBoardIndexT>()
 
@@ -255,6 +259,7 @@ class ControllerResponseInterpreter {
                 var outR1: CircuitParamT;
                 var inR2: CircuitParamT;
                 var outR2: CircuitParamT;
+                var shuntR: CircuitParamT;
                 var outVLow: CircuitParamT;
                 var outVHigh: CircuitParamT;
 
@@ -274,10 +279,11 @@ class ControllerResponseInterpreter {
                 outR1 = values.get(1)
                 inR2 = values.get(2)
                 outR2 = values.get(3)
-                outVLow = values.get(4) / 1000f
-                outVHigh = values.get(5) / 1000f
+                shuntR = values.get(4)
+                outVLow = values.get(5) / 1000f
+                outVHigh = values.get(6) / 1000f
 
-                val board_params = IoBoardInternalParameters(inR1, outR1, inR2, outR2, outVLow, outVHigh)
+                val board_params = IoBoardInternalParameters(inR1, outR1, inR2, outR2, shuntR, outVLow, outVHigh)
                 return ControllerMessage.InternalParameters(board_addr, board_params)
             }
 
@@ -294,14 +300,12 @@ class ControllerResponseInterpreter {
         val connections = mutableListOf<Connection>()
 
         for (value in msg.values) {
-
             val connection_description = value.toConnection(msg.header)
 
             connections.add(connection_description)
 
-            val electrical = connection_description.resistance ?: connection_description.voltage
-            Log.d(Tag,
-                  "conn: ${connection_description.toPin.pinAffinityAndId.boardId}:${connection_description.toPin.pinAffinityAndId.idxOnBoard}($electrical)")
+
+
         }
 
         return ControllerMessage.ConnectionsDescription(affinity_and_id, connections.toTypedArray())
@@ -333,7 +337,7 @@ class ControllerResponseInterpreter {
                 if (::onHardwareDescriptionCallback.isInitialized) onHardwareDescriptionCallback(msg)
             }
 
-            is ControllerMessage.InternalParameters ->{
+            is ControllerMessage.InternalParameters -> {
                 if (::onInternalParametersCallback.isInitialized) onInternalParametersCallback(msg)
             }
 
@@ -459,6 +463,17 @@ private fun String.toConnection(header: ControllerResponseInterpreter.MessageHea
                                             .toInt()), null, Resistance(numbers
                                                                             .get(2)
                                                                             .toFloat()))
+        }
+
+        ControllerResponseInterpreter.MessageHeader.PinConnectivityRaw -> {
+            val numbers = getAllIntegers() + getAllFloats()
+            Connection(PinAffinityAndId(numbers
+                                            .get(0)
+                                            .toInt(), numbers
+                                            .get(1)
+                                            .toInt()), raw = numbers
+                .get(2)
+                .toInt())
         }
 
         else -> throw IllegalArgumentException("header ${header.text} is incompatible")

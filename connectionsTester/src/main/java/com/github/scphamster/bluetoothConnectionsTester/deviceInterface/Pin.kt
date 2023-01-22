@@ -55,6 +55,17 @@ data class PinDescriptor(val affinityAndId: PinAffinityAndId,
 
         name = null
     }
+
+    companion object {
+        private val harnessToLogicalPinMap = arrayOf(6, 4, 2, 0, 9, 11, 13, 15, 22, 20, 18, 16, 25, 27, 29, 31,
+                                                     30, 28, 26, 24, 17, 19, 21, 23, 14, 12, 10, 8, 1, 3, 5, 7)
+    }
+
+    fun getLogicalPinNumber(): Int? {
+        val harness_id = affinityAndId.idxOnBoard
+        if (harness_id >= IoBoard.pinsCountOnSingleBoard) return null
+        return harnessToLogicalPinMap.get(harness_id)
+    }
 }
 
 class Pin(val descriptor: PinDescriptor,
@@ -62,6 +73,7 @@ class Pin(val descriptor: PinDescriptor,
           var connectionsListChangedFromPreviousCheck: Boolean = false,
           var inResistance: ResistanceT? = null,
           var outResistance: ResistanceT? = null,
+          var shuntResistance: ResistanceT? = null,
           var outVoltage: VoltageT? = null) {
     var connections: MutableList<Connection> = mutableListOf()
         set(connections) {
