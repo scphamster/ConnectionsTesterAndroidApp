@@ -4,6 +4,8 @@ import androidx.lifecycle.MutableLiveData
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter.ControllerMessage
 import java.lang.ref.WeakReference
 import android.util.Log
+import org.apache.poi.hpsf.UnexpectedPropertySetTypeException
+import kotlin.math.exp
 
 class IoBoardsManager(val errorHandler: ErrorHandler) {
     companion object {
@@ -435,7 +437,14 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
     }
 
     suspend fun fetchExpectedConnectionsToPinsFromFile() {
-        val expected_connections = pinoutInterpreter.getExpectedConnections()
+        val expected_connections = try {
+             pinoutInterpreter.getExpectedConnections()
+        }
+        catch(e: Exception){
+            errorHandler.handleError(e.message)
+            null
+        }
+
         if (expected_connections == null) {
             Log.e(Tag, "expected connections are null")
             return

@@ -33,8 +33,8 @@ class PinoutFileInterpreter {
                 }
             }
 
-            if (groupHasDuplicatedPinAffinities(new_group))
-                throw Exception("Group ${new_group.name} has duplicated pin affinities")
+            if (groupHasDuplicatedPinAffinities(new_group)) throw Exception(
+                "Group ${new_group.name} has duplicated pin affinities")
 
             for ((pin_name, affinity_and_id) in new_group.pinsMap.entries) {
                 if (checkIfPinAffinityIsNotOccupied(affinity_and_id)) {
@@ -94,8 +94,7 @@ class PinoutFileInterpreter {
 
         for (cell in cells_with_group_names) {
             val group = getGroupFromSheetAtCell(sheet, cell)
-            if (group != null)
-                groups_manager.addNewGroup(group)
+            if (group != null) groups_manager.addNewGroup(group)
         }
 
         if (groups_manager.groups.isEmpty()) return null
@@ -125,12 +124,27 @@ class PinoutFileInterpreter {
 
         val list_of_expected_connections: MutableList<ExpectedConnections> = mutableListOf()
 
-        while(row_iterator.hasNext()){
+        while (row_iterator.hasNext()) {
             val row = row_iterator.next()
             val cell_iterator = row.cellIterator()
-            while(cell_iterator.hasNext()){
+            while (cell_iterator.hasNext()) {
                 val cell = cell_iterator.next()
-                cell.parseForExpectedConnections()?.let{list_of_expected_connections.add(it)}
+
+
+                cell
+                    .parseForExpectedConnections()
+                    ?.let { expected_connection ->
+                        if (list_of_expected_connections.find {
+                                expected_connection.for_pin == it.for_pin
+                            } != null) {
+                            throw BadFileException(
+                                "Duplicated results for same pin ${expected_connection.for_pin}! Duplication found at cell: ${
+                                    CellReference(cell)
+                                }")
+                        }
+
+                        list_of_expected_connections.add(expected_connection)
+                    }
             }
         }
 
@@ -140,15 +154,21 @@ class PinoutFileInterpreter {
     private fun findCellsWithGroupHeadersAtSheet(sheet: XSSFSheet): Array<Cell>? {
         val first_row = sheet.getRow(0) ?: return null
 
-        val cell_iterator = first_row.cellIterator()
-        if (!cell_iterator.hasNext()) return null
-
         val list_of_cells_with_group_headers = mutableListOf<Cell>()
 
-        while (cell_iterator.hasNext()) {
-            val cell = cell_iterator.next()
-            if (cell.stringCellValue.contains(groupHeaderTag)) {
-                list_of_cells_with_group_headers.add(cell)
+        val row_iterator = sheet.rowIterator()
+        while (row_iterator.hasNext()) {
+            val row = row_iterator.next()
+
+            val cell_iterator = row.cellIterator()
+            while (cell_iterator.hasNext()) {
+                val cell = cell_iterator.next()
+
+                if (cell.cellType == CellType.STRING) {
+                    if (cell.stringCellValue.contains(groupHeaderTag)) {
+                        list_of_cells_with_group_headers.add(cell)
+                    }
+                }
             }
         }
 
@@ -174,13 +194,13 @@ class PinoutFileInterpreter {
             if (row_idx < usable_data_begins_at_row) continue
 
             val cell_probably_with_mapping = row.getCell(usable_data_begins_at_column) ?: continue
-            if (cell_probably_with_mapping.cellType == CellType.BLANK) continue
+            if (cell_probably_with_mapping.cellType == CellType.BLANK) break
 
             val mapping = getSinglePinMappingFromCell(cell_probably_with_mapping) ?: continue
 
             if (pins_mappings.contains(mapping.first)) {
-                throw (BadFileException("Duplicate pin found at: ${
-                    CellReference(row_idx, usable_data_begins_at_column)
+                throw (BadFileException("Duplicate pin descriptor found at: ${
+                    CellReference(cell_probably_with_mapping)
                 }"))
             }
 
