@@ -19,7 +19,8 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
     enum class PinConnectionsStatus {
         AlteredConnectionsList,
         DoubleChecked,
-        Unhealthy
+        Unhealthy,
+        SubstantialDifferenceFound
     }
 
     enum class PinConnectionStatus {
@@ -58,6 +59,11 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
                 PinConnectionsStatus.Unhealthy -> {
                     style.setFillForegroundColor(xssfColorFromInt(context.getColor(R.color.unhealthy_pin)))
                 }
+
+                PinConnectionsStatus.SubstantialDifferenceFound -> {
+                    style.setFillForegroundColor(
+                        xssfColorFromInt(context.getColor(R.color.pincheck_substantial_difference_found)))
+                }
             }
 
             style.fillPattern = FillPatternType.SOLID_FOREGROUND
@@ -74,11 +80,14 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
             cell.cellStyle = style
         }
 
-        private fun convertPinConnectionDifferencesToRichText(pin: Pin, max_resistance: Float): XSSFRichTextString {
+        private fun convertPinConnectionDifferencesToRichText(pin: Pin,
+                                                              max_resistance: Float): Pair<XSSFRichTextString, Boolean> {
             val header = pin.descriptor.getPrettyName() + " ::"
             val rich_text = XSSFRichTextString(header).also { it.applyFont(font_normal) }
 
             val not_present_connections = pin.notPresentExpectedConnections
+
+            var substantial_difference_found = false
 
             if (not_present_connections != null) {
                 if (!not_present_connections.isEmpty()) {
@@ -89,13 +98,14 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
                     }
 
                     rich_text.append(")")
+                    substantial_difference_found = true
                 }
                 else {
-                    rich_text.append(" All requested are present", font_good_value)
+                    rich_text.append(" All present", font_good_value)
                 }
             }
             else {
-                rich_text.append(" not checked for requested")
+                rich_text.append(" not checked")
             }
 
             val unexpected_connection = pin.unexpectedConnections
@@ -109,23 +119,20 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
                     }
 
                     if (string_builder.length != 0) {
-                        rich_text.append(", Unexpected connections: (")
+                        rich_text.append(", Unwanted: (")
                         rich_text.append(string_builder.toString(), font_for_unhealthy_pins)
                         rich_text.append(")")
+                        substantial_difference_found = true
                     }
                     else {
-                        rich_text.append(", No unexpected connections", font_good_value)
+                        rich_text.append(", No unwanted", font_good_value)
                     }
                 }
                 else {
-                    rich_text.append(", No unexpected connections", font_good_value)
+                    rich_text.append(", No unwanted", font_good_value)
                 }
             }
-            else {
-                rich_text.append(", not checked for unexpected connections")
-            }
-
-            return rich_text
+            return Pair(rich_text, substantial_difference_found)
         }
 
         private fun convertPinConnectionsToRichText(pin: Pin, max_resistance: Float): XSSFRichTextString {
@@ -186,8 +193,8 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
 
                 val new_style = workbook.createCellStyle()
                 cell_with_name_of_congregation.setCellValue(name_of_congregation)
-                new_style.setFillBackgroundColor(IndexedColors.LIGHT_CORNFLOWER_BLUE.index)
-                new_style.setFillPattern(FillPatternType.SQUARES)
+                new_style.fillForegroundColor = IndexedColors.LIGHT_CORNFLOWER_BLUE.index
+                new_style.fillPattern = FillPatternType.SOLID_FOREGROUND
                 cell_with_name_of_congregation.cellStyle = (new_style)
 
                 val results_start_row_number = 1
@@ -249,8 +256,8 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
 
                 val new_style = workbook.createCellStyle()
                 cell_with_name_of_congregation.setCellValue(name_of_congregation)
-                new_style.setFillBackgroundColor(IndexedColors.LIGHT_CORNFLOWER_BLUE.index)
-                new_style.setFillPattern(FillPatternType.SQUARES)
+                new_style.fillForegroundColor = IndexedColors.LIGHT_CORNFLOWER_BLUE.index
+                new_style.fillPattern = FillPatternType.SOLID_FOREGROUND
                 cell_with_name_of_congregation.cellStyle = (new_style)
 
                 val results_start_row_number = 1
@@ -259,14 +266,20 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
                     val row = sheet.getRow(row_num) ?: sheet.createRow(row_num)
                     val cell_for_this_pin_differences = row.getCell(column_counter) ?: row.createCell(column_counter)
 
-                    val cell_text = convertPinConnectionDifferencesToRichText(pin, maximumResistance)
-                    Log.d("TEST", cell_text.toString())
+                    val (cell_text, substantial_difference_found) = convertPinConnectionDifferencesToRichText(pin,
+                                                                                                              maximumResistance)
                     cell_for_this_pin_differences.setCellValue(cell_text)
                     if (max_number_of_characters_in_this_column < cell_text.length()) max_number_of_characters_in_this_column =
                         cell_text.length()
+
+                    if (substantial_difference_found)
+                        setCellStyle(cell_for_this_pin_differences, workbook,
+                                     PinConnectionsStatus.SubstantialDifferenceFound)
+                    else
+                        setCellStyle(cell_for_this_pin_differences, workbook, PinConnectionsStatus.DoubleChecked)
                 }
 
-                val one_char_width = 260
+                val one_char_width = 240
                 val max_column_width = 60 * one_char_width
                 val column_width =
                     if (one_char_width * max_number_of_characters_in_this_column > max_column_width) max_column_width
@@ -299,7 +312,18 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
         responseInterpreter.onHardwareDescriptionCallback = { message ->
             coroutineScope.launch {
                 boardsManager.updateIOBoards(message.boardsOnLine)
+
+                delay(200)
+
+                for (board in message.boardsOnLine) {
+                    commander.sendCommand(ControllerResponseInterpreter.Commands.GetInternalParameters(board))
+                    delay(200)
+                }
             }
+        }
+
+        responseInterpreter.onInternalParametersCallback = {
+            boardsManager.setInternalParametersForBoard(it.board_addr, it.internalParameters)
         }
 
         commander.dataLink.onMessageReceivedCallback = { msg ->

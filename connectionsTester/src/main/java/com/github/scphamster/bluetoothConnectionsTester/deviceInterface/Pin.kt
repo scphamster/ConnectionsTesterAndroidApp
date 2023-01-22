@@ -59,7 +59,10 @@ data class PinDescriptor(val affinityAndId: PinAffinityAndId,
 
 class Pin(val descriptor: PinDescriptor,
           var belongsToBoard: WeakReference<IoBoard> = WeakReference<IoBoard>(null),
-          var connectionsListChangedFromPreviousCheck: Boolean = false) {
+          var connectionsListChangedFromPreviousCheck: Boolean = false,
+          var inResistance: ResistanceT? = null,
+          var outResistance: ResistanceT? = null,
+          var outVoltage: VoltageT? = null) {
     var connections: MutableList<Connection> = mutableListOf()
         set(connections) {
             field = connections
@@ -70,8 +73,7 @@ class Pin(val descriptor: PinDescriptor,
                 }
 
                 unexpectedConnections = field.filter { some_present_connection ->
-                    (some_present_connection.toPin.pinAffinityAndId != descriptor.pinAffinityAndId) &&
-                    (expected.find { some_present_connection.toPin.pinAffinityAndId == it.toPin.pinAffinityAndId } == null)
+                    (some_present_connection.toPin.pinAffinityAndId != descriptor.pinAffinityAndId) && (expected.find { some_present_connection.toPin.pinAffinityAndId == it.toPin.pinAffinityAndId } == null)
 
                 }
             }

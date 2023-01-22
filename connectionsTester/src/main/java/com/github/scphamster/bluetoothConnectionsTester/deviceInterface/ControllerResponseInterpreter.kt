@@ -14,7 +14,8 @@ class ControllerResponseInterpreter {
         PinConnectivityBoolean("CONNECT"),
         PinConnectivityResistance("RESISTANCES"),
         PinConnectivityVoltage("VOLTAGES"),
-        HardwareDescription("HW")
+        HardwareDescription("HW"),
+        InternalParameters("INTERNALS")
     }
 
     enum class Keywords(val text: String) {
@@ -24,9 +25,8 @@ class ControllerResponseInterpreter {
     }
 
     abstract class Commands {
-        abstract class AbstractCommand {}
-        class SetVoltageAtPin(val pin: PinNumT) : AbstractCommand() {}
-        class SetOutputVoltageLevel(val level: VoltageLevel) : AbstractCommand() {
+        class SetVoltageAtPin(val pin: PinNumT) {}
+        class SetOutputVoltageLevel(val level: VoltageLevel) {
             val base = "voltage"
 
             enum class VoltageLevel(val text: String) {
@@ -47,7 +47,8 @@ class ControllerResponseInterpreter {
             }
         }
 
-        class CheckHardware() : AbstractCommand() {}
+        class CheckHardware() {}
+        class GetInternalParameters(val board_addr: Int)
     }
 
     sealed class ControllerMessage {
@@ -56,6 +57,8 @@ class ControllerResponseInterpreter {
 
         class SelectedVoltageLevel(val level: VoltageLevel) : ControllerMessage()
         class HardwareDescription(val boardsOnLine: Array<IoBoardIndexT>) : ControllerMessage()
+        class InternalParameters(val board_addr: Int, val internalParameters: IoBoardInternalParameters) :
+            ControllerMessage()
     }
 
     private data class StructuredAnswer(var header: MessageHeader,
@@ -70,7 +73,7 @@ class ControllerResponseInterpreter {
 
     lateinit var onConnectionsDescriptionCallback: ((ControllerMessage.ConnectionsDescription) -> Unit)
     lateinit var onHardwareDescriptionCallback: ((ControllerMessage.HardwareDescription) -> Unit)
-
+    lateinit var onInternalParametersCallback: ((ControllerMessage.InternalParameters)-> Unit)
     /**
      * @brief Returns interpreted message from controller and remains of that same message string after first
      *          Keywords.EndOfMessage word
@@ -232,7 +235,6 @@ class ControllerResponseInterpreter {
             MessageHeader.PinConnectivityBoolean -> return parseConnectivityMsg(msg)
             MessageHeader.PinConnectivityVoltage -> return parseConnectivityMsg(msg)
             MessageHeader.PinConnectivityResistance -> return parseConnectivityMsg(msg)
-
             MessageHeader.HardwareDescription -> {
                 val boards_addresses = mutableListOf<IoBoardIndexT>()
 
@@ -244,6 +246,39 @@ class ControllerResponseInterpreter {
                 }
 
                 return ControllerMessage.HardwareDescription(boards_addresses.toTypedArray())
+            }
+
+            MessageHeader.InternalParameters -> {
+                val board_addr = msg.argument.toInt()
+
+                var inR1: CircuitParamT;
+                var outR1: CircuitParamT;
+                var inR2: CircuitParamT;
+                var outR2: CircuitParamT;
+                var outVLow: CircuitParamT;
+                var outVHigh: CircuitParamT;
+
+                val values = mutableListOf<CircuitParamT>()
+
+                for (value in msg.values) {
+                    val param = value.toFloatOrNull()
+                    if (param == null) {
+                        Log.e(Tag, "value is not integer! $value")
+                        return null
+                    }
+
+                    values.add(param)
+                }
+
+                inR1 = values.get(0)
+                outR1 = values.get(1)
+                inR2 = values.get(2)
+                outR2 = values.get(3)
+                outVLow = values.get(4) / 1000f
+                outVHigh = values.get(5) / 1000f
+
+                val board_params = IoBoardInternalParameters(inR1, outR1, inR2, outR2, outVLow, outVHigh)
+                return ControllerMessage.InternalParameters(board_addr, board_params)
             }
 
             else -> {
@@ -296,6 +331,10 @@ class ControllerResponseInterpreter {
 
             is ControllerMessage.HardwareDescription -> {
                 if (::onHardwareDescriptionCallback.isInitialized) onHardwareDescriptionCallback(msg)
+            }
+
+            is ControllerMessage.InternalParameters ->{
+                if (::onInternalParametersCallback.isInitialized) onInternalParametersCallback(msg)
             }
 
             else -> {

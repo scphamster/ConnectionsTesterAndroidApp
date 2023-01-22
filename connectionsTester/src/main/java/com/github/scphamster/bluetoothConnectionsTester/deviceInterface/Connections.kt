@@ -112,7 +112,18 @@ class Connection(val toPin: PinIdentifier,
     }
 }
 
-data class IoBoard(val id: IoBoardIndexT, val pins: MutableList<Pin> = mutableListOf()) {
+data class IoBoardInternalParameters(
+    val inputResistance0: ResistanceT,
+    val outputResistance0: ResistanceT,
+    val inputResistance1: ResistanceT,
+    val outputResistance1: ResistanceT,
+    val outputVoltageLow: VoltageT,
+    val outputVoltageHigh: VoltageT,
+)
+
+data class IoBoard(val id: IoBoardIndexT,
+                   val pins: MutableList<Pin> = mutableListOf(),
+                   val internal_parameters: IoBoardInternalParameters? = null) {
     companion object {
         const val pinsCountOnSingleBoard = 32
     }

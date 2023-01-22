@@ -47,4 +47,8 @@ class Commander(val dataLink: BluetoothBridge, val context: Context) {
         //todo: make supervisor to watch for answer to happen, if answer will not be obtained - controller is unhealthy
         dataLink.sendRawCommand(context.getString(R.string.get_all_boads_online))
     }
+
+    fun sendCommand(cmd: ControllerResponseInterpreter.Commands.GetInternalParameters){
+        dataLink.sendRawCommand("getinternals ${cmd.board_addr}")
+    }
 }

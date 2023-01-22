@@ -12,4 +12,5 @@
     <color name="pin_with_unaltered_connections">#2173BE</color>
     <color name="unhealthy_pin">#BE0D17</color>
     <color name="pin_with_double_checked_connections">#c9e4c8</color>
+    <color name="pincheck_substantial_difference_found">#ffb29e</color>
 </resources>

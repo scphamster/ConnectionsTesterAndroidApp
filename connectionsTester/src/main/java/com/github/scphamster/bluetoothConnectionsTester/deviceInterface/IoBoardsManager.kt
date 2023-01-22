@@ -230,8 +230,9 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
             }
         }
 
-        if (pin_with_board_id_same_as_group_name!= null){
-            Log.d("pinSearch","found pin without group: ${pin_with_board_id_same_as_group_name.descriptor.pinAffinityAndId}")
+        if (pin_with_board_id_same_as_group_name != null) {
+            Log.d("pinSearch",
+                  "found pin without group: ${pin_with_board_id_same_as_group_name.descriptor.pinAffinityAndId}")
             return pin_with_board_id_same_as_group_name
         }
 
@@ -245,6 +246,29 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
                 for (pin in board.pins) {
                     //todo: implement
                 }
+            }
+        }
+    }
+
+    fun setInternalParametersForBoard(board_addr: Int, board_internals: IoBoardInternalParameters) {
+        val boards = boards.value
+
+        if (boards == null) {
+            Log.e(Tag, "setInternalParametersForBoard::boards are null!")
+            return
+        }
+
+        for (board in boards) {
+            if (board.id == board_addr) {
+                for (pin in board.pins) {
+                    //todo: make full implementation
+                    pin.inResistance = board_internals.inputResistance0
+                    pin.outResistance = board_internals.outputResistance0
+                    pin.outVoltage = board_internals.outputVoltageHigh
+                }
+
+                Log.d("Test",
+                      "Board ${board.id} internals set!: ${board_internals.inputResistance0},${board_internals.outputResistance0},${board_internals.outputVoltageHigh}")
             }
         }
     }
@@ -347,7 +371,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
                     }
                 }
 
-                Log.d(Tag,"Found ${expected.size} expected connection for pin ${connections_for_pin.for_pin}")
+                Log.d(Tag, "Found ${expected.size} expected connection for pin ${connections_for_pin.for_pin}")
 
                 pin_of_interest.expectedConnections = expected
             }
