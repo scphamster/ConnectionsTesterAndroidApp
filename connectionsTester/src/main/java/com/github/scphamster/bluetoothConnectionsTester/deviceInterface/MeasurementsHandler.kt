@@ -323,7 +323,9 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
         }
 
         responseInterpreter.onInternalParametersCallback = {
-            boardsManager.setInternalParametersForBoard(it.board_addr, it.internalParameters)
+            coroutineScope.launch(Dispatchers.Default) {
+                boardsManager.setInternalParametersForBoard(it.board_addr, it.internalParameters)
+            }
         }
 
         commander.dataLink.onMessageReceivedCallback = { msg ->

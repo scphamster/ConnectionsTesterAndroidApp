@@ -26,7 +26,12 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
         val isSortedByAffinity: Boolean = affinity != null
     }
 
+    enum class VoltageLevel {
+        Low, High
+    }
+
     val boards = MutableLiveData<MutableList<IoBoard>>()
+    var voltageLevel: VoltageLevel = VoltageLevel.Low
     val pinoutInterpreter: PinoutFileInterpreter
     private val boardsCount = MutableLiveData<Int>()
     var pinChangeCallback: ((Pin) -> Unit)? = null
@@ -140,17 +145,19 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
         return pins_sorted_by_group.toTypedArray()
     }
 
-    fun setOutputVoltageLevelForBoards(level: Boolean) {
+    fun setOutputVoltageLevelForBoards(level: VoltageLevel) {
+        voltageLevel = level
+
         val boards = boards.value
         if (boards == null) return
 
         for (board in boards) {
-            board.voltage_level_is_high = level
-            val internals = board.internal_parameters
+            board.voltageLevel = level
+            val internals = board.internalParams
 
             if (internals != null) {
                 for (pin in board.pins) {
-                    pin.outVoltage = if (level) internals.outputVoltageHigh
+                    pin.outVoltage = if (level == VoltageLevel.High) internals.outputVoltageHigh
                     else internals.outputVoltageLow
                 }
             }
@@ -167,14 +174,13 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
         val shunt_r = pin_of_connection?.get()?.shuntResistance ?: STANDARD_SHUNT_R
         val master_board = pin.belongsToBoard.get()
 
-        val voltage_level_is_high: Boolean = if (master_board == null) {
+        val voltage_level = if (master_board == null) {
             Log.e(Tag, "master board is null!")
-            false
+            VoltageLevel.Low
         }
-        else if (master_board.voltage_level_is_high) true
-        else false
+        else master_board.voltageLevel
 
-        val output_voltage = if (voltage_level_is_high) pin.outVoltage ?: STANDARD_OUTPUT_VOLTAGE_HIGH
+        val output_voltage = if (voltage_level == VoltageLevel.High) pin.outVoltage ?: STANDARD_OUTPUT_VOLTAGE_HIGH
         else pin.outVoltage ?: STANDARD_OUTPUT_VOLTAGE_LOW
 
         val sensed_voltage = (connection.raw / 1023f) * 1.1f
@@ -316,7 +322,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
 
         for (board in boards) {
             if (board.id == board_addr) {
-                board.internal_parameters = board_internals
+                board.internalParams = board_internals
 
                 for (pin in board.pins) {
                     val logical_pin_num = pin.descriptor.getLogicalPinNumber()
@@ -337,7 +343,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
                         pin.outResistance = board_internals.outputResistance0
                     }
 
-                    pin.outVoltage = if (board.voltage_level_is_high) board_internals.outputVoltageHigh
+                    pin.outVoltage = if (board.voltageLevel == VoltageLevel.High) board_internals.outputVoltageHigh
                     else board_internals.outputVoltageLow
 
                     pin.shuntResistance = board_internals.shuntResistance
@@ -354,7 +360,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
         var boards_counter = 0
 
         for (id in boards_id) {
-            val new_board = IoBoard(id)
+            val new_board = IoBoard(id, voltageLevel = voltageLevel)
             val new_pin_group = PinGroup(id)
 
             for (pin_num in 0..(IoBoard.pinsCountOnSingleBoard - 1)) {

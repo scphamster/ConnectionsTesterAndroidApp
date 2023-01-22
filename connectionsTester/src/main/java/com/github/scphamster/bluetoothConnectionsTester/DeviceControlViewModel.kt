@@ -63,10 +63,10 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
 
         when (voltage_level) {
             Commands.SetOutputVoltageLevel.VoltageLevel.Low -> measurementsHandler.boardsManager.setOutputVoltageLevelForBoards(
-                false)
+                IoBoardsManager.VoltageLevel.Low)
 
             Commands.SetOutputVoltageLevel.VoltageLevel.High -> measurementsHandler.boardsManager.setOutputVoltageLevelForBoards(
-                true)
+                IoBoardsManager.VoltageLevel.High)
         }
 
         measurementsHandler.commander.sendCommand(Commands.SetOutputVoltageLevel(voltage_level))
@@ -130,8 +130,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
 
             delay(1000)
 
-            measurementsHandler.commander.sendCommand(ControllerResponseInterpreter.Commands.SetOutputVoltageLevel(
-                ControllerResponseInterpreter.Commands.SetOutputVoltageLevel.VoltageLevel.Low))
+            setupVoltageLevel()
         }
     }
 
@@ -160,7 +159,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             "Voltage" -> Commands.CheckConnectivity.AnswerDomain.Voltage
             "Resistance" -> Commands.CheckConnectivity.AnswerDomain.Resistance
             "SimpleBoolean" -> Commands.CheckConnectivity.AnswerDomain.SimpleConnectionFlag
-            else -> Commands.CheckConnectivity.AnswerDomain.Resistance
+            else -> Commands.CheckConnectivity.AnswerDomain.Raw
         }
 
         measurementsHandler.commander.sendCommand(Commands.CheckConnectivity(answer_domain, sequential = if_sequential))
@@ -177,13 +176,12 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             .getString("connection_domain", "");
 
         val answer_domain = when (domain) {
-            "Raw" -> Commands.CheckConnectivity.AnswerDomain.Voltage
+            "Raw" -> Commands.CheckConnectivity.AnswerDomain.Raw
             "Voltage" -> Commands.CheckConnectivity.AnswerDomain.Voltage
             "Resistance" -> Commands.CheckConnectivity.AnswerDomain.Resistance
             "SimpleBoolean" -> Commands.CheckConnectivity.AnswerDomain.SimpleConnectionFlag
-            else -> Commands.CheckConnectivity.AnswerDomain.Resistance
+            else -> Commands.CheckConnectivity.AnswerDomain.Raw
         }
-
 
         measurementsHandler.commander.sendCommand(
             Commands.CheckConnectivity(answer_domain, for_pin.descriptor.pinAffinityAndId, if_sequential))

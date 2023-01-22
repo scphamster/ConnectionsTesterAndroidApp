@@ -125,8 +125,8 @@ data class IoBoardInternalParameters(
 
 data class IoBoard(val id: IoBoardIndexT,
                    val pins: MutableList<Pin> = mutableListOf(),
-                   var internal_parameters: IoBoardInternalParameters? = null,
-                   var voltage_level_is_high: Boolean = false) {
+                   var internalParams: IoBoardInternalParameters? = null,
+                   var voltageLevel: IoBoardsManager.VoltageLevel = IoBoardsManager.VoltageLevel.Low) {
     companion object {
         const val pinsCountOnSingleBoard = 32
     }
