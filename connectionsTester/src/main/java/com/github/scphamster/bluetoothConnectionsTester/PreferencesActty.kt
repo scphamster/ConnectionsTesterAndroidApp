@@ -5,13 +5,10 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 
-//import com.opencsv.CSVReader
-
 class PreferencesActty : AppCompatActivity(), PreferencesFragment.DataBridgeToActivity {
     companion object {
         private const val FILE_REQUEST_CODE = 1
     }
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

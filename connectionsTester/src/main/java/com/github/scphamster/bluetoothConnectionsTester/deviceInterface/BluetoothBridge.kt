@@ -9,6 +9,7 @@ import com.harrysoft.somedir.SimpleBluetoothDeviceInterface
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
+import org.apache.poi.hemf.record.emf.HemfDraw.EmfRoundRect
 
 class BluetoothBridge(val errorHandler: ErrorHandler) {
     companion object {
@@ -56,7 +57,7 @@ class BluetoothBridge(val errorHandler: ErrorHandler) {
                                     .subscribe({ device: BluetoothSerialDevice ->
                                                    onConnected(device.toSimpleDeviceInterface())
                                                }) { t: Throwable? ->
-//                                        toast(R.string.connection_failed.toString())
+                                        errorHandler.handleError(R.string.connection_failed.toString())
                                         connectionAttemptedOrMade = false
                                         connectionStatus.postValue(ConnectionStatus.DISCONNECTED)
                                     })
@@ -91,22 +92,15 @@ class BluetoothBridge(val errorHandler: ErrorHandler) {
     private fun onConnected(bt_interface: SimpleBluetoothDeviceInterface) {
         deviceInterface = bt_interface
 
-        if (deviceInterface != null) {
+        deviceInterface?.setListeners({ message: String ->
+                                          if (::onMessageReceivedCallback.isInitialized) {
+                                              onMessageReceivedCallback(message)
+                                          }
+                                      }, { Log.d(Tag, "command sent: $it") }, { error: Throwable ->
+                                          errorHandler.handleError(R.string.message_send_error.toString())
+                                          disconnect()
+                                      })
 
-            deviceInterface?.setListeners({ message: String ->
-                                              if (::onMessageReceivedCallback.isInitialized) {
-                                                  onMessageReceivedCallback(message)
-                                              }
-                                          }, { Log.d(Tag, "command sent: $it") }, { error: Throwable ->
-                                              errorHandler.handleError(R.string.message_send_error.toString())
-                                          })
-
-             connectionStatus.postValue(ConnectionStatus.CONNECTED)
-//            toast(R.string.connected.toString())
-        }
-        else {
-//            toast(R.string.connection_failed.toString())
-            connectionStatus.postValue(ConnectionStatus.DISCONNECTED)
-        }
+        connectionStatus.postValue(ConnectionStatus.CONNECTED)
     }
 }

@@ -23,10 +23,11 @@ import androidx.recyclerview.widget.RecyclerView.ViewHolder
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 
 import android.Manifest
+import androidx.preference.PreferenceManager
 
 class MainActivity : AppCompatActivity() {
     private inner class DeviceViewHolder internal constructor(view: View) : ViewHolder(view) {
-        private val layout: RelativeLayout by lazy { view.findViewById(R.id.single_bt_device) }
+        private val single_device_item_layout: RelativeLayout by lazy { view.findViewById(R.id.single_bt_device) }
         private val deviceName: TextView by lazy { view.findViewById(R.id.bluetooth_item_Name) }
         private val deviceAddress: TextView by lazy { view.findViewById(R.id.bluetooth_item_Adress) }
 
@@ -39,13 +40,15 @@ class MainActivity : AppCompatActivity() {
                     if (deviceAddress.text.toString() == it) {
                         deviceAddress.setTextColor(ContextCompat.getColor(this@MainActivity,
                                                                           R.color.color_last_used_device))
+                        val new_device_name = deviceName.text.toString() + " (used last time)"
+                        deviceName.text = new_device_name
                         deviceName.setTextColor(ContextCompat.getColor(this@MainActivity,
                                                                        R.color.color_last_used_device))
                     }
                 }
             }
 
-            layout.setOnClickListener { view: View? ->
+            single_device_item_layout.setOnClickListener { view: View? ->
                 onDeviceChoice(deviceAddress.text.toString())
 
                 Intent(this@MainActivity, DeviceControlActivity::class.java).also { intent ->
@@ -55,7 +58,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            layout.setOnLongClickListener {
+            single_device_item_layout.setOnLongClickListener {
                 onDeviceChoice(deviceAddress.text.toString())
                 startTerminalWithDevice(device?.name, device?.address)
 
@@ -105,10 +108,10 @@ class MainActivity : AppCompatActivity() {
         System.setProperty("org.apache.poi.javax.xml.stream.XMLEventFactory",
                            "com.fasterxml.aalto.stax.EventFactoryImpl")
 
-        lastUsedDeviceMacAddress
-        getPreferences(Context.MODE_PRIVATE)
-            .getString(StateKey.LastUsedBluetoothDevice.text, "")
-            .toString()
+        lastUsedDeviceMacAddress =
+            getPreferences(Context.MODE_PRIVATE)
+                .getString(StateKey.LastUsedBluetoothDevice.text, "")
+                .toString()
 
         setContentView(R.layout.activity_main)
         viewModel = ViewModelProviders
@@ -144,7 +147,12 @@ class MainActivity : AppCompatActivity() {
     override fun onSaveInstanceState(savedState: Bundle) {
         super.onSaveInstanceState(savedState)
         lastUsedDeviceMacAddress?.let {
-            savedState.putString(StateKey.LastUsedBluetoothDevice.text, it)
+            PreferenceManager
+                .getDefaultSharedPreferences(this)
+                .edit()
+                .putString(StateKey.LastUsedBluetoothDevice.text, it)
+                .apply()
+
             getPreferences(Context.MODE_PRIVATE)
                 .edit()
                 .putString(StateKey.LastUsedBluetoothDevice.text, lastUsedDeviceMacAddress)
