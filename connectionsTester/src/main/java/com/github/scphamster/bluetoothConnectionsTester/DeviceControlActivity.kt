@@ -297,6 +297,13 @@ class DeviceControlActivity : AppCompatActivity() {
                     return@setOnMenuItemClickListener true
                 }
 
+                R.id.ctl_actty_menu_hardware_monitor_button -> {
+                    Intent(this@DeviceControlActivity, HardwareMonitorActty::class.java).also{
+                        startActivity(it)
+                    }
+                    false
+                }
+
                 else -> {
                     return@setOnMenuItemClickListener true
                 }

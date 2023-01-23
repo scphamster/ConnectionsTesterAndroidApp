@@ -38,6 +38,9 @@ android {
     }
 
     namespace 'com.github.scphamster.bluetoothConnectionsTester'
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
 }
 
 dependencies {
@@ -54,6 +57,8 @@ dependencies {
     implementation "androidx.lifecycle:lifecycle-common-java8:2.1.0"
     implementation "androidx.lifecycle:lifecycle-extensions:2.1.0"
     implementation 'androidx.preference:preference-ktx:1.2.0'
+    implementation 'androidx.navigation:navigation-fragment-ktx:2.5.3'
+    implementation 'androidx.navigation:navigation-ui-ktx:2.5.3'
     testImplementation "androidx.arch.core:core-testing:2.1.0"
 
     // RxJava

@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
+            android:title="Refresh boards"
+            android:id="@+id/ctl_actty_menu_refresh_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+    <item
             android:id="@+id/ctl_actty_menu_settings_button"
             android:title="Settings"/>
     <item
@@ -9,10 +14,10 @@
     <item
             android:title="Disconnect"
             android:id="@+id/ctl_actty_menu_disconnect_button"
-        />
+            />
     <item
-            android:title="Refresh boards"
-            android:id="@+id/ctl_actty_menu_refresh_button"
-        />
+            android:title="Hardware monitor"
+            android:id="@+id/ctl_actty_menu_hardware_monitor_button"
+            />
 
 </menu>

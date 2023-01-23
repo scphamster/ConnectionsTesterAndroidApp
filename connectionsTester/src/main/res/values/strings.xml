@@ -19,14 +19,14 @@
     <string name="message_send_error">Error sending message!</string>
     <string name="you_sent">You</string>
 
-<!--    activity main-->
+    <!--    activity main-->
     <string name="main_actty_button_name_connectors_cfg">Open configuration file</string>
 
-<!--    activity preferences-->
+    <!--    activity preferences-->
     <string name="pref_pinout_filename_defaultval">not selected</string>
     <string name="pref_pinout_and_results_file">Specify XLSX work file</string>
 
-<!--    activity deviceControl-->
+    <!--    activity deviceControl-->
     <string name="ctl_actty_tittle_connecting">Connecting to device: %s</string>
     <string name="ctl_actty_tittle_connected">Connected to %s</string>
     <string name="ctl_actty_number_of_connected_boards">Number of connected boards: %s</string>
@@ -41,4 +41,13 @@
     <string name="check_all_cmd_special_argument">all</string>
     <string name="set_output_voltage">voltage</string>
     <string name="get_all_boads_online">getboards</string>
+    <string name="title_activity_hardware_monitor_actty">HardwareMonitorActty</string>
+    <!-- Strings used for fragments for navigation -->
+    <string name="first_fragment_label">First Fragment</string>
+    <string name="second_fragment_label">Second Fragment</string>
+    <string name="next">Next</string>
+    <string name="previous">Previous</string>
+
+    <string name="hello_first_fragment">Hello first fragment</string>
+    <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
 </resources>

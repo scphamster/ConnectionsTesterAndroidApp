@@ -193,8 +193,12 @@ class PinoutFileInterpreter {
             .withIndex()) {
             if (row_idx < usable_data_begins_at_row) continue
 
-            val cell_probably_with_mapping = row.getCell(usable_data_begins_at_column) ?: continue
-            if (cell_probably_with_mapping.cellType == CellType.BLANK) break
+            val cell_probably_with_mapping = row.getCell(usable_data_begins_at_column)
+            if(cell_probably_with_mapping == null) break
+            if (cell_probably_with_mapping.cellType != CellType.STRING && cell_probably_with_mapping.cellType != CellType.NUMERIC) break
+            val string_value_of_cell =cell_probably_with_mapping.getStringRepresentationOfValue()
+            if(string_value_of_cell.isEmpty() || string_value_of_cell.contains(groupHeaderTag)) break
+            Log.d(Tag, cell_probably_with_mapping.getStringRepresentationOfValue())
 
             val mapping = getSinglePinMappingFromCell(cell_probably_with_mapping) ?: continue
 
@@ -220,7 +224,14 @@ class PinoutFileInterpreter {
         if (pin_name.isEmpty()) return null
 
         val cell_with_board_affinity = row_affinity_of_cell.getCell(cell.columnIndex + 1) ?: return null
-        val board_affinity = cell_with_board_affinity.numericCellValue.toInt()
+
+        val board_affinity = try{
+            cell_with_board_affinity.numericCellValue.toInt()
+        }
+        catch (e: Exception){
+            Log.d(Tag, "Exception from converting board affinity to int at cell: ${CellReference(cell)}")
+            throw(BadFileException("Bad board affinity format at cell: ${CellReference(cell)}"))
+        }
 //        if (board_affinity == null) return null
         if (board_affinity > maxBoardIndex || board_affinity < minBoardIndex) return null
 

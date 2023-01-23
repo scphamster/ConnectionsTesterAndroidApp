@@ -1,13 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-        >
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.BLUETOOTH"/>
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
-    <uses-permission android:name="android.permission.GET_ACCOUNTS" />
-    <uses-permission android:name="android.permission.MANAGE_ACCOUNTS" />
-    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.GET_ACCOUNTS"/>
+    <uses-permission android:name="android.permission.MANAGE_ACCOUNTS"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
 
     <application
             android:allowBackup="true"
@@ -15,20 +14,28 @@
             android:label="@string/app_name"
             android:supportsRtl="true"
             android:theme="@style/AppTheme">
-
         <activity
-                android:name="com.github.scphamster.bluetoothConnectionsTester.MainActivity"
-                android:label="@string/app_name"
-                android:exported="true">
+                android:name=".HardwareMonitorActty"
+                android:exported="false"
+                android:label="@string/title_activity_hardware_monitor_actty"
+                android:theme="@style/AppTheme.NoActionBar">
+            <meta-data
+                    android:name="android.app.lib_name"
+                    android:value=""/>
+        </activity>
+        <activity
+                android:name=".MainActivity"
+                android:exported="true"
+                android:label="@string/app_name">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
+
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <activity android:name="com.github.scphamster.bluetoothConnectionsTester.CommunicateActivity"/>
-        <activity android:name="com.github.scphamster.bluetoothConnectionsTester.DeviceControlActivity"/>
-        <activity android:name="com.github.scphamster.bluetoothConnectionsTester.PreferencesActty"/>
-
+        <activity android:name=".CommunicateActivity"/>
+        <activity android:name=".DeviceControlActivity"/>
+        <activity android:name=".PreferencesActty"/>
     </application>
 
 </manifest>
