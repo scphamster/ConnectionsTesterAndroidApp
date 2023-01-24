@@ -10,10 +10,10 @@
                                                    android:layout_marginBottom="10dp"
         >
 
-    <LinearLayout
+    <RelativeLayout
             android:orientation="horizontal"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="48sp"
             android:id="@+id/linearLayout2"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
@@ -23,19 +23,34 @@
         <Button
                 android:text="@string/cmd2_button_name"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:id="@+id/check_connections"
-                android:layout_weight="0"
-                style="?android:attr/buttonBarButtonStyle"/>
+                android:insetBottom="5dp"
+                android:insetTop="5dp"
+                android:layout_alignParentBottom="true"
+                android:layout_alignParentTop="true"/>
 
         <Button
                 android:text="Save"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/ctl_actty_save_results_button"
-                android:layout_weight="0"
-                style="?android:attr/buttonBarButtonStyle"/>
-    </LinearLayout>
+                android:layout_toEndOf="@+id/check_connections"
+                android:insetLeft="20sp"
+                android:insetTop="5dp"
+                android:insetBottom="5dp"
+                android:layout_alignParentBottom="true"
+                android:layout_alignParentTop="true"/>
+
+        <ImageView
+                android:id="@+id/ctl_actty_warning_sign"
+                android:visibility="invisible"
+                android:layout_height="match_parent"
+                android:layout_width="50sp"
+                app:srcCompat="@mipmap/warning"
+                android:layout_alignParentEnd="true"/>
+
+    </RelativeLayout>
 
     <HorizontalScrollView
             android:layout_width="0dp"

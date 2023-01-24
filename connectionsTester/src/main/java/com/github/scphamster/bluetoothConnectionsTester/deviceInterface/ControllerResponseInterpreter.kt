@@ -20,7 +20,7 @@ class ControllerResponseInterpreter {
     }
 
     enum class Keywords(val text: String) {
-        ArgumentsStart("->"),
+        MsgHeaderAndArgumentsSeparator("->"),
         EndOfMessage("END"),
         ValueAndAffinitySplitter(":")
     }
@@ -162,7 +162,7 @@ class ControllerResponseInterpreter {
         }
 
         val values_delimiter = words.removeAt(0)
-        if (values_delimiter != Keywords.ArgumentsStart.text) {
+        if (values_delimiter != Keywords.MsgHeaderAndArgumentsSeparator.text) {
             Log.e(Tag, "Message with inappropriate argument : values delimiter!")
             return structuredAnswer
         }

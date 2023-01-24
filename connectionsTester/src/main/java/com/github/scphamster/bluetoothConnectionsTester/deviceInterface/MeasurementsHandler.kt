@@ -341,7 +341,6 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
         commander.sendCommand(Commands.CheckConnectivity(Commands.CheckConnectivity.AnswerDomain.Resistance))
         val max_delay_for_result_arrival_ms = 1000
 
-
         withContext(Dispatchers.Default) {
             var pin_descriptor_messages_count_last_check = connectionDescriptorMessageCounter
 
@@ -365,6 +364,9 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
             }
         }
     }
+
+
+
 }
 
 private fun xssfColorFromInt(color: Int): XSSFColor {

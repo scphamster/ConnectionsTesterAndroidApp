@@ -20,7 +20,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
     }
 
     private var isInitialized: Boolean
-    private val errorHandler: ErrorHandler
+    val errorHandler: ErrorHandler
     private val bluetooth: BluetoothBridge
     val measurementsHandler: MeasurementsHandler
     val controllerIsNotConfigured: Boolean
@@ -91,7 +91,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
                 e.message?.let {
                     Log.e(Tag, "Error while opening XLSX file: " + it)
                 }
-                toast("Error while opening XLSX file: " + e.message)
+                errorHandler.handleError("Error while opening XLSX file: " + e.message)
             }
         }
     }
@@ -107,10 +107,10 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             toast("Successfully stored results to file!")
         }
         catch (e: Error) {
-            toast(e.message)
+            errorHandler.handleError(e.message)
         }
         catch (e: Throwable) {
-            toast(e.message)
+            errorHandler.handleError(e.message)
         }
     }
 

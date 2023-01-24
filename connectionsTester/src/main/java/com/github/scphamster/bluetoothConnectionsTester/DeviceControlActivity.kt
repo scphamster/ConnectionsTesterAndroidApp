@@ -2,6 +2,7 @@ package com.github.scphamster.bluetoothConnectionsTester
 
 //import android.R
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
@@ -37,6 +38,7 @@ class DeviceControlActivity : AppCompatActivity() {
     private val menu by lazy {
         PopupMenu(this, supportActionBar?.customView?.findViewById(R.id.button_at_custom_action_bar))
     }
+    private val warningSign by lazy { findViewById<ImageView>(R.id.ctl_actty_warning_sign) }
 
     private inner class CheckResultViewHolder internal constructor(view: View) : RecyclerView.ViewHolder(view) {
         private val layout: RelativeLayout by lazy { view.findViewById(R.id.single_check_result) }
@@ -44,8 +46,8 @@ class DeviceControlActivity : AppCompatActivity() {
         private val foundConnections: TextView by lazy { view.findViewById(R.id.connections) }
         private var results_are_for_pin: Pin? = null
 
-        init{
-            layout.setOnClickListener{
+        init {
+            layout.setOnClickListener {
                 val my_pin = results_are_for_pin
                 if (my_pin == null) return@setOnClickListener
 
@@ -82,11 +84,11 @@ class DeviceControlActivity : AppCompatActivity() {
                 foundConnections.setTextColor(resources.getColor(R.color.unhealthy_pin))
             }
             else {
-                if (pin.connections.size == 1){
+                if (pin.connections.size == 1) {
                     foundConnections.text = "Not connected";
                     foundConnections.setTextColor(Color.GRAY)
                 }
-                else if (span_text_builder.isEmpty()){
+                else if (span_text_builder.isEmpty()) {
                     foundConnections.text = "Not connected (High R connections not shown)"
                     foundConnections.setTextColor(Color.GRAY)
                 }
@@ -256,6 +258,23 @@ class DeviceControlActivity : AppCompatActivity() {
             }
 
         }
+
+        model.errorHandler.errorMessages.observe(this) { warnings ->
+            warningSign.visibility = View.VISIBLE
+
+        }
+
+        warningSign.setOnClickListener() { sign ->
+            AlertDialog
+                .Builder(this)
+                .setTitle("Warning")
+                .setMessage(model.errorHandler.errorMessages.value?.joinToString { it + " " })
+                .create()
+                .show()
+            sign.visibility = View.INVISIBLE
+
+            model.errorHandler.errorMessages.value?.clear()
+        }
     }
 
     private fun setupClickListeners() {
@@ -298,7 +317,7 @@ class DeviceControlActivity : AppCompatActivity() {
                 }
 
                 R.id.ctl_actty_menu_hardware_monitor_button -> {
-                    Intent(this@DeviceControlActivity, HardwareMonitorActty::class.java).also{
+                    Intent(this@DeviceControlActivity, HardwareMonitorActty::class.java).also {
                         startActivity(it)
                     }
                     false

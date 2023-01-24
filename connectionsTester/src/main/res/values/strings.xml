@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Bluetooth Serial Interface</string>
+    <string name="app_name">Hamster Panel Tester</string>
 
     <string name="messages">Messages:</string>
     <string name="message">Message</string>
