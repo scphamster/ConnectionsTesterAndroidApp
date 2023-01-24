@@ -29,7 +29,8 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
     }
 
     enum class VoltageLevel {
-        Low, High
+        Low,
+        High
     }
 
     val boards = MutableLiveData<MutableList<IoBoard>>()
@@ -280,7 +281,10 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
 
     fun findPinByGroupAndName(group: String, name: String): Pin? {
         val current_boards = boards.value
-        if (current_boards == null) return null
+        if (current_boards == null) {
+            Log.e(Tag, "findPinByGroupAndName: boards are null!")
+            return null
+        }
 
         var pin_with_board_id_same_as_group_name: Pin? = null
         var pin_with_group_and_name_as_requested: Pin? = null
@@ -290,9 +294,14 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
                 if (pin.descriptor.pinAffinityAndId.idxOnBoard.toString() == name && board.id.toString() == group) {
                     pin_with_board_id_same_as_group_name = pin
                 }
-                if (pin.descriptor.name == name && pin.descriptor.group?.name == group) return pin
+                if (pin.descriptor.name == name && pin.descriptor.group?.name == group){
+                    Log.d(Tag, "findPinByGroupAndName: found pin ${pin.toString()}")
+                    return pin
+                }
             }
         }
+
+        Log.e(Tag, "Did not found pin by group and pin name $group : $name")
 
         if (pin_with_board_id_same_as_group_name != null) {
             Log.d("pinSearch",
@@ -437,10 +446,11 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
     }
 
     suspend fun fetchExpectedConnectionsToPinsFromFile() {
+        Log.d(Tag, "Entering fetch expected connections!")
         val expected_connections = try {
-             pinoutInterpreter.getExpectedConnections()
+            pinoutInterpreter.getExpectedConnections()
         }
-        catch(e: Exception){
+        catch (e: Exception) {
             errorHandler.handleError(e.message)
             null
         }
@@ -450,14 +460,18 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
             return
         }
 
+        Log.d(Tag, "Expected connection are not null, size = ${expected_connections.size} proceeding!")
         for (connections_for_pin in expected_connections) {
+            Log.d(Tag,"Searching for pin: ${connections_for_pin}")
             findPinByGroupAndName(connections_for_pin.for_pin.first,
                                   connections_for_pin.for_pin.second)?.let { pin_of_interest ->
                 val expected = mutableListOf<Connection>()
-
+                Log.d(Tag, "expected connections for pin entered: ${connections_for_pin.for_pin}")
                 for (pin_expected_to_be_connected in connections_for_pin.is_connected_to) {
+                    Log.d(Tag, "Searching for expected pin: ${pin_expected_to_be_connected.toString()}")
                     findPinByGroupAndName(pin_expected_to_be_connected.first,
                                           pin_expected_to_be_connected.second)?.let {
+                        Log.d(Tag, "found pin: ${it.toString()} in fetch expected!")
                         expected.add(Connection(it.descriptor))
                     }
                 }
