@@ -42,14 +42,6 @@
                 android:layout_alignParentBottom="true"
                 android:layout_alignParentTop="true"/>
 
-        <ImageView
-                android:id="@+id/ctl_actty_warning_sign"
-                android:visibility="invisible"
-                android:layout_height="match_parent"
-                android:layout_width="50sp"
-                app:srcCompat="@mipmap/warning"
-                android:layout_alignParentEnd="true"/>
-
     </RelativeLayout>
 
     <HorizontalScrollView
