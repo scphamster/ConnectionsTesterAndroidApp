@@ -144,6 +144,7 @@ class PinoutFileInterpreter {
                         }
 
                         list_of_expected_connections.add(expected_connection)
+                        Log.d(Tag, "Found expected connection : ${expected_connection.toString()}")
                     }
             }
         }
@@ -180,7 +181,7 @@ class PinoutFileInterpreter {
         val group_header_cell_content = cell.getStringRepresentationOfValue()
         val group_name = group_header_cell_content
             .trim()
-            .substring(groupHeaderTag.length)
+            .substring(groupHeaderTag.length).trim()
         if (group_name.isEmpty()) return null
 
         val usable_data_begins_at_row = cell.rowIndex + groupHeaderToActualDataVerticalIndent
