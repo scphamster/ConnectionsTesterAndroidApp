@@ -366,6 +366,21 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
         }
     }
 
+    fun getAllPins() : List<Pin>
+    {
+        val boards = boards.value
+
+        if (boards == null) return emptyList()
+
+        val pins = mutableListOf<Pin>()
+
+        boards.forEach { board ->
+            pins.addAll(board.pins)
+        }
+
+        return pins
+    }
+
     suspend fun updateIOBoards(boards_id: Array<IoBoardIndexT>) {
         val new_boards = mutableListOf<IoBoard>()
         var boards_counter = 0
@@ -446,6 +461,13 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
     }
 
     suspend fun fetchExpectedConnectionsToPinsFromFile() {
+        getAllPins().forEach() { pin ->
+            pin.expectedConnections = null
+            pin.unexpectedConnections = null
+            pin.notPresentExpectedConnections = null
+        }
+
+
         Log.d(Tag, "Entering fetch expected connections!")
         val expected_connections = try {
             pinoutInterpreter.getExpectedConnections()
