@@ -74,6 +74,9 @@ dependencies {
     //xlsx parser
     implementation files('poishadow-all.jar')
 
+    //Server
+    implementation 'org.java-websocket:Java-WebSocket:1.5.3'
+
     //google drive
 //    implementation 'com.google.android.gms:play-services-auth:20.4.0'
 //    implementation 'com.google.http-client:google-http-client-gson:1.26.0'

@@ -3,8 +3,13 @@ package com.github.scphamster.bluetoothConnectionsTester
 //import android.R
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.Bundle
 import android.text.SpannableStringBuilder
 import android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
@@ -21,6 +26,8 @@ import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.*
+import com.github.scphamster.bluetoothConnectionsTester.server.MyServer
+import java.net.NetworkInterface
 
 class DeviceControlActivity : AppCompatActivity() {
     companion object {
@@ -66,14 +73,13 @@ class DeviceControlActivity : AppCompatActivity() {
             for (connection in pin.connections) {
                 if (connection.toPin.pinAffinityAndId == pin.descriptor.pinAffinityAndId) continue
 
-                val text_color =
-                    if (connection.value_changed_from_previous_check) ForegroundColorSpan(difference_color)
-                    else if (connection.first_occurrence) ForegroundColorSpan(Color.MAGENTA)
-                    else ForegroundColorSpan(normal_color)
+                val text_color = if (connection.value_changed_from_previous_check) ForegroundColorSpan(difference_color)
+                else if (connection.first_occurrence) ForegroundColorSpan(Color.MAGENTA)
+                else ForegroundColorSpan(normal_color)
 
                 if (connection.resistance != null) {
-                    if (connection.resistance.value < RMax) span_text_builder.append(
-                        connection.toString(), text_color, SPAN_EXCLUSIVE_EXCLUSIVE)
+                    if (connection.resistance.value < RMax) span_text_builder.append(connection.toString(), text_color,
+                                                                                     SPAN_EXCLUSIVE_EXCLUSIVE)
                 }
                 else span_text_builder.append(connection.toString(), text_color, SPAN_EXCLUSIVE_EXCLUSIVE)
             }
@@ -92,8 +98,7 @@ class DeviceControlActivity : AppCompatActivity() {
                     foundConnections.text = "Not connected (High R connections not shown)"
                     foundConnections.setTextColor(Color.GRAY)
                 }
-                else
-                    foundConnections.text = span_text_builder
+                else foundConnections.text = span_text_builder
 
                 if (pin.connectionsListChangedFromPreviousCheck) {
                     pinNumber.setTextColor(resources.getColor(R.color.pin_with_altered_connections))
@@ -195,6 +200,8 @@ class DeviceControlActivity : AppCompatActivity() {
             finish()
             return
         }
+
+        model.startServer()
     }
 
     private fun setupEntryViewState() {

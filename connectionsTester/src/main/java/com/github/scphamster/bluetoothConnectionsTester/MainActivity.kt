@@ -1,5 +1,7 @@
 package com.github.scphamster.bluetoothConnectionsTester
 
+import android.util.Log
+
 import android.bluetooth.BluetoothDevice
 import android.content.Context
 import android.content.Intent
@@ -24,6 +26,10 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 
 import android.Manifest
 import androidx.preference.PreferenceManager
+import kotlinx.coroutines.coroutineScope
+
+import java.lang.Exception
+import kotlin.coroutines.coroutineContext
 
 class MainActivity : AppCompatActivity() {
     private inner class DeviceViewHolder internal constructor(view: View) : ViewHolder(view) {
@@ -179,6 +185,7 @@ class MainActivity : AppCompatActivity() {
     private fun onDeviceChoice(mac: String?) {
         mac?.let { lastUsedDeviceMacAddress = it }
     }
+
 
     private fun startTerminalWithDevice(deviceName: String?, macAddress: String?) {
         Intent(this, CommunicateActivity::class.java).also { intent ->

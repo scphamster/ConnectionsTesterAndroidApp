@@ -1,16 +1,16 @@
 package com.github.scphamster.bluetoothConnectionsTester
 
-import android.util.Log
-
 import android.app.Application
+import android.content.Context.WIFI_SERVICE
+import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.preference.PreferenceManager
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.*
-import kotlinx.coroutines.*
-
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter.Commands
+import com.github.scphamster.bluetoothConnectionsTester.server.MyServer
+import kotlinx.coroutines.*
 
 typealias BoardCountT = Int
 
@@ -28,6 +28,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             return measurementsHandler.boardsManager.boards.value?.isEmpty() ?: true
         }
     var maxDetectableResistance: Float = 0f
+    var myServer: MyServer? = null
     private val logger by lazy { ToFileLogger(app) }
 
     init {
@@ -202,6 +203,25 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
 
     fun refreshHardware() {
         measurementsHandler.commander.sendCommand(Commands.CheckHardware())
+    }
+
+    fun startServer() {
+        if (myServer == null) {
+
+            val my_ip = MyServer.getIP()?.let{
+                Log.d(Tag, "OWN IP: $it")
+                myServer = MyServer(it, 1500)
+            }
+        }
+
+        viewModelScope.launch {
+            try {
+                myServer?.testWrite("Hello")
+            }
+            catch (e: Exception) {
+                errorHandler.handleError("Unsuccessfull! ${e.message}")
+            }
+        }
     }
 
     private fun toast(msg: String?) {

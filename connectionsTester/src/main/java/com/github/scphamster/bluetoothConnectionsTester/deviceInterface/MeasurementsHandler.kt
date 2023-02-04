@@ -364,9 +364,6 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
             }
         }
     }
-
-
-
 }
 
 private fun xssfColorFromInt(color: Int): XSSFColor {
