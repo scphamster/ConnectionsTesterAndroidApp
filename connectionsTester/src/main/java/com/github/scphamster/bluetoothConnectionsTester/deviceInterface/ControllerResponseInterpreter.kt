@@ -1,6 +1,7 @@
 package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
 
 import android.util.Log
+import com.github.scphamster.bluetoothConnectionsTester.circuit.PinAffinityAndId
 
 class ControllerResponseInterpreter {
     enum class VoltageLevel {

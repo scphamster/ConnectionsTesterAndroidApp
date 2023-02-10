@@ -1,41 +1,16 @@
-package com.github.scphamster.bluetoothConnectionsTester.server
+package com.github.scphamster.bluetoothConnectionsTester.dataLink
 
 import android.util.Log
-import android.util.Size
-import com.github.scphamster.bluetoothConnectionsTester.DeviceControlActivity
 import kotlinx.coroutines.*
-import java.io.InputStream
-import java.net.Socket
 
-import org.java_websocket.WebSocket
-import org.java_websocket.handshake.ClientHandshake
-import org.java_websocket.server.WebSocketServer
-import java.io.ByteArrayInputStream
-import java.io.ObjectInputStream
-import java.net.InetSocketAddress
 import java.net.NetworkInterface
 import java.net.ServerSocket
-import java.nio.ByteBuffer
 
-class Message(val someArray:ByteArray, val someShort: Short) {
-    companion object {
-        fun deserialize(byte_array: ByteArray): Message {
-            val array = byte_array.copyOfRange(0, 5)
-            val shrt = ((byte_array
-                .get(7)
-                .toInt() and 0xff) shl 8) or ((byte_array
-                .get(6)
-                .toInt()) and 0xff)
-
-            return Message(array, shrt.toShort())
-        }
-    }
-};
 
 class MyServer(val hostname: String, val port: Int) {
     companion object {
         private const val Tag = "server"
-        fun getIP(): String? {
+        fun getOwnIPOnWiFiHotSpot(): String? {
             try {
                 val networkInterfaces = NetworkInterface.getNetworkInterfaces()
                 while (networkInterfaces.hasMoreElements()) {
@@ -61,15 +36,11 @@ class MyServer(val hostname: String, val port: Int) {
                 }
             }
             catch (e: Exception) {
-//                Log.e(DeviceControlActivity.Tag, "${e.message}")
+                Log.e(Tag, "${e.message}")
             }
 
             return null
         }
-    }
-
-    init {
-//        socket = Socket(hostname, port)
     }
 
     suspend fun testWrite(str: String) = withContext(Dispatchers.IO) {

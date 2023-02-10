@@ -1,16 +1,22 @@
 package com.github.scphamster.bluetoothConnectionsTester
 
 import android.app.Application
-import android.content.Context.WIFI_SERVICE
 import android.util.Log
 import android.widget.Toast
+
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.preference.PreferenceManager
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.*
+import com.github.scphamster.bluetoothConnectionsTester.circuit.Pin
+import com.github.scphamster.bluetoothConnectionsTester.dataLink.CommunicationController
+
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter.Commands
-import com.github.scphamster.bluetoothConnectionsTester.server.MyServer
-import kotlinx.coroutines.*
+import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.*
 
 typealias BoardCountT = Int
 
@@ -28,7 +34,6 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             return measurementsHandler.boardsManager.boards.value?.isEmpty() ?: true
         }
     var maxDetectableResistance: Float = 0f
-    var myServer: MyServer? = null
     private val logger by lazy { ToFileLogger(app) }
 
     init {
@@ -206,21 +211,9 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
     }
 
     fun startServer() {
-        if (myServer == null) {
-
-            val my_ip = MyServer.getIP()?.let{
-                Log.d(Tag, "OWN IP: $it")
-                myServer = MyServer(it, 1500)
-            }
-        }
-
+        val linkController = CommunicationController(app)
         viewModelScope.launch {
-            try {
-                myServer?.testWrite("Hello")
-            }
-            catch (e: Exception) {
-                errorHandler.handleError("Unsuccessfull! ${e.message}")
-            }
+            linkController.entrySocketAsync()
         }
     }
 

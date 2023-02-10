@@ -1,5 +1,6 @@
-package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
+package com.github.scphamster.bluetoothConnectionsTester.circuit
 
+import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.*
 import java.lang.ref.WeakReference
 
 interface PinIdentifier {
@@ -11,6 +12,31 @@ interface PinIdentifier {
 }
 
 data class PinAffinityAndId(val boardId: IoBoardIndexT, val idxOnBoard: PinNumT) : PinIdentifier {
+    companion object {
+        const val MIN_BOARD_ID = 1
+        const val MAX_BOARD_ID = 127
+        const val MIN_IDX_ON_BOARD = 0
+        const val MAX_IDX_ON_BOARD = 31
+        const val SIZE_BYTES = 2
+
+        fun deserialize(bytes: List<Byte>): PinAffinityAndId {
+            if (bytes.size != SIZE_BYTES)
+                throw (IllegalArgumentException(
+                    "supplied number of bytes: ${bytes.size} is not conformant with needed size: $SIZE_BYTES"))
+
+            val board = bytes.get(0).toInt()
+            val id = bytes.get(1).toInt()
+
+            if ((board < MIN_BOARD_ID) || (board > MAX_BOARD_ID))
+                throw (IllegalArgumentException("board number($board) is out of range!"))
+
+            if ((id < MIN_IDX_ON_BOARD) || (id > MAX_IDX_ON_BOARD))
+                throw (IllegalArgumentException("idx($id) is out of range!"))
+
+            return PinAffinityAndId(board.toInt(), id.toInt())
+        }
+    }
+
     override fun getPrettyName(): String {
         return "$boardId:$idxOnBoard"
     }

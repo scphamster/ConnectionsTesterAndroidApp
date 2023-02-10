@@ -1,5 +1,9 @@
 package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
 
+import com.github.scphamster.bluetoothConnectionsTester.circuit.Pin
+import com.github.scphamster.bluetoothConnectionsTester.circuit.PinAffinityAndId
+import com.github.scphamster.bluetoothConnectionsTester.circuit.PinIdentifier
+import com.github.scphamster.bluetoothConnectionsTester.circuit.RawVoltageADCValue
 import kotlin.math.absoluteValue
 import kotlin.math.ln
 import kotlin.math.floor
@@ -74,6 +78,24 @@ class Resistance(override val value: CircuitParamT, override val precision: Int 
 class Voltage(override val value: CircuitParamT, override val precision: Int = 2) : ElectricalValue {
     override fun toString(): String {
         return "${toValueWithMultiplier()}V"
+    }
+}
+
+data class SimpleConnection(val toPin: PinAffinityAndId, val voltage: RawVoltageADCValue) {
+    companion object {
+        const val SIZE_BYTES = PinAffinityAndId.SIZE_BYTES + RawVoltageADCValue.SIZE_BYTES
+
+        fun deserialize(bytes: List<Byte>): SimpleConnection {
+            if (bytes.size != SIZE_BYTES)
+                throw (IllegalArgumentException(
+                    "number of bytes supplied is not conformant with expected: Supplied ${bytes.size}, expected $SIZE_BYTES"))
+
+            val pin = PinAffinityAndId.deserialize(bytes.slice(0..PinAffinityAndId.SIZE_BYTES - 1))
+            val v = RawVoltageADCValue.deserialize(
+                bytes.slice(PinAffinityAndId.SIZE_BYTES..(PinAffinityAndId.SIZE_BYTES + RawVoltageADCValue.SIZE_BYTES)))
+
+            return SimpleConnection(pin, v)
+        }
     }
 }
 

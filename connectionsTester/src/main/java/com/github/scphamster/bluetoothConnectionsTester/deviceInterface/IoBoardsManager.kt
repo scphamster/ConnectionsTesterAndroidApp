@@ -4,8 +4,9 @@ import androidx.lifecycle.MutableLiveData
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter.ControllerMessage
 import java.lang.ref.WeakReference
 import android.util.Log
-import org.apache.poi.hpsf.UnexpectedPropertySetTypeException
-import kotlin.math.exp
+import com.github.scphamster.bluetoothConnectionsTester.circuit.Pin
+import com.github.scphamster.bluetoothConnectionsTester.circuit.PinAffinityAndId
+import com.github.scphamster.bluetoothConnectionsTester.circuit.PinDescriptor
 
 class IoBoardsManager(val errorHandler: ErrorHandler) {
     companion object {
