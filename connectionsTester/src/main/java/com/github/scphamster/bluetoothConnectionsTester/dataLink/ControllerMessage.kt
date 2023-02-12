@@ -4,7 +4,6 @@ import android.util.Log
 import com.github.scphamster.bluetoothConnectionsTester.circuit.BoardAddrT
 import com.github.scphamster.bluetoothConnectionsTester.circuit.PinAffinityAndId
 import com.github.scphamster.bluetoothConnectionsTester.circuit.SimpleConnection
-import java.nio.ByteOrder
 
 sealed class Msg {
     companion object {
@@ -56,28 +55,6 @@ final class MeasureAllCommand : MTC {
         val bytes = ArrayList<Byte>()
         bytes.add(CMD_ID)
         return bytes
-    }
-}
-
-sealed class MessageToController {
-    companion object {
-        const val Tag = "MessageToController"
-    }
-    sealed class Init(val newControllerId: Int, val isMaster: Boolean) : MessageToController() {
-        companion object {
-            private const val MSG_ID = 201.toByte()
-        }
-        
-        fun serialize(): List<Byte> {
-            val byteArray = mutableListOf<Byte>()
-            byteArray.add(MSG_ID)
-            byteArray.addAll(newControllerId.toByteArray()
-                                 .toList())
-            
-            val isMasterAsByte = if (isMaster) 1.toByte() else 0.toByte()
-            byteArray.add(isMasterAsByte)
-            return byteArray
-        }
     }
 }
 

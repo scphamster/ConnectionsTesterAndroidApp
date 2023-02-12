@@ -6,7 +6,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import java.net.ServerSocket
 
-class CommunicationController(val context: Context, val socketChannel: Channel<WorkSocket>) {
+class RegistrationNewControllersSocket(val context: Context, val socketChannel: Channel<WorkSocket>) {
     companion object {
         const val Tag = "LinksController"
     }

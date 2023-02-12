@@ -34,7 +34,6 @@ class ControllerManager(scope: CoroutineScope, val socket: WorkSocket) {
     
     private suspend fun testTask() = withContext(Dispatchers.Default) {
         while (isActive) {
-            Log.d(Tag, "Milestone")
             outputMessagesChannel.send(MeasureAllCommand())
             delay(1000)
         }

@@ -10,8 +10,8 @@ import androidx.preference.PreferenceManager
 import com.github.scphamster.bluetoothConnectionsTester.circuit.Pin
 import com.github.scphamster.bluetoothConnectionsTester.circuit.toResistance
 import com.github.scphamster.bluetoothConnectionsTester.dataLink.BluetoothBridge
-import com.github.scphamster.bluetoothConnectionsTester.dataLink.CommunicationController
-import com.github.scphamster.bluetoothConnectionsTester.dataLink.ControllersMsgRouter
+import com.github.scphamster.bluetoothConnectionsTester.dataLink.RegistrationNewControllersSocket
+import com.github.scphamster.bluetoothConnectionsTester.dataLink.ControllersDirector
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -29,7 +29,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
     }
     private var isInitialized: Boolean
     val errorHandler = ErrorHandler(app)
-    private val controllersManager = ControllersMsgRouter(viewModelScope, errorHandler)
+    private val controllersManager = ControllersDirector(viewModelScope, errorHandler)
     private val bluetooth: BluetoothBridge
     val measurementsHandler: MeasurementsHandler
     val controllerIsNotConfigured: Boolean
@@ -169,7 +169,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             "SimpleBoolean" -> Commands.CheckConnectivity.AnswerDomain.SimpleConnectionFlag
             else -> Commands.CheckConnectivity.AnswerDomain.Raw
         }
-
+        
         measurementsHandler.commander.sendCommand(Commands.CheckConnectivity(answer_domain, sequential = if_sequential))
         logger.LogI("Model", "Check command sent")
     }
@@ -213,7 +213,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
     }
 
     fun startServer() {
-        val linkController = CommunicationController(app, controllersManager.workSocketsChannel)
+        val linkController = RegistrationNewControllersSocket(app, controllersManager.workSocketsChannel)
         viewModelScope.launch {
             linkController.entrySocketAsync()
         }

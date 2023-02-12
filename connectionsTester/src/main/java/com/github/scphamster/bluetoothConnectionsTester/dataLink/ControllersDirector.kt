@@ -1,7 +1,6 @@
 package com.github.scphamster.bluetoothConnectionsTester.dataLink
 
 import android.util.Log
-import com.github.scphamster.bluetoothConnectionsTester.circuit.BoardAddrT
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerManager
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ErrorHandler
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.IoBoardsManager
@@ -9,7 +8,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import java.util.concurrent.atomic.AtomicBoolean
 
-class ControllersMsgRouter(val scope: CoroutineScope, val errorHandler: ErrorHandler) {
+class ControllersDirector(val scope: CoroutineScope, val errorHandler: ErrorHandler) {
     companion object {
         private const val Tag = "ControllersMsgRouter"
         private const val CHANNEL_SIZE = 10
@@ -27,7 +26,7 @@ class ControllersMsgRouter(val scope: CoroutineScope, val errorHandler: ErrorHan
     
     
     val workSocketsChannel = Channel<WorkSocket>(CHANNEL_SIZE)
-    
+
     private val controllers = mutableListOf<ControllerManager>()
     private val workSockets = mutableListOf<WorkSocket>()
     private val controllersNumberHasSettled: AtomicBoolean = AtomicBoolean(false)
@@ -37,7 +36,9 @@ class ControllersMsgRouter(val scope: CoroutineScope, val errorHandler: ErrorHan
             receiveNewWorkSocketTask()
         }
     }
+
     
+
     private suspend fun receiveNewWorkSocketTask() = withContext(Dispatchers.Default) {
         while (isActive) {
             val socketReceiverJob = async {
@@ -83,7 +84,6 @@ class ControllersMsgRouter(val scope: CoroutineScope, val errorHandler: ErrorHan
             controllers.add(ControllerManager(scope, new_socket))
         }
     }
-    
     private suspend fun initAllControllers() {
         for (controller in controllers) {
             controller.initialize(voltageLevel)
