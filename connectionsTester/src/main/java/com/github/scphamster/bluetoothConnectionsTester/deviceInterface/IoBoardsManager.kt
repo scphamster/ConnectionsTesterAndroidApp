@@ -4,9 +4,7 @@ import androidx.lifecycle.MutableLiveData
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter.ControllerMessage
 import java.lang.ref.WeakReference
 import android.util.Log
-import com.github.scphamster.bluetoothConnectionsTester.circuit.Pin
-import com.github.scphamster.bluetoothConnectionsTester.circuit.PinAffinityAndId
-import com.github.scphamster.bluetoothConnectionsTester.circuit.PinDescriptor
+import com.github.scphamster.bluetoothConnectionsTester.circuit.*
 
 class IoBoardsManager(val errorHandler: ErrorHandler) {
     companion object {
@@ -18,7 +16,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
         private const val STANDARD_OUTPUT_VOLTAGE_HIGH: VoltageT = 0.93f
     }
 
-    data class SortedPins(val group: PinGroup? = null, val affinity: IoBoardIndexT? = null, val pins: Array<Pin>) {
+    data class SortedPins(val group: PinGroup? = null, val affinity: BoardAddrT? = null, val pins: Array<Pin>) {
         fun getCongregationName(): String {
             if (group != null) return group.getPrettyName()
             else if (affinity != null) return affinity.toString()
@@ -382,7 +380,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
         return pins
     }
 
-    suspend fun updateIOBoards(boards_id: Array<IoBoardIndexT>) {
+    suspend fun updateIOBoards(boards_id: Array<BoardAddrT>) {
         val new_boards = mutableListOf<IoBoard>()
         var boards_counter = 0
 

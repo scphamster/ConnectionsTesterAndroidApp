@@ -1,4 +1,4 @@
-package com.github.scphamster.bluetoothConnectionsTester
+package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
 
 import android.os.Bundle
 import com.google.android.material.snackbar.Snackbar
@@ -8,6 +8,8 @@ import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
+import com.github.scphamster.bluetoothConnectionsTester.DeviceControlViewModel
+import com.github.scphamster.bluetoothConnectionsTester.R
 import com.github.scphamster.bluetoothConnectionsTester.databinding.ActivityHardwareMonitorActtyBinding
 
 class HardwareMonitorActty : AppCompatActivity() {

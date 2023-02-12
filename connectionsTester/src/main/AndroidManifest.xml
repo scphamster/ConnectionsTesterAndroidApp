@@ -18,7 +18,7 @@
             android:supportsRtl="true"
             android:theme="@style/AppTheme">
         <activity
-                android:name=".HardwareMonitorActty"
+                android:name=".deviceInterface.HardwareMonitorActty"
                 android:exported="false"
                 android:label="@string/title_activity_hardware_monitor_actty"
                 android:theme="@style/AppTheme.NoActionBar">

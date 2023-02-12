@@ -3,7 +3,7 @@ package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
 import android.content.Context
 import android.util.Log
 import com.github.scphamster.bluetoothConnectionsTester.R
-import org.apache.commons.math3.ml.clustering.KMeansPlusPlusClusterer.EmptyClusterStrategy
+import com.github.scphamster.bluetoothConnectionsTester.dataLink.BluetoothBridge
 
 class Commander(val dataLink: BluetoothBridge, val context: Context) {
     fun sendCommand(cmd: ControllerResponseInterpreter.Commands.SetVoltageAtPin) {

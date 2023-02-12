@@ -1,10 +1,7 @@
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.Resistance
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.Voltage
-import org.junit.Assert.assertFalse
+import com.github.scphamster.bluetoothConnectionsTester.circuit.Resistance
+import com.github.scphamster.bluetoothConnectionsTester.circuit.Voltage
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.lang.Math.getExponent
-import kotlin.math.ln
 
 class ConnectionsTest {
     @Test

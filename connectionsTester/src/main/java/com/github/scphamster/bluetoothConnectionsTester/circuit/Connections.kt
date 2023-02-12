@@ -1,14 +1,13 @@
-package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
+package com.github.scphamster.bluetoothConnectionsTester.circuit
 
-import com.github.scphamster.bluetoothConnectionsTester.circuit.Pin
-import com.github.scphamster.bluetoothConnectionsTester.circuit.PinAffinityAndId
-import com.github.scphamster.bluetoothConnectionsTester.circuit.PinIdentifier
-import com.github.scphamster.bluetoothConnectionsTester.circuit.RawVoltageADCValue
+import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.IoBoardsManager
+import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.getAllFloats
+import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.getAllIntegers
 import kotlin.math.absoluteValue
 import kotlin.math.ln
 import kotlin.math.floor
 
-typealias IoBoardIndexT = Int
+typealias BoardAddrT = Int
 typealias PinNumT = Int
 typealias CircuitParamT = Float
 typealias VoltageT = CircuitParamT
@@ -92,7 +91,7 @@ data class SimpleConnection(val toPin: PinAffinityAndId, val voltage: RawVoltage
 
             val pin = PinAffinityAndId.deserialize(bytes.slice(0..PinAffinityAndId.SIZE_BYTES - 1))
             val v = RawVoltageADCValue.deserialize(
-                bytes.slice(PinAffinityAndId.SIZE_BYTES..(PinAffinityAndId.SIZE_BYTES + RawVoltageADCValue.SIZE_BYTES)))
+                bytes.slice(PinAffinityAndId.SIZE_BYTES..(PinAffinityAndId.SIZE_BYTES + RawVoltageADCValue.SIZE_BYTES - 1)))
 
             return SimpleConnection(pin, v)
         }
@@ -146,7 +145,7 @@ data class IoBoardInternalParameters(
     val outputVoltageHigh: VoltageT,
 )
 
-data class IoBoard(val id: IoBoardIndexT,
+data class IoBoard(val id: BoardAddrT,
                    val pins: MutableList<Pin> = mutableListOf(),
                    var internalParams: IoBoardInternalParameters? = null,
                    var voltageLevel: IoBoardsManager.VoltageLevel = IoBoardsManager.VoltageLevel.Low) {

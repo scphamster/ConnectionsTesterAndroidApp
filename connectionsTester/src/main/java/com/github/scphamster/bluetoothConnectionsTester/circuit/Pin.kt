@@ -1,6 +1,5 @@
 package com.github.scphamster.bluetoothConnectionsTester.circuit
 
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.*
 import java.lang.ref.WeakReference
 
 interface PinIdentifier {
@@ -11,7 +10,7 @@ interface PinIdentifier {
     public val pinAffinityAndId: PinAffinityAndId
 }
 
-data class PinAffinityAndId(val boardId: IoBoardIndexT, val idxOnBoard: PinNumT) : PinIdentifier {
+data class PinAffinityAndId(val boardId: BoardAddrT, val idxOnBoard: PinNumT) : PinIdentifier {
     companion object {
         const val MIN_BOARD_ID = 1
         const val MAX_BOARD_ID = 127

@@ -8,6 +8,10 @@ import androidx.lifecycle.MutableLiveData
 class ErrorHandler(val context: Context) {
     val errorMessages: MutableLiveData<MutableList<String>> = MutableLiveData<MutableList<String>>()
 
+    init{
+        Log.d("EHANDLER", "CHECK")
+    }
+
     fun handleError(error_description: String?) {
         toast(error_description)
     }

@@ -1,15 +1,16 @@
-package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
+package com.github.scphamster.bluetoothConnectionsTester.dataLink
 
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import com.github.scphamster.bluetoothConnectionsTester.R
+import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ErrorHandler
+import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.MeasurementsHandler
 import com.harrysoft.somedir.BluetoothManager
 import com.harrysoft.somedir.BluetoothSerialDevice
 import com.harrysoft.somedir.SimpleBluetoothDeviceInterface
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
-import org.apache.poi.hemf.record.emf.HemfDraw.EmfRoundRect
 
 class BluetoothBridge(val errorHandler: ErrorHandler) {
     companion object {

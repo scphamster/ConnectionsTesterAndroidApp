@@ -8,7 +8,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.preference.PreferenceManager
 import com.github.scphamster.bluetoothConnectionsTester.circuit.Pin
+import com.github.scphamster.bluetoothConnectionsTester.circuit.toResistance
+import com.github.scphamster.bluetoothConnectionsTester.dataLink.BluetoothBridge
 import com.github.scphamster.bluetoothConnectionsTester.dataLink.CommunicationController
+import com.github.scphamster.bluetoothConnectionsTester.dataLink.ControllersMsgRouter
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -24,9 +27,9 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
     companion object {
         private const val Tag = "ControlViewModel"
     }
-
     private var isInitialized: Boolean
-    val errorHandler: ErrorHandler
+    val errorHandler = ErrorHandler(app)
+    private val controllersManager = ControllersMsgRouter(viewModelScope, errorHandler)
     private val bluetooth: BluetoothBridge
     val measurementsHandler: MeasurementsHandler
     val controllerIsNotConfigured: Boolean
@@ -38,7 +41,6 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
 
     init {
         isInitialized = false
-        errorHandler = ErrorHandler(app)
         bluetooth = BluetoothBridge(errorHandler)
         measurementsHandler = MeasurementsHandler(errorHandler, bluetooth, app, viewModelScope)
     }
@@ -211,7 +213,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
     }
 
     fun startServer() {
-        val linkController = CommunicationController(app)
+        val linkController = CommunicationController(app, controllersManager.workSocketsChannel)
         viewModelScope.launch {
             linkController.entrySocketAsync()
         }

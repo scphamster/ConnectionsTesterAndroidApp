@@ -1,63 +1,106 @@
 package com.github.scphamster.bluetoothConnectionsTester.dataLink
 
 import android.util.Log
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
-import androidx.work.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
+import com.github.scphamster.bluetoothConnectionsTester.circuit.BoardAddrT
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.io.InputStream
+import java.io.OutputStream
 import java.net.ServerSocket
-import kotlin.properties.Delegates
+import java.net.Socket
 
 class WorkSocket {
     companion object {
         const val Tag = "WorkSocket"
         const val DEADLINE_MS = 1000
+        private const val OUT_CHANNEL_SIZE = 10
     }
-
-    private val defaultDispatcher = Dispatchers.IO
+    
+    var boardAddr: BoardAddrT = -1
     var port: Int = -1
-    val p = MutableLiveData<Int>()
-
-    suspend fun run() {
-        val socket = ServerSocket(0)
-        port = socket.localPort
-
-        Log.d(Tag, "New working socket: ${socket.localPort}, and port is : ${port}")
-
-        val connected_socket = socket.accept()
-
-        val outputStream = connected_socket.getOutputStream()
-        val inputStream = connected_socket.getInputStream()
-        var receptionDeadline: Long = System.currentTimeMillis() + WorkSocket.DEADLINE_MS
-
-        //test
-        val cmd = MessageToController.Command
-            .MeasureAll()
-            .serialize()
-
-        while (true) {
-            outputStream.write(cmd)
-
-            while (inputStream.available() == 0) {
+    
+    val outputDataChannel = Channel<ArrayList<Byte>>(OUT_CHANNEL_SIZE)
+    val inputDataChannel = Channel<ByteArray>(OUT_CHANNEL_SIZE)
+    
+    lateinit private var outStream: OutputStream
+    lateinit private var inStream: InputStream
+    lateinit private var socket: Socket
+    
+    private val defaultDispatcher = Dispatchers.IO
+    private val mutex = Mutex()
+    
+    suspend fun start() = withContext(Dispatchers.IO) {
+        val serverSocket = ServerSocket(0)
+        port = serverSocket.localPort
+        
+        Log.d(Tag, "New working socket: ${serverSocket.localPort}, and port is : ${port}")
+    
+        socket = serverSocket.accept()
+        outStream = socket.getOutputStream()
+        inStream = socket.getInputStream()
+        
+        var inputJob = Job() as Job
+        var outputJob = Job() as Job
+        try {
+            inputJob = launch{
+                inputChannelTask()
             }
-
-            val buffer = ByteArray(inputStream.available() + 64)
-            val n_bytes_received = inputStream.read(buffer)
-//            inputStream.mark()
-            for ((idx, byte) in buffer.withIndex()) {
-                Log.d(Tag, "$idx: $byte")
+            outputJob = launch{
+                outputChannelTask()
             }
-
-//            if (buffer.get(0) != 50.toByte()) {
-//                Log.e(Tag, "Arrived message with first byte not equal 50!")
-//            }
-
-
-
-
-            delay(500)
+    
+            awaitCancellation()
         }
+        catch(e: Exception) {
+            Log.d("$Tag:MAIN", "Cancelled, Message: ${e.message}")
+        }
+        finally {
+            inputJob.cancel("end of work")
+            outputJob.cancel("end of work")
+            serverSocket.close()
+            socket.close()
+        }
+    }
+    private suspend fun inputChannelTask() = withContext(Dispatchers.IO) {
+        while(isActive) {
+            while(inStream.available() == 0) continue
+            
+            val buffer = ByteArray(inStream.available() + 64)
+            val bytesReceived = inStream.read(buffer)
+            val data = buffer.slice(0..(bytesReceived - 1))
+            
+            inputDataChannel.send(data.toByteArray())
+            Log.d("$Tag:ICT", "new data sent, size: ${data.size}")
+        }
+    }
+    private suspend fun outputChannelTask() = withContext(Dispatchers.IO) {
+        while (isActive) {
+            val result = outputDataChannel.receiveCatching()
+            val data = result.getOrNull()
+            if (data == null) {
+                if (!isActive) break
+                
+                Log.e("$Tag:OCT", "data is null!")
+                continue
+            }
+            
+            if (data.size == 0) {
+                Log.e("$Tag:OCT", "data size is zero!")
+                continue
+            }
+            
+            val bytes = data.size.toByteArray()
+                .toMutableList()
+            bytes.addAll(data.toList())
+            
+            
+            mutex.withLock {
+                outStream.write(bytes.toByteArray())
+            }
+        }
+        
+        outStream.close()
     }
 }

@@ -1,7 +1,7 @@
 package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
 
 import android.util.Log
-import com.github.scphamster.bluetoothConnectionsTester.circuit.PinAffinityAndId
+import com.github.scphamster.bluetoothConnectionsTester.circuit.*
 
 class ControllerResponseInterpreter {
     enum class VoltageLevel {
@@ -59,7 +59,7 @@ class ControllerResponseInterpreter {
             ControllerMessage()
 
         class SelectedVoltageLevel(val level: VoltageLevel) : ControllerMessage()
-        class HardwareDescription(val boardsOnLine: Array<IoBoardIndexT>) : ControllerMessage()
+        class HardwareDescription(val boardsOnLine: Array<BoardAddrT>) : ControllerMessage()
         class InternalParameters(val board_addr: Int, val internalParameters: IoBoardInternalParameters) :
             ControllerMessage()
     }
@@ -221,7 +221,7 @@ class ControllerResponseInterpreter {
         return PinAffinityAndId(affinity, pin_number)
     }
 
-    private fun stringToBoardAddress(str: String): IoBoardIndexT? {
+    private fun stringToBoardAddress(str: String): BoardAddrT? {
         val address_as_text = str.trim()
 
         val address = address_as_text.toIntOrNull()
@@ -241,7 +241,7 @@ class ControllerResponseInterpreter {
             MessageHeader.PinConnectivityResistance -> return parseConnectivityMsg(msg)
             MessageHeader.PinConnectivityRaw -> return parseConnectivityMsg(msg)
             MessageHeader.HardwareDescription -> {
-                val boards_addresses = mutableListOf<IoBoardIndexT>()
+                val boards_addresses = mutableListOf<BoardAddrT>()
 
                 for (address_text in msg.values) {
                     val addr = stringToBoardAddress(address_text)

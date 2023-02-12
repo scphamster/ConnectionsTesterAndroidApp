@@ -6,7 +6,9 @@ import android.util.Log
 import androidx.preference.PreferenceManager
 import com.github.scphamster.bluetoothConnectionsTester.R
 import com.github.scphamster.bluetoothConnectionsTester.Storage
+import com.github.scphamster.bluetoothConnectionsTester.circuit.IoBoard
 import com.github.scphamster.bluetoothConnectionsTester.circuit.Pin
+import com.github.scphamster.bluetoothConnectionsTester.dataLink.BluetoothBridge
 
 import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter.Commands
 import kotlinx.coroutines.*
