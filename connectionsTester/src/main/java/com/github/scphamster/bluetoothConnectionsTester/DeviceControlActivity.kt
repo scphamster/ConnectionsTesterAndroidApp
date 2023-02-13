@@ -23,7 +23,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.github.scphamster.bluetoothConnectionsTester.circuit.IoBoard
 import com.github.scphamster.bluetoothConnectionsTester.circuit.Pin
 import com.github.scphamster.bluetoothConnectionsTester.dataLink.BluetoothBridge
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.HardwareMonitorActty
+import com.github.scphamster.bluetoothConnectionsTester.device.HardwareMonitorActty
 
 class DeviceControlActivity : AppCompatActivity() {
     companion object {

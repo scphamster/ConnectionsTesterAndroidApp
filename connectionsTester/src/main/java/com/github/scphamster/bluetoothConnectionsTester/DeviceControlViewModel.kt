@@ -11,15 +11,15 @@ import com.github.scphamster.bluetoothConnectionsTester.circuit.Pin
 import com.github.scphamster.bluetoothConnectionsTester.circuit.toResistance
 import com.github.scphamster.bluetoothConnectionsTester.dataLink.BluetoothBridge
 import com.github.scphamster.bluetoothConnectionsTester.dataLink.RegistrationNewControllersSocket
-import com.github.scphamster.bluetoothConnectionsTester.dataLink.ControllersDirector
+import com.github.scphamster.bluetoothConnectionsTester.device.Director
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter.Commands
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.*
+import com.github.scphamster.bluetoothConnectionsTester.device.ControllerResponseInterpreter.Commands
+import com.github.scphamster.bluetoothConnectionsTester.device.*
 
 typealias BoardCountT = Int
 
@@ -29,7 +29,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
     }
     private var isInitialized: Boolean
     val errorHandler = ErrorHandler(app)
-    private val controllersManager = ControllersDirector(viewModelScope, errorHandler)
+    private val controllersManager = Director(app, viewModelScope, errorHandler)
     private val bluetooth: BluetoothBridge
     val measurementsHandler: MeasurementsHandler
     val controllerIsNotConfigured: Boolean
@@ -213,7 +213,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
     }
 
     fun startServer() {
-        val linkController = RegistrationNewControllersSocket(app, controllersManager.workSocketsChannel)
+        val linkController = RegistrationNewControllersSocket(app, controllersManager.newDeviceLinksChannel)
         viewModelScope.launch {
             linkController.entrySocketAsync()
         }

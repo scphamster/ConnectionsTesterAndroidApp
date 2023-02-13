@@ -1,14 +1,15 @@
-package com.github.scphamster.bluetoothConnectionsTester.dataLink
+package com.github.scphamster.bluetoothConnectionsTester.device
 
 import android.util.Log
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerManager
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ErrorHandler
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.IoBoardsManager
+import android.app.Application
+import androidx.preference.PreferenceManager
+import com.github.scphamster.bluetoothConnectionsTester.dataLink.ControllerResponse
+import com.github.scphamster.bluetoothConnectionsTester.dataLink.DeviceLink
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import java.util.concurrent.atomic.AtomicBoolean
 
-class ControllersDirector(val scope: CoroutineScope, val errorHandler: ErrorHandler) {
+class Director(val app: Application, val scope: CoroutineScope, val errorHandler: ErrorHandler) {
     companion object {
         private const val Tag = "ControllersMsgRouter"
         private const val CHANNEL_SIZE = 10
@@ -23,26 +24,50 @@ class ControllersDirector(val scope: CoroutineScope, val errorHandler: ErrorHand
     
     var machineState = MachineState.SearchingControllers
     var voltageLevel = IoBoardsManager.VoltageLevel.Low
+        private set
+    val newDeviceLinksChannel = Channel<DeviceLink>(CHANNEL_SIZE)
     
-    
-    val workSocketsChannel = Channel<WorkSocket>(CHANNEL_SIZE)
-
     private val controllers = mutableListOf<ControllerManager>()
-    private val workSockets = mutableListOf<WorkSocket>()
+    private val deviceLinks = mutableListOf<DeviceLink>()
     private val controllersNumberHasSettled: AtomicBoolean = AtomicBoolean(false)
     
     init {
         scope.launch(Dispatchers.Default) {
-            receiveNewWorkSocketTask()
+            receiveNewDataLinksTask()
         }
     }
-
     
-
-    private suspend fun receiveNewWorkSocketTask() = withContext(Dispatchers.Default) {
+    suspend fun setVoltageLevelAccordingToPreferences() =withContext(Dispatchers.Default){
+        scope.launch {
+            val selected_voltage_level = PreferenceManager.getDefaultSharedPreferences(app)
+                .getString("output_voltage_level", "")
+    
+            voltageLevel = when (selected_voltage_level) {
+                "Low(0.7V)" -> IoBoardsManager.VoltageLevel.Low
+                "High(1.0V)" -> IoBoardsManager.VoltageLevel.High
+                else -> IoBoardsManager.VoltageLevel.Low
+            }
+    
+            val voltageChangeJobs = arrayListOf<Deferred<ControllerResponse>>()
+            for (controller in controllers) {
+                voltageChangeJobs.add(scope.async {
+                    controller.setVoltageLevel(voltageLevel)
+                })
+            }
+    
+            val results = voltageChangeJobs.awaitAll()
+            for (result in results) {
+                if(result!=ControllerResponse.CommandPerformanceSuccess){
+                    Log.e(Tag, "Command not successful!")
+                }
+            }
+        }
+    }
+    
+    private suspend fun receiveNewDataLinksTask() = withContext(Dispatchers.Default) {
         while (isActive) {
             val socketReceiverJob = async {
-                workSocketsChannel.receiveCatching()
+                newDeviceLinksChannel.receiveCatching()
             }
             val deadline = System.currentTimeMillis() + DEADLINE_TIMEOUT_MS
             val timeoutTimer = async {
@@ -71,19 +96,20 @@ class ControllersDirector(val scope: CoroutineScope, val errorHandler: ErrorHand
             machineState = MachineState.SearchingControllers
             controllersNumberHasSettled.set(false)
             
-            val new_socket = result.getOrNull()
+            val new_link = result.getOrNull()
             
-            if (new_socket == null) {
+            if (new_link == null) {
                 Log.e(Tag, "New WorkSocket arrived but it is NULL! ${result.toString()}")
                 delay(500)
                 continue
             }
-    
+            
             Log.d(Tag, "New socket arrived!")
-            workSockets.add(new_socket)
-            controllers.add(ControllerManager(scope, new_socket))
+            deviceLinks.add(new_link)
+            controllers.add(ControllerManager(scope, new_link))
         }
     }
+    
     private suspend fun initAllControllers() {
         for (controller in controllers) {
             controller.initialize(voltageLevel)

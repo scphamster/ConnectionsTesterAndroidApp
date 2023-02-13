@@ -1,7 +1,7 @@
-package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
+package com.github.scphamster.bluetoothConnectionsTester.device
 
 import androidx.lifecycle.MutableLiveData
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter.ControllerMessage
+import com.github.scphamster.bluetoothConnectionsTester.device.ControllerResponseInterpreter.ControllerMessage
 import java.lang.ref.WeakReference
 import android.util.Log
 import com.github.scphamster.bluetoothConnectionsTester.circuit.*
@@ -27,9 +27,9 @@ class IoBoardsManager(val errorHandler: ErrorHandler) {
         val isSortedByAffinity: Boolean = affinity != null
     }
 
-    enum class VoltageLevel {
-        Low,
-        High
+    enum class VoltageLevel(val byteValue: Byte) {
+        Low(0),
+        High(1)
     }
 
     val boards = MutableLiveData<MutableList<IoBoard>>()

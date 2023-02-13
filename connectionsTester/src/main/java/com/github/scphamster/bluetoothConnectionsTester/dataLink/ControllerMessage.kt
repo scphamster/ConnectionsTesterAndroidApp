@@ -4,6 +4,7 @@ import android.util.Log
 import com.github.scphamster.bluetoothConnectionsTester.circuit.BoardAddrT
 import com.github.scphamster.bluetoothConnectionsTester.circuit.PinAffinityAndId
 import com.github.scphamster.bluetoothConnectionsTester.circuit.SimpleConnection
+import com.github.scphamster.bluetoothConnectionsTester.device.IoBoardsManager
 
 sealed class Msg {
     companion object {
@@ -42,18 +43,49 @@ sealed class Msg {
     }
 }
 
-interface MTC {
-    abstract fun serialize() : ArrayList<Byte>
+interface MasterToControllerMsg {
+    abstract fun serialize(): Collection<Byte>
+    enum class MessageID(val id: Byte) {
+        MeasureAll(100),
+        EnableOutputForPin(101),
+        SetOutputVoltageLevel(102),
+        CheckConnections(103),
+        CheckResistances(104),
+        CheckVoltages(105),
+        CheckRaw(106),
+        GetAllBoardsIds(107),
+        GetInternalCounter(108),
+        GetTaskStackWatermark(109),
+        SetNewAddressForBoard(110),
+        SetInternalParameters(111),
+        GetInternalParameters(112),
+        Test(113),
+    }
 }
-final class MeasureAllCommand : MTC {
+
+final class MeasureAllCommand : MasterToControllerMsg {
     companion object {
         const val COMMAND_SIZE_BYTES = Byte.SIZE_BYTES.toByte()
-        const val CMD_ID: Byte = 100
+        val CMD_ID: Byte = MasterToControllerMsg.MessageID.MeasureAll.id
     }
     
-    override fun serialize() : ArrayList<Byte> {
+    override fun serialize(): Collection<Byte> {
         val bytes = ArrayList<Byte>()
         bytes.add(CMD_ID)
+        return bytes
+    }
+}
+
+final class SetOutputVoltageLevel(val level: IoBoardsManager.VoltageLevel) : MasterToControllerMsg {
+    companion object {
+        private val CMD_ID = MasterToControllerMsg.MessageID.SetOutputVoltageLevel.id
+        private const val SIZE_BYTES = Byte.SIZE_BYTES * 2
+    }
+    
+    override fun serialize(): Collection<Byte> {
+        val bytes = mutableListOf<Byte>()
+        bytes.add(CMD_ID)
+        bytes.add(level.byteValue)
         return bytes
     }
 }
@@ -61,6 +93,7 @@ final class MeasureAllCommand : MTC {
 sealed class MessageFromController {
     enum class Type(val id: Byte) {
         Connections(50),
+        OperationConfirmation(51),
     }
     
     companion object {
@@ -75,6 +108,8 @@ sealed class MessageFromController {
             
             return when (id) {
                 Type.Connections.id -> Connectivity.deserialize(bytes.slice(1..(bytes.size - 1)))
+                Type.OperationConfirmation.id -> OperationConfirmation(bytes.slice(1..(bytes.size - 1)))
+                
                 else -> null
             }
         }
@@ -112,5 +147,20 @@ sealed class MessageFromController {
         }
     }
     
-    class Status(val boards: List<BoardAddrT>)
+    class OperationConfirmation() : MessageFromController() {
+        lateinit var response: ControllerResponse
+            private set
+        
+        constructor(bytes: Collection<Byte>) : this() {
+            val byteValue = (bytes.toByteArray()).get(0)
+            val enumConstant = ControllerResponse.values()
+                .find { enumVal -> enumVal.byteValue == byteValue }
+            
+            if (enumConstant == null) {
+                throw (IllegalArgumentException("Operation confirmation unsuccessful creation, byteValue: $byteValue"))
+            }
+            
+            response = enumConstant
+        }
+    }
 }

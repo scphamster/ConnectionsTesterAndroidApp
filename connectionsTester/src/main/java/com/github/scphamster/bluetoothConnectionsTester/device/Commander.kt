@@ -1,4 +1,4 @@
-package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
+package com.github.scphamster.bluetoothConnectionsTester.device
 
 import android.content.Context
 import android.util.Log

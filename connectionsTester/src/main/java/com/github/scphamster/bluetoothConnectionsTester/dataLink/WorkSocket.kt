@@ -11,7 +11,7 @@ import java.io.OutputStream
 import java.net.ServerSocket
 import java.net.Socket
 
-class WorkSocket {
+class WorkSocket : DeviceLink {
     companion object {
         const val Tag = "WorkSocket"
         const val DEADLINE_MS = 1000
@@ -21,8 +21,8 @@ class WorkSocket {
     var boardAddr: BoardAddrT = -1
     var port: Int = -1
     
-    val outputDataChannel = Channel<ArrayList<Byte>>(OUT_CHANNEL_SIZE)
-    val inputDataChannel = Channel<ByteArray>(OUT_CHANNEL_SIZE)
+    override val outputDataChannel = Channel<Collection<Byte>>(OUT_CHANNEL_SIZE)
+    override val inputDataChannel = Channel<Collection<Byte>>(OUT_CHANNEL_SIZE)
     
     lateinit private var outStream: OutputStream
     lateinit private var inStream: InputStream
@@ -36,7 +36,7 @@ class WorkSocket {
         port = serverSocket.localPort
         
         Log.d(Tag, "New working socket: ${serverSocket.localPort}, and port is : ${port}")
-    
+        
         socket = serverSocket.accept()
         outStream = socket.getOutputStream()
         inStream = socket.getInputStream()
@@ -44,37 +44,42 @@ class WorkSocket {
         var inputJob = Job() as Job
         var outputJob = Job() as Job
         try {
-            inputJob = launch{
+            inputJob = launch {
                 inputChannelTask()
             }
-            outputJob = launch{
+            outputJob = launch {
                 outputChannelTask()
             }
-    
+            
             awaitCancellation()
         }
-        catch(e: Exception) {
+        catch (e: Exception) {
             Log.d("$Tag:MAIN", "Cancelled, Message: ${e.message}")
-        }
-        finally {
+        } finally {
             inputJob.cancel("end of work")
             outputJob.cancel("end of work")
             serverSocket.close()
             socket.close()
         }
     }
+    
     private suspend fun inputChannelTask() = withContext(Dispatchers.IO) {
-        while(isActive) {
-            while(inStream.available() == 0) continue
+        while (isActive) {
+            while (inStream.available() == 0) continue
             
             val buffer = ByteArray(inStream.available() + 64)
             val bytesReceived = inStream.read(buffer)
             val data = buffer.slice(0..(bytesReceived - 1))
+            Log.d("$Tag:ICT", "New data arrived, size: ${data.size}")
             
-            inputDataChannel.send(data.toByteArray())
-            Log.d("$Tag:ICT", "new data sent, size: ${data.size}")
+            for (byte in data) {
+                Log.d("$Tag:ICT", "$byte")
+            }
+            
+            inputDataChannel.send(data)
         }
     }
+    
     private suspend fun outputChannelTask() = withContext(Dispatchers.IO) {
         while (isActive) {
             val result = outputDataChannel.receiveCatching()

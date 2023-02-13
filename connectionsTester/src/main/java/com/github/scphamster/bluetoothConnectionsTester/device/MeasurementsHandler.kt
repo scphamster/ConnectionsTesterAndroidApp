@@ -1,4 +1,4 @@
-package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
+package com.github.scphamster.bluetoothConnectionsTester.device
 
 import android.content.Context
 import android.graphics.Color
@@ -10,7 +10,7 @@ import com.github.scphamster.bluetoothConnectionsTester.circuit.IoBoard
 import com.github.scphamster.bluetoothConnectionsTester.circuit.Pin
 import com.github.scphamster.bluetoothConnectionsTester.dataLink.BluetoothBridge
 
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter.Commands
+import com.github.scphamster.bluetoothConnectionsTester.device.ControllerResponseInterpreter.Commands
 import kotlinx.coroutines.*
 
 import org.apache.poi.ss.usermodel.*
@@ -327,6 +327,7 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
             }
         }
 
+        
         commander.dataLink.onMessageReceivedCallback = { msg ->
             responseInterpreter.handleMessage(msg)
         }

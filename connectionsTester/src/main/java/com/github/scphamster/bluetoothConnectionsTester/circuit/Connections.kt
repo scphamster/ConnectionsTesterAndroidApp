@@ -1,8 +1,8 @@
 package com.github.scphamster.bluetoothConnectionsTester.circuit
 
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.IoBoardsManager
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.getAllFloats
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.getAllIntegers
+import com.github.scphamster.bluetoothConnectionsTester.device.IoBoardsManager
+import com.github.scphamster.bluetoothConnectionsTester.device.getAllFloats
+import com.github.scphamster.bluetoothConnectionsTester.device.getAllIntegers
 import kotlin.math.absoluteValue
 import kotlin.math.ln
 import kotlin.math.floor
