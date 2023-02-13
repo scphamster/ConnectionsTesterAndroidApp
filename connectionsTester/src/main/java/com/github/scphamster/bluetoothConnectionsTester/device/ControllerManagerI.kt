@@ -4,5 +4,5 @@ import com.github.scphamster.bluetoothConnectionsTester.dataLink.ControllerRespo
 
 interface ControllerManagerI {
     abstract suspend fun setVoltageLevel(level: IoBoardsManager.VoltageLevel) : ControllerResponse
-    
+    abstract suspend fun getAllBoards() : ControllerResponse
 }

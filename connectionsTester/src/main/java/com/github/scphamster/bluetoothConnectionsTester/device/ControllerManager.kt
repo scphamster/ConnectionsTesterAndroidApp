@@ -1,16 +1,12 @@
 package com.github.scphamster.bluetoothConnectionsTester.device
 
-import android.media.tv.CommandRequest
-import android.service.controls.Control
 import android.util.Log
-import java.util.TimerTask
 import com.github.scphamster.bluetoothConnectionsTester.circuit.IoBoard
 import com.github.scphamster.bluetoothConnectionsTester.dataLink.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.util.*
 
 class ControllerManager(val scope: CoroutineScope, val dataLink: DeviceLink) : ControllerManagerI {
     companion object {
@@ -31,92 +27,134 @@ class ControllerManager(val scope: CoroutineScope, val dataLink: DeviceLink) : C
     
     init {
         scope.launch { rawDataReceiverTask() }
-        scope.launch { inputMessagesHandlerTask() }
-//        scope.launch { testTask() }
+        scope.launch { inputMessagesHandlerTask() } //        scope.launch { testTask() }
         scope.launch { outputMessagesHandlerTask() }
     }
     
-    fun initialize(voltageLevel: IoBoardsManager.VoltageLevel) {
+    suspend fun initialize() = withContext(Dispatchers.Default) {
+    
     }
     
     override suspend fun setVoltageLevel(level: IoBoardsManager.VoltageLevel): ControllerResponse {
         scope.launch(Dispatchers.Default) {
             outputMessagesChannel.send(SetOutputVoltageLevel(level))
         }
-        
-        return checkResponse(300)
+        val ackResult = checkAcknowledge()
+        if (ackResult != ControllerResponse.CommandAcknowledge) {
+            Log.e(Tag, "No ack for set voltage level command! Got: $ackResult")
+            return ControllerResponse.CommandNoAcknowledge
+        }
+        return checkCommandSuccess(300)
     }
     
-    private suspend fun checkResponse(delayToCheckCmdResult: Int) =
-        withContext<ControllerResponse>(Dispatchers.Default) {
-            val ackResult = try {
-                withTimeout(COMMAND_ACK_TIMEOUT_MS.toLong()) {
-                    async<ControllerResponse>(Dispatchers.Default) {
-                        val msg = mutex.withLock {
-                            inputMessagesChannel.receiveCatching()
-                                .getOrNull()
-                        }
-                        
-                        if (msg == null) {
-                            Log.e(Tag, "MSG is null, waiting for response on setVoltageLevel");
-                            return@async ControllerResponse.CommunicationFailure
-                        }
-                        else {
-                            return@async (msg as MessageFromController.OperationConfirmation).response
-                        }
-                    }.await()
-                }
-            }
-            catch (e: Exception) {
-                Log.e(Tag, "Acknowledge timeout! E: ${e.message}")
-                return@withContext ControllerResponse.CommandAcknowledgeTimeout
-            }
-            
-            if (ackResult != ControllerResponse.CommandAcknowledge) {
-                Log.e(Tag, "expected Command Acknowledge but got: ${ackResult}")
-                return@withContext ControllerResponse.CommunicationFailure
-            }
-            
-            val commandResult = try {
-                withTimeout(delayToCheckCmdResult.toLong()) {
-                    async<ControllerResponse>(Dispatchers.Default) {
-                        val msg = mutex.withLock {
-                            inputMessagesChannel.receiveCatching()
-                                .getOrNull()
-                        }
-                        
-                        if (msg == null) {
-                            Log.e(Tag, "MSG is null, waiting for response on setVoltageLevel");
-                            return@async ControllerResponse.CommunicationFailure
-                        }
-                        else {
-                            return@async (msg as MessageFromController.OperationConfirmation).response
-                        }
-                    }.await()
-                }
-            }
-            catch (e: Exception) {
-                Log.e(Tag, "Timeout while getting command result. E: ${e.message}")
-                return@withContext ControllerResponse.CommandPerformanceTimeout
-            }
-            
-            when (commandResult) {
-                ControllerResponse.CommandPerformanceSuccess -> {
-                    Log.d(Tag, "Command success!")
-                    return@withContext commandResult
-                }
-                
-                ControllerResponse.CommandPerformanceFailure -> {
-                    Log.e(Tag, "Command performance Failure!")
-                    return@withContext commandResult
-                }
-                
-                else -> {
-                    Log.e(Tag, "Unexpected response! Result: $commandResult")
-                    return@withContext ControllerResponse.CommunicationFailure
-                }
+    override suspend fun getAllBoards() = withContext<ControllerResponse>(Dispatchers.Default) {
+        launch {
+            outputMessagesChannel.send(GetBoardsOnline())
+        }
+        val command_status = checkAcknowledge()
+        
+        if (command_status != ControllerResponse.CommandAcknowledge) return@withContext command_status
+        
+        val newBoards = try {
+            withTimeout(2000) {
+                inputMessagesChannel.receiveCatching()
             }
         }
+        catch(e: TimeoutCancellationException) {
+            Log.e(Tag, "Timeout while getting all boards! ${e.message}")
+            return@withContext ControllerResponse.CommandPerformanceTimeout
+        }
+        catch(e: Exception){
+            Log.e(Tag, "Unexpected error occurred while getting all boards! ${e.message}")
+            return@withContext ControllerResponse.CommandPerformanceFailure
+        }.getOrNull() as MessageFromController.Boards?
+        
+        if (newBoards == null) {
+            Log.e(Tag, "New boards are null!")
+            return@withContext ControllerResponse.CommandPerformanceFailure
+        }
+        
+        boards = newBoards.boards.map{b -> IoBoard(b) }
+        
+        return@withContext ControllerResponse.CommandPerformanceSuccess
+    }
+    
+    private suspend fun checkAcknowledge() = withContext<ControllerResponse>(Dispatchers.Default) {
+        val ackResult = try {
+            withTimeout(COMMAND_ACK_TIMEOUT_MS.toLong()) {
+                async<ControllerResponse>(Dispatchers.Default) {
+                    val msg = mutex.withLock {
+                        inputMessagesChannel.receiveCatching()
+                            .getOrNull()
+                    }
+                    
+                    if (msg == null) {
+                        Log.e(Tag, "MSG is null, waiting for response on setVoltageLevel");
+                        return@async ControllerResponse.CommunicationFailure
+                    }
+                    else {
+                        return@async (msg as MessageFromController.OperationConfirmation).response
+                    }
+                }.await()
+            }
+        }
+        catch (e: Exception) {
+            Log.e(Tag, "Acknowledge timeout! E: ${e.message}")
+            return@withContext ControllerResponse.CommandAcknowledgeTimeout
+        }
+        
+        if (ackResult == ControllerResponse.CommandAcknowledge) return@withContext ackResult
+        
+        Log.e(Tag, "expected Command Acknowledge but got: ${ackResult}")
+        when (ackResult) {
+            ControllerResponse.CommandNoAcknowledge -> return@withContext ackResult
+            ControllerResponse.CommandAcknowledgeTimeout -> return@withContext ackResult
+            ControllerResponse.CommunicationFailure -> return@withContext ackResult
+            else -> return@withContext ControllerResponse.CommunicationFailure
+        }
+    }
+    
+    private suspend fun checkCommandSuccess(delayToCheck: Long) = withContext(Dispatchers.Default) {
+        val commandResult = try {
+            withTimeout(delayToCheck.toLong()) {
+                async<ControllerResponse>(Dispatchers.Default) {
+                    val msg = mutex.withLock {
+                        inputMessagesChannel.receiveCatching()
+                            .getOrNull()
+                    }
+                    
+                    if (msg == null) {
+                        Log.e(Tag, "MSG is null, waiting for response on setVoltageLevel");
+                        return@async ControllerResponse.CommunicationFailure
+                    }
+                    else {
+                        return@async (msg as MessageFromController.OperationConfirmation).response
+                    }
+                }.await()
+            }
+        }
+        catch (e: Exception) {
+            Log.e(Tag, "Timeout while getting command result. E: ${e.message}")
+            return@withContext ControllerResponse.CommandPerformanceTimeout
+        }
+        
+        when (commandResult) {
+            ControllerResponse.CommandPerformanceSuccess -> {
+                Log.d(Tag, "Command success!")
+                return@withContext commandResult
+            }
+            
+            ControllerResponse.CommandPerformanceFailure -> {
+                Log.e(Tag, "Command performance Failure!")
+                return@withContext commandResult
+            }
+            
+            else -> {
+                Log.e(Tag, "Unexpected response! Result: $commandResult")
+                return@withContext ControllerResponse.CommunicationFailure
+            }
+        }
+    }
     
     private suspend fun testTask() = withContext(Dispatchers.Default) {
         while (isActive) {
