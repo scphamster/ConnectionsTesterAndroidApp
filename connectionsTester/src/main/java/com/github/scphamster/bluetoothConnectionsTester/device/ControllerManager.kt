@@ -32,7 +32,7 @@ class ControllerManager(val scope: CoroutineScope, val dataLink: DeviceLink) : C
     init {
         scope.launch { rawDataReceiverTask() }
         scope.launch { inputMessagesHandlerTask() }
-        scope.launch { testTask() }
+//        scope.launch { testTask() }
         scope.launch { outputMessagesHandlerTask() }
     }
     

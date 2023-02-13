@@ -25,6 +25,11 @@ class Director(val app: Application, val scope: CoroutineScope, val errorHandler
     var machineState = MachineState.SearchingControllers
     var voltageLevel = IoBoardsManager.VoltageLevel.Low
         private set
+    
+    val isReady: Boolean
+        get() = controllersNumberHasSettled.get()
+        
+    
     val newDeviceLinksChannel = Channel<DeviceLink>(CHANNEL_SIZE)
     
     private val controllers = mutableListOf<ControllerManager>()
@@ -37,27 +42,27 @@ class Director(val app: Application, val scope: CoroutineScope, val errorHandler
         }
     }
     
-    suspend fun setVoltageLevelAccordingToPreferences() =withContext(Dispatchers.Default){
+    suspend fun setVoltageLevelAccordingToPreferences() = withContext(Dispatchers.Default) {
         scope.launch {
             val selected_voltage_level = PreferenceManager.getDefaultSharedPreferences(app)
                 .getString("output_voltage_level", "")
-    
+            
             voltageLevel = when (selected_voltage_level) {
                 "Low(0.7V)" -> IoBoardsManager.VoltageLevel.Low
                 "High(1.0V)" -> IoBoardsManager.VoltageLevel.High
                 else -> IoBoardsManager.VoltageLevel.Low
             }
-    
+            
             val voltageChangeJobs = arrayListOf<Deferred<ControllerResponse>>()
             for (controller in controllers) {
                 voltageChangeJobs.add(scope.async {
                     controller.setVoltageLevel(voltageLevel)
                 })
             }
-    
+            
             val results = voltageChangeJobs.awaitAll()
             for (result in results) {
-                if(result!=ControllerResponse.CommandPerformanceSuccess){
+                if (result != ControllerResponse.CommandPerformanceSuccess) {
                     Log.e(Tag, "Command not successful!")
                 }
             }
@@ -87,7 +92,7 @@ class Director(val app: Application, val scope: CoroutineScope, val errorHandler
                 
                 if (timeoutResult) {
                     controllersNumberHasSettled.set(true)
-                    machineState = MachineState.InitializingControllers
+                    machineState = MachineState.Operating
                 }
             }
             

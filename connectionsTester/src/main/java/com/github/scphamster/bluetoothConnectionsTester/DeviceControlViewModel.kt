@@ -13,13 +13,9 @@ import com.github.scphamster.bluetoothConnectionsTester.dataLink.BluetoothBridge
 import com.github.scphamster.bluetoothConnectionsTester.dataLink.RegistrationNewControllersSocket
 import com.github.scphamster.bluetoothConnectionsTester.device.Director
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-
 import com.github.scphamster.bluetoothConnectionsTester.device.ControllerResponseInterpreter.Commands
 import com.github.scphamster.bluetoothConnectionsTester.device.*
+import kotlinx.coroutines.*
 
 typealias BoardCountT = Int
 
@@ -216,6 +212,14 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
         val linkController = RegistrationNewControllersSocket(app, controllersManager.newDeviceLinksChannel)
         viewModelScope.launch {
             linkController.entrySocketAsync()
+        }
+        viewModelScope.launch {
+            while(!controllersManager.isReady) continue
+            
+            while(isActive){
+                controllersManager.setVoltageLevelAccordingToPreferences()
+                delay(1000)
+            }
         }
     }
 
