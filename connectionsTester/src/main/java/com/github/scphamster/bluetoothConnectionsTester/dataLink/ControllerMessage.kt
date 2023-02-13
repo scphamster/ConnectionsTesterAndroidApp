@@ -45,6 +45,8 @@ sealed class Msg {
 
 interface MasterToControllerMsg {
     abstract fun serialize(): Collection<Byte>
+    abstract val msg_id: Byte
+    
     enum class MessageID(val id: Byte) {
         MeasureAll(100),
         EnableOutputForPin(101),
@@ -53,7 +55,7 @@ interface MasterToControllerMsg {
         CheckResistances(104),
         CheckVoltages(105),
         CheckRaw(106),
-        GetAllBoardsIds(107),
+        GetBoardsOnline(107),
         GetInternalCounter(108),
         GetTaskStackWatermark(109),
         SetNewAddressForBoard(110),
@@ -69,6 +71,7 @@ final class MeasureAllCommand : MasterToControllerMsg {
         val CMD_ID: Byte = MasterToControllerMsg.MessageID.MeasureAll.id
     }
     
+    override val msg_id = MasterToControllerMsg.MessageID.MeasureAll.id
     override fun serialize(): Collection<Byte> {
         val bytes = ArrayList<Byte>()
         bytes.add(CMD_ID)
@@ -82,6 +85,7 @@ final class SetOutputVoltageLevel(val level: IoBoardsManager.VoltageLevel) : Mas
         private const val SIZE_BYTES = Byte.SIZE_BYTES * 2
     }
     
+    override val msg_id = MasterToControllerMsg.MessageID.SetOutputVoltageLevel.id
     override fun serialize(): Collection<Byte> {
         val bytes = mutableListOf<Byte>()
         bytes.add(CMD_ID)
@@ -90,10 +94,18 @@ final class SetOutputVoltageLevel(val level: IoBoardsManager.VoltageLevel) : Mas
     }
 }
 
+final class GetBoardsOnline : MasterToControllerMsg {
+    override val msg_id = MasterToControllerMsg.MessageID.GetBoardsOnline.id
+    override fun serialize(): Collection<Byte> {
+        return arrayListOf(msg_id)
+    }
+}
+
 sealed class MessageFromController {
     enum class Type(val id: Byte) {
         Connections(50),
         OperationConfirmation(51),
+        BoardsInfo(52),
     }
     
     companion object {
@@ -109,7 +121,7 @@ sealed class MessageFromController {
             return when (id) {
                 Type.Connections.id -> Connectivity.deserialize(bytes.slice(1..(bytes.size - 1)))
                 Type.OperationConfirmation.id -> OperationConfirmation(bytes.slice(1..(bytes.size - 1)))
-                
+                Type.BoardsInfo.id -> Boards(bytes.slice(1..(bytes.size - 1)))
                 else -> null
             }
         }
@@ -161,6 +173,26 @@ sealed class MessageFromController {
             }
             
             response = enumConstant
+        }
+    }
+    
+    class Boards() : MessageFromController() {
+        companion object {
+            private const val MAX_ADDRESS = 127.toByte()
+        }
+        
+        lateinit var boards: Array<BoardAddrT>
+        
+        constructor(bytes: Collection<Byte>) : this() {
+            if (bytes.isEmpty()) return
+         
+            val new_boards = mutableListOf<BoardAddrT>()
+            new_boards.addAll(bytes.map { byte ->
+                if (byte > MAX_ADDRESS) throw IllegalArgumentException("Board address is higher than $MAX_ADDRESS : $byte")
+                
+                byte.toInt()
+            })
+            boards = new_boards.toTypedArray()
         }
     }
 }

@@ -210,14 +210,14 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
 
     fun startServer() {
         val linkController = RegistrationNewControllersSocket(app, controllersManager.newDeviceLinksChannel)
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.Default) {
             linkController.entrySocketAsync()
         }
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.Default) {
             while(!controllersManager.isReady) continue
-            
+            delay(5000);
             while(isActive){
-                controllersManager.setVoltageLevelAccordingToPreferences()
+                controllersManager.initAllControllers()
                 delay(1000)
             }
         }
