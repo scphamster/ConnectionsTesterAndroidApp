@@ -21,6 +21,8 @@ class WorkSocket : DeviceLink {
     var boardAddr: BoardAddrT = -1
     var port: Int = -1
     
+    override val id: Int
+        get() = port
     override val outputDataChannel = Channel<Collection<Byte>>(OUT_CHANNEL_SIZE)
     override val inputDataChannel = Channel<Collection<Byte>>(OUT_CHANNEL_SIZE)
     
@@ -31,11 +33,12 @@ class WorkSocket : DeviceLink {
     private val defaultDispatcher = Dispatchers.IO
     private val mutex = Mutex()
     
-    suspend fun start() = withContext(Dispatchers.IO) {
+    override suspend fun start() = withContext<Unit>(Dispatchers.IO) {
+        Log.d(Tag, "Starting new working socket")
         val serverSocket = ServerSocket(0)
         port = serverSocket.localPort
         
-        Log.d(Tag, "New working socket: ${serverSocket.localPort}, and port is : ${port}")
+        Log.d(Tag, "New working socket: ${serverSocket.localPort}")
         
         socket = serverSocket.accept()
         outStream = socket.getOutputStream()
@@ -54,7 +57,7 @@ class WorkSocket : DeviceLink {
             awaitCancellation()
         }
         catch (e: Exception) {
-            Log.d("$Tag:MAIN", "Cancelled, Message: ${e.message}")
+            Log.d("$Tag:MAIN", "Port $port is closing, cause: ${e.message}")
         } finally {
             inputJob.cancel("end of work")
             outputJob.cancel("end of work")
@@ -72,8 +75,8 @@ class WorkSocket : DeviceLink {
             val data = buffer.slice(0..(bytesReceived - 1))
             Log.d("$Tag:ICT", "New data arrived, size: ${data.size}")
             
-            for (byte in data) {
-                Log.d("$Tag:ICT", "$byte")
+            for ((index, byte) in data.withIndex()) {
+                Log.d("$Tag:ICT", "$index:$byte")
             }
             
             inputDataChannel.send(data)

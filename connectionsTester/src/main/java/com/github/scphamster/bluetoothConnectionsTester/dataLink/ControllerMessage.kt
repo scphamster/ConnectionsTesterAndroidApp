@@ -1,10 +1,9 @@
 package com.github.scphamster.bluetoothConnectionsTester.dataLink
 
 import android.util.Log
-import com.github.scphamster.bluetoothConnectionsTester.circuit.BoardAddrT
-import com.github.scphamster.bluetoothConnectionsTester.circuit.PinAffinityAndId
-import com.github.scphamster.bluetoothConnectionsTester.circuit.SimpleConnection
+import com.github.scphamster.bluetoothConnectionsTester.circuit.*
 import com.github.scphamster.bluetoothConnectionsTester.device.IoBoardsManager
+import io.reactivex.Single
 
 sealed class Msg {
     companion object {
@@ -48,7 +47,7 @@ interface MasterToControllerMsg {
     abstract val msg_id: Byte
     
     enum class MessageID(val id: Byte) {
-        MeasureAll(100),
+        MeasureAllVoltages(100),
         EnableOutputForPin(101),
         SetOutputVoltageLevel(102),
         CheckConnections(103),
@@ -65,13 +64,13 @@ interface MasterToControllerMsg {
     }
 }
 
-final class MeasureAllCommand : MasterToControllerMsg {
+final class MeasureAllVoltages : MasterToControllerMsg {
     companion object {
         const val COMMAND_SIZE_BYTES = Byte.SIZE_BYTES.toByte()
-        val CMD_ID: Byte = MasterToControllerMsg.MessageID.MeasureAll.id
+        val CMD_ID: Byte = MasterToControllerMsg.MessageID.MeasureAllVoltages.id
     }
     
-    override val msg_id = MasterToControllerMsg.MessageID.MeasureAll.id
+    override val msg_id = MasterToControllerMsg.MessageID.MeasureAllVoltages.id
     override fun serialize(): Collection<Byte> {
         val bytes = ArrayList<Byte>()
         bytes.add(CMD_ID)
@@ -106,6 +105,7 @@ sealed class MessageFromController {
         Connections(50),
         OperationConfirmation(51),
         BoardsInfo(52),
+        AllBoardsVoltages(53),
     }
     
     companion object {
@@ -120,8 +120,13 @@ sealed class MessageFromController {
             
             return when (id) {
                 Type.Connections.id -> Connectivity.deserialize(bytes.slice(1..(bytes.size - 1)))
-                Type.OperationConfirmation.id -> OperationConfirmation(bytes.slice(1..(bytes.size - 1)))
+                Type.OperationConfirmation.id -> OperationStatus(bytes.slice(1..(bytes.size - 1)))
                 Type.BoardsInfo.id -> Boards(bytes.slice(1..(bytes.size - 1)))
+                Type.AllBoardsVoltages.id -> {
+                    val iterator = bytes.iterator()
+                    iterator.next()
+                    Voltages(iterator)
+                }
                 else -> null
             }
         }
@@ -159,7 +164,7 @@ sealed class MessageFromController {
         }
     }
     
-    class OperationConfirmation() : MessageFromController() {
+    class OperationStatus() : MessageFromController() {
         lateinit var response: ControllerResponse
             private set
         
@@ -185,7 +190,7 @@ sealed class MessageFromController {
         
         constructor(bytes: Collection<Byte>) : this() {
             if (bytes.isEmpty()) return
-         
+            
             val new_boards = mutableListOf<BoardAddrT>()
             new_boards.addAll(bytes.map { byte ->
                 if (byte > MAX_ADDRESS) throw IllegalArgumentException("Board address is higher than $MAX_ADDRESS : $byte")
@@ -195,4 +200,51 @@ sealed class MessageFromController {
             boards = new_boards.toTypedArray()
         }
     }
+    
+    class Voltages(byteIterator: Iterator<Byte>) : MessageFromController() {
+        data class PinVoltage(val iterator: Iterator<Byte>) {
+            val pin: Byte
+            val voltage: UByte
+            
+            init {
+                pin = iterator.next()
+                voltage = iterator.next()
+                    .toUByte()
+            }
+        }
+        
+        data class BoardVoltages(val iterator: Iterator<Byte>) {
+            val boardId: UByte
+            val voltages: Array<PinVoltage>
+            
+            init {
+                boardId = iterator.next()
+                    .toUByte()
+                voltages = Array<PinVoltage>(IoBoard.pinsCountOnSingleBoard) { PinVoltage(iterator) }
+            }
+        }
+        
+        val boardsVoltages: Array<BoardVoltages>
+        
+        init {
+            val _boardsVoltages = mutableListOf<BoardVoltages>()
+            
+            while (byteIterator.hasNext()) {
+                _boardsVoltages.add(BoardVoltages(byteIterator))
+            }
+            
+            boardsVoltages = _boardsVoltages.toTypedArray()
+        }
+    }
+}
+
+fun Int.toByteArray(): ByteArray {
+    val byteArray = ByteArray(Int.SIZE_BYTES)
+    
+    for (index in 0..(Int.SIZE_BYTES - 1)) {
+        byteArray[index] = this.shr(8 * index)
+            .toByte()
+    }
+    
+    return byteArray
 }

@@ -1,23 +1,28 @@
 package com.github.scphamster.bluetoothConnectionsTester.device
 
+import android.os.Message
 import android.util.Log
 import com.github.scphamster.bluetoothConnectionsTester.circuit.IoBoard
+import com.github.scphamster.bluetoothConnectionsTester.circuit.SingleBoardVoltages
 import com.github.scphamster.bluetoothConnectionsTester.dataLink.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-class ControllerManager(val scope: CoroutineScope, val dataLink: DeviceLink) : ControllerManagerI {
+class ControllerManager(override val dataLink: DeviceLink) : ControllerManagerI,
+                                                    CoroutineScope by CoroutineScope(Dispatchers.Default) {
     companion object {
         private const val MESSAGES_CHANNEL_SIZE = 10
-        private const val Tag = "ControllerManager"
+        private const val BaseTag = "ControllerManager"
         private const val COMMAND_ACK_TIMEOUT_MS = 200
     }
     
+    var isReadyToOperate = false
     var boards = emptyList<IoBoard>()
         private set
-    
+    private val Tag: String
+        get() = BaseTag + "${dataLink.id}"
     private val inputDataCh = dataLink.inputDataChannel
     private val outputDataCh = dataLink.outputDataChannel
     private val inputMessagesChannel = Channel<MessageFromController>(MESSAGES_CHANNEL_SIZE)
@@ -26,25 +31,82 @@ class ControllerManager(val scope: CoroutineScope, val dataLink: DeviceLink) : C
     private var voltageLevel = IoBoardsManager.VoltageLevel.Low
     
     init {
-        scope.launch { rawDataReceiverTask() }
-        scope.launch { inputMessagesHandlerTask() }
-        scope.launch { outputMessagesHandlerTask() } //        scope.launch { testTask() }
+        launch { rawDataReceiverTask() }
+        launch { inputMessagesHandlerTask() }
+        launch { outputMessagesHandlerTask() } //        scope.launch { testTask() }
     }
     
-    suspend fun initialize() = withContext(Dispatchers.Default) {
-        getAllBoards();
+    fun initialize() = launch {
+        val response = getAllBoards();
+        
+        when (response) {
+            ControllerResponse.DeviceIsInitializing -> {
+                Log.d(Tag, "Controller is initializing answer obtained");
+                delay(2000);
+                
+                val response2 = getAllBoards();
+                when (response2) {
+                    ControllerResponse.CommandPerformanceSuccess -> Log.d(Tag,
+                                                                          "Successful command execution after retry");
+                    ControllerResponse.DeviceIsInitializing -> Log.e(Tag, "Device is still initializing after retry!");
+                    else -> Log.e(Tag, "Error obtaining all boards: ${response2.name}")
+                }
+            }
+            
+            ControllerResponse.CommandPerformanceSuccess -> {
+                isReadyToOperate = true;
+            }
+            
+            else -> Log.e(Tag, "Failed to obtain all boards: ${response.name}")
+        }
+        
+        launch {
+            Log.d(Tag, "Starting test task")
+            testTask()
+        }
     }
     
-    override suspend fun setVoltageLevel(level: IoBoardsManager.VoltageLevel): ControllerResponse {
-        scope.launch(Dispatchers.Default) {
+    fun cancelAllJobs() {
+        try {
+            Log.d(Tag, "Finalize method called!")
+            cancel("Object destructed")
+        }
+        catch (e: Exception) {
+            Log.e(Tag, "Exception in finalize method! E: ${e.message}")
+        }
+    }
+    
+    override fun startSocket() = async {
+        Log.d(Tag, "Starting new controller: ${dataLink.id}")
+        dataLink.start()
+    }
+    
+    protected fun finalize() {
+        try {
+            cancelAllJobs()
+        }
+        catch (e: Exception) {
+            Log.e(Tag, "Error in finalize method : ${e.message}")
+        }
+    }
+    
+    private fun testTask() = launch {
+        while (isActive) {
+            measureAllVoltages()
+            delay(1000)
+        }
+    }
+    
+    override fun setVoltageLevel(level: IoBoardsManager.VoltageLevel) = async {
+        launch(Dispatchers.Default) {
             outputMessagesChannel.send(SetOutputVoltageLevel(level))
         }
         val ackResult = checkAcknowledge()
         if (ackResult != ControllerResponse.CommandAcknowledge) {
             Log.e(Tag, "No ack for set voltage level command! Got: $ackResult")
-            return ControllerResponse.CommandNoAcknowledge
+            return@async ControllerResponse.CommandNoAcknowledge
         }
-        return checkCommandSuccess(300)
+        return@async checkCommandSuccess(300)
     }
     
     override suspend fun getAllBoards() = withContext<ControllerResponse>(Dispatchers.Default) {
@@ -79,6 +141,63 @@ class ControllerManager(val scope: CoroutineScope, val dataLink: DeviceLink) : C
         return@withContext ControllerResponse.CommandPerformanceSuccess
     }
     
+    suspend fun measureAllVoltages() = withContext<SingleBoardVoltages?>(Dispatchers.Default) {
+        if (!isReadyToOperate) {
+            Log.e(Tag, "Sending commands before controller is ready is prohibited!")
+            return@withContext null
+        }
+        
+        outputMessagesChannel.send(MeasureAllVoltages())
+        val cmdAck = checkAcknowledge()
+        
+        if (cmdAck != ControllerResponse.CommandAcknowledge) {
+            Log.e(Tag, "No ack for command: Measure all voltages! Received: ${cmdAck.name}")
+            return@withContext null
+        }
+        
+        val result = try {
+            withTimeout(2000) {
+                inputMessagesChannel.receiveCatching()
+            }
+        }
+        catch (e: TimeoutCancellationException) {
+            Log.e(Tag, "Measure all voltages command timed out!")
+            return@withContext null
+        }
+        catch (e: Exception) {
+            Log.e(Tag, "Unsuccessful retrieval of AllBoardsVoltages! E: ${e.message}")
+            return@withContext null
+        }.getOrNull()
+        
+        if (result == null) {
+            Log.e(Tag, "Voltages are null!")
+            return@withContext null
+        }
+        
+        when (result) {
+            is MessageFromController.OperationStatus -> {
+                Log.e(Tag, "Unsuccessful measure all retrieval, operation result is ${result.response.name}");
+                return@withContext null
+            }
+            
+            is MessageFromController.Voltages -> {
+                Log.d(Tag,
+                      "Successful retrieval of all voltages!") //                for (board in result.boardsVoltages) {
+                //                    for (voltage in board.voltages) {
+                //                        Log.d(Tag, "${voltage.pin} : ${voltage.voltage}")
+                //                    }
+                //                }
+            }
+            
+            else -> {
+                Log.e(Tag, "Unexpected message arrived!")
+            }
+        }
+        
+        //test
+        return@withContext null
+    }
+    
     private suspend fun checkAcknowledge() = withContext<ControllerResponse>(Dispatchers.Default) {
         val ackResult = try {
             withTimeout(COMMAND_ACK_TIMEOUT_MS.toLong()) {
@@ -93,7 +212,7 @@ class ControllerManager(val scope: CoroutineScope, val dataLink: DeviceLink) : C
                         return@async ControllerResponse.CommunicationFailure
                     }
                     else {
-                        return@async (msg as MessageFromController.OperationConfirmation).response
+                        return@async (msg as MessageFromController.OperationStatus).response
                     }
                 }.await()
             }
@@ -110,6 +229,7 @@ class ControllerManager(val scope: CoroutineScope, val dataLink: DeviceLink) : C
             ControllerResponse.CommandNoAcknowledge -> return@withContext ackResult
             ControllerResponse.CommandAcknowledgeTimeout -> return@withContext ackResult
             ControllerResponse.CommunicationFailure -> return@withContext ackResult
+            ControllerResponse.DeviceIsInitializing -> return@withContext ackResult
             else -> return@withContext ControllerResponse.CommunicationFailure
         }
     }
@@ -128,7 +248,7 @@ class ControllerManager(val scope: CoroutineScope, val dataLink: DeviceLink) : C
                         return@async ControllerResponse.CommunicationFailure
                     }
                     else {
-                        return@async (msg as MessageFromController.OperationConfirmation).response
+                        return@async (msg as MessageFromController.OperationStatus).response
                     }
                 }.await()
             }
@@ -153,13 +273,6 @@ class ControllerManager(val scope: CoroutineScope, val dataLink: DeviceLink) : C
                 Log.e(Tag, "Unexpected response! Result: $commandResult")
                 return@withContext ControllerResponse.CommunicationFailure
             }
-        }
-    }
-    
-    private suspend fun testTask() = withContext(Dispatchers.Default) {
-        while (isActive) {
-            outputMessagesChannel.send(MeasureAllCommand())
-            delay(1000)
         }
     }
     

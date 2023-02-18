@@ -10,7 +10,6 @@ import androidx.preference.PreferenceManager
 import com.github.scphamster.bluetoothConnectionsTester.circuit.Pin
 import com.github.scphamster.bluetoothConnectionsTester.circuit.toResistance
 import com.github.scphamster.bluetoothConnectionsTester.dataLink.BluetoothBridge
-import com.github.scphamster.bluetoothConnectionsTester.dataLink.RegistrationNewControllersSocket
 import com.github.scphamster.bluetoothConnectionsTester.device.Director
 
 import com.github.scphamster.bluetoothConnectionsTester.device.ControllerResponseInterpreter.Commands
@@ -209,18 +208,6 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
     }
 
     fun startServer() {
-        val linkController = RegistrationNewControllersSocket(app, controllersManager.newDeviceLinksChannel)
-        viewModelScope.launch(Dispatchers.Default) {
-            linkController.entrySocketAsync()
-        }
-        viewModelScope.launch(Dispatchers.Default) {
-            while(!controllersManager.isReady) continue
-            delay(5000);
-            while(isActive){
-                controllersManager.initAllControllers()
-                delay(1000)
-            }
-        }
     }
 
     private fun toast(msg: String?) {

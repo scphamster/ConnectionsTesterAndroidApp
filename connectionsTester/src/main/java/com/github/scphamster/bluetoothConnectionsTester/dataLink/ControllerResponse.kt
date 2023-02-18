@@ -7,5 +7,6 @@ enum class ControllerResponse(val byteValue: Byte) {
     CommandPerformanceSuccess(4),
     CommandAcknowledgeTimeout(5),
     CommandPerformanceTimeout(6),
-    CommunicationFailure(7)
+    CommunicationFailure(7),
+    DeviceIsInitializing(8)
 }
