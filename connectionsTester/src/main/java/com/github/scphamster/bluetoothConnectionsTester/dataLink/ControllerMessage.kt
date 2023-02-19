@@ -272,7 +272,7 @@ sealed class MessageFromController {
             init {
                 boardId = iterator.next()
                     .toUByte()
-                voltages = Array<PinVoltage>(IoBoard.pinsCountOnSingleBoard) { PinVoltage(iterator) }
+                voltages = Array<PinVoltage>(IoBoard.PINS_COUNT_ON_SINGLE_BOARD) { PinVoltage(iterator) }
             }
         }
         

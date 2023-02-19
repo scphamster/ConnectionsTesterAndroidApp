@@ -13,7 +13,10 @@ import java.net.Socket
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 
-class Director(val app: Application, val scope: CoroutineScope, val errorHandler: ErrorHandler) {
+class Director(val app: Application,
+               val scope: CoroutineScope,
+               val errorHandler: ErrorHandler,
+               val boardsArrayChannel: Channel<Array<IoBoard>>) {
     companion object {
         private const val Tag = "Director"
         private const val CHANNEL_SIZE = 10
@@ -108,6 +111,7 @@ class Director(val app: Application, val scope: CoroutineScope, val errorHandler
     val controllers = CopyOnWriteArrayList<ControllerManager>()
     val isReady: Boolean
         get() = controllersNumberHasSettled.get()
+    val allControllersAreInitialized = AtomicBoolean(false)
     
     var machineState = MachineState.SearchingControllers
     
@@ -205,6 +209,7 @@ class Director(val app: Application, val scope: CoroutineScope, val errorHandler
             
             machineState = MachineState.SearchingControllers
             controllersNumberHasSettled.set(false)
+            allControllersAreInitialized.set(false)
             
             val new_link = result.getOrNull()
             if (new_link == null) {
@@ -260,6 +265,25 @@ class Director(val app: Application, val scope: CoroutineScope, val errorHandler
             launch {
                 controller.initialize()
             }
+        }
+        var allAreInitialized = false
+        while (!allAreInitialized) {
+            allAreInitialized = true
+            
+            for (controller in controllers) {
+                if (controller.initialized.get() != true) allAreInitialized = false
+            }
+        }
+        
+        Log.d(Tag, "All controllers initialized, sending boards to boards controller")
+        allControllersAreInitialized.set(true)
+        
+        val allBoards = getAllBoards()
+        if (allBoards.isEmpty()) {
+            Log.e(Tag, "No boards found!")
+        }
+        else {
+            boardsArrayChannel.send(allBoards)
         }
     }
 }

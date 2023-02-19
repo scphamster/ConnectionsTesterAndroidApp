@@ -8,7 +8,7 @@ import com.github.scphamster.bluetoothConnectionsTester.circuit.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
-class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope, val director: Director) {
+class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope) {
     companion object {
         val Tag = "IoBoardsManagerLive"
         private const val STANDARD_INPUT_R: ResistanceT = 1100f
@@ -37,6 +37,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope,
     val boards = MutableLiveData<MutableList<IoBoard>>()
     val pinoutInterpreter: PinoutFileInterpreter
     val pinConnectivityResultsCh = Channel<SimpleConnectivityDescription>(Channel.UNLIMITED)
+    val boardsArrayChannel = Channel<Array<IoBoard>>(10)
     
     var voltageLevel: VoltageLevel = VoltageLevel.Low
     var pinChangeCallback: ((Pin) -> Unit)? = null
@@ -70,6 +71,9 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope,
         pinoutInterpreter = PinoutFileInterpreter()
         scope.launch(Dispatchers.Default) {
             newPinConnectivityResultsReceiverTask()
+        }
+        scope.launch {
+            boardsReceiverTask()
         }
     }
     
@@ -147,7 +151,8 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope,
             
             if (pins_without_group.isEmpty()) continue
             
-            val sorted_pins = SortedPins(group = null, affinity = board.id, pins = pins_without_group.toTypedArray())
+            val sorted_pins =
+                SortedPins(group = null, affinity = board.address, pins = pins_without_group.toTypedArray())
             pins_sorted_by_affinity.add(sorted_pins)
         }
         pins_sorted_by_group.addAll(pins_sorted_by_affinity)
@@ -265,10 +270,10 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope,
         if (available_boards == null) return null
         
         for (board in available_boards) {
-            if (board.id != affinityAndId.boardId) continue
+            if (board.address != affinityAndId.boardId) continue
             
             if (board.pins.isEmpty()) {
-                Log.e(Tag, "board with id:${board.id} has empty set of pins!")
+                Log.e(Tag, "board with id:${board.address} has empty set of pins!")
                 return null
             }
             
@@ -294,7 +299,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope,
         
         for (board in current_boards) {
             for (pin in board.pins) {
-                if (pin.descriptor.pinAffinityAndId.pinID.toString() == name && board.id.toString() == group) {
+                if (pin.descriptor.pinAffinityAndId.pinID.toString() == name && board.address.toString() == group) {
                     pin_with_board_id_same_as_group_name = pin
                 }
                 if (pin.descriptor.name == name && pin.descriptor.group?.name == group) {
@@ -325,48 +330,48 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope,
         }
     }
     
-    fun setInternalParametersForBoard(board_addr: Int, board_internals: IoBoardInternalParameters) {
-        val boards = boards.value
-        
-        if (boards == null) {
-            Log.e(Tag, "setInternalParametersForBoard::boards are null!")
-            return
-        }
-        
-        for (board in boards) {
-            if (board.id == board_addr) {
-                board.internalParams = board_internals
-                
-                for (pin in board.pins) {
-                    val logical_pin_num = pin.descriptor.getOnBoardPinNum()
-                    if (logical_pin_num == null) {
-                        Log.e(Tag, "logical pin num is null!")
-                        continue
-                    }
-                    
-                    val single_mux_pin_count = 16
-                    val is_of_second_mux = logical_pin_num >= single_mux_pin_count
-                    
-                    if (is_of_second_mux) {
-                        pin.inResistance = board_internals.inputResistance1
-                        pin.outResistance = board_internals.outputResistance1
-                    }
-                    else {
-                        pin.inResistance = board_internals.inputResistance0
-                        pin.outResistance = board_internals.outputResistance0
-                    }
-                    
-                    pin.outVoltage = if (board.voltageLevel == VoltageLevel.High) board_internals.outputVoltageHigh
-                    else board_internals.outputVoltageLow
-                    
-                    pin.shuntResistance = board_internals.shuntResistance
-                }
-                
-                Log.d("Test",
-                      "Board ${board.id} internals set!: ${board_internals.inputResistance0},${board_internals.outputResistance0},${board_internals.outputVoltageHigh}")
-            }
-        }
-    }
+    //    fun setInternalParametersForBoard(board_addr: Int, board_internals: IoBoardInternalParameters) {
+    //        val boards = boards.value
+    //
+    //        if (boards == null) {
+    //            Log.e(Tag, "setInternalParametersForBoard::boards are null!")
+    //            return
+    //        }
+    //
+    //        for (board in boards) {
+    //            if (board.address == board_addr) {
+    //                board.internalParams = board_internals
+    //
+    //                for (pin in board.pins) {
+    //                    val logical_pin_num = pin.descriptor.getOnBoardPinNum()
+    //                    if (logical_pin_num == null) {
+    //                        Log.e(Tag, "logical pin num is null!")
+    //                        continue
+    //                    }
+    //
+    //                    val single_mux_pin_count = 16
+    //                    val is_of_second_mux = logical_pin_num >= single_mux_pin_count
+    //
+    //                    if (is_of_second_mux) {
+    //                        pin.inResistance = board_internals.inputResistance1
+    //                        pin.outResistance = board_internals.outputResistance1
+    //                    }
+    //                    else {
+    //                        pin.inResistance = board_internals.inputResistance0
+    //                        pin.outResistance = board_internals.outputResistance0
+    //                    }
+    //
+    //                    pin.outVoltage = if (board.voltageLevel == VoltageLevel.High) board_internals.outputVoltageHigh
+    //                    else board_internals.outputVoltageLow
+    //
+    //                    pin.shuntResistance = board_internals.shuntResistance
+    //                }
+    //
+    //                Log.d("Test",
+    //                      "Board ${board.address} internals set!: ${board_internals.inputResistance0},${board_internals.outputResistance0},${board_internals.outputVoltageHigh}")
+    //            }
+    //        }
+    //    }
     
     fun getAllPins(): List<Pin> {
         val boards = boards.value
@@ -387,28 +392,27 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope,
         
         for (id in boards_id) {
             val new_board = IoBoard(id, voltageLevel = voltageLevel)
-            val new_pin_group = PinGroup(id)
-            
-            for (pin_num in 0..(IoBoard.pinsCountOnSingleBoard - 1)) {
-                val descriptor =
-                    PinDescriptor(PinAffinityAndId(id, pin_num), group = new_pin_group, UID = nextUniquePinId)
-                
-                val new_pin = Pin(descriptor, belongsToBoard = WeakReference(new_board))
-                new_board.pins.add(new_pin)
-            }
             
             new_boards.add(new_board)
         }
-        
-        boards.value = new_boards
+        withContext(Dispatchers.Main) {
+            boards.value = new_boards
+        }
         
         fetchPinsInfoFromExcelToPins()
     }
     
-    suspend fun fetchPinsInfoFromExcelToPins() {
+    suspend fun updateIOBoards(boards: Array<IoBoard>) {
+        withContext(Dispatchers.Main) {
+            ::boards.get().value = boards.toMutableList()
+        }
+        fetchPinsInfoFromExcelToPins()
+    }
+    
+    suspend fun fetchPinsInfoFromExcelToPins() = withContext(Dispatchers.Default) {
         val boards = boards.value
-        if (boards == null) return
-        if (boards.isEmpty()) return
+        if (boards == null) return@withContext
+        if (boards.isEmpty()) return@withContext
         
         Log.d(Tag, "entering fetch procedure")
         Log.d(Tag, "checking for null document: Is null? = ${pinoutInterpreter.document == null}")
@@ -419,18 +423,18 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope,
         catch (e: PinoutFileInterpreter.BadFileException) {
             errorHandler.handleError("Error ${e.message}")
             Log.e(Tag, "${e.message}");
-            return
+            return@withContext
         }
         catch (e: Throwable) {
             errorHandler.handleError("Unknown error: ${e.message}")
             Log.e(Tag, "${e.message}");
-            return
+            return@withContext
         }
         
         Log.d(Tag, "checking for null document2: Is null? = ${pinoutInterpreter.document == null}")
         Log.d(Tag, "Interpretation obtained, is null? : ${pinout_interpretation == null}")
         
-        if (pinout_interpretation == null) return
+        if (pinout_interpretation == null) return@withContext
         
         cleanAllPinsAndGroupsNaming_silently()
         Log.d(Tag, "all pins names and groups names cleared")
@@ -446,7 +450,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope,
                 val pin = pin_ref.get()
                 if (pin == null) {
                     Log.e(Tag, "Pin is null!")
-                    return
+                    return@withContext
                 }
                 
                 pin.descriptor.group = logicPinGroup
@@ -454,12 +458,15 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope,
             }
         }
         
-        this.boards.value = boards
+        //update visual representation of pins names
+        withContext(Dispatchers.Main) {
+            ::boards.get().value = boards
+        }
         
         fetchExpectedConnectionsToPinsFromFile()
     }
     
-    suspend fun fetchExpectedConnectionsToPinsFromFile() {
+    suspend fun fetchExpectedConnectionsToPinsFromFile() = withContext(Dispatchers.Default) {
         getAllPins().forEach() { pin ->
             pin.expectedConnections = null
             pin.unexpectedConnections = null
@@ -478,7 +485,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope,
         
         if (expected_connections == null) {
             Log.e(Tag, "expected connections are null")
-            return
+            return@withContext
         }
         
         Log.d(Tag, "Expected connection are not null, size = ${expected_connections.size} proceeding!")
@@ -502,6 +509,23 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope,
                 pin_of_interest.expectedConnections = expected
             }
         }
+    }
+    //tasks
+    suspend fun boardsReceiverTask() = withContext(Dispatchers.Default) {
+        val Tag = Tag + ":BRT"
+        
+        while (isActive) {
+            val boards = boardsArrayChannel.receiveCatching()
+                .getOrNull()
+            
+            if (boards == null) {
+                Log.e(Tag, "boards are null!")
+                continue
+            }
+            
+            updateIOBoards(boards)
+        }
+        
     }
     
     suspend fun newPinConnectivityResultsReceiverTask() = withContext(Dispatchers.Default) {

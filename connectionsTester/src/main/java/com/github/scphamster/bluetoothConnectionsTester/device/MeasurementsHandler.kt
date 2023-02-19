@@ -19,8 +19,7 @@ import org.apache.poi.xssf.usermodel.*
 class MeasurementsHandler(errorHandler: ErrorHandler,
                           bluetoothBridge: BluetoothBridge,
                           private val context: Context,
-                          val coroutineScope: CoroutineScope,
-                          director: Director) {
+                          val coroutineScope: CoroutineScope) {
     
     enum class PinConnectionsStatus {
         AlteredConnectionsList,
@@ -293,7 +292,7 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
         val Tag = "CommandHandler"
     }
     
-    val boardsManager = IoBoardsManager(errorHandler, coroutineScope, director)
+    val boardsManager = IoBoardsManager(errorHandler, coroutineScope)
     val responseInterpreter by lazy { ControllerResponseInterpreter() }
     val resultsSaver by lazy { MeasurementsToFileSaver() }
     private var connectionDescriptorMessageCounter = 0
@@ -322,7 +321,7 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
         
         responseInterpreter.onInternalParametersCallback = {
             coroutineScope.launch(Dispatchers.Default) {
-                boardsManager.setInternalParametersForBoard(it.board_addr, it.internalParameters)
+//                boardsManager.setInternalParametersForBoard(it.board_addr, it.internalParameters)
             }
         }
         
@@ -333,7 +332,7 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
     }
     
     suspend fun calibrate(completion_callback: ((String) -> Unit)) {
-        val pin_count = boardsManager.getBoardsCount() * IoBoard.pinsCountOnSingleBoard
+        val pin_count = boardsManager.getBoardsCount() * IoBoard.PINS_COUNT_ON_SINGLE_BOARD
         if (pin_count == 0) completion_callback("Fail, no boards found yet")
         
         connectionDescriptorMessageCounter = 0

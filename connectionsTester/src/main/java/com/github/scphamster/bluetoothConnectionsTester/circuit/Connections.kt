@@ -146,13 +146,69 @@ data class IoBoardInternalParameters(
     val outputVoltageHigh: VoltageT,
 )
 
-data class IoBoard(val id: BoardAddrT,
-                   val pins: MutableList<Pin> = mutableListOf(),
-                   var internalParams: IoBoardInternalParameters? = null,
-                   var voltageLevel: IoBoardsManager.VoltageLevel = IoBoardsManager.VoltageLevel.Low,
-                   val belongsToController: WeakReference<ControllerManagerI> = WeakReference(null)) {
+class IoBoard(val address: BoardAddrT,
+              val internalParams: IoBoardInternalParameters? = null,
+              var voltageLevel: IoBoardsManager.VoltageLevel = IoBoardsManager.VoltageLevel.Low,
+              val belongsToController: WeakReference<ControllerManagerI> = WeakReference(null)) {
     companion object {
-        const val pinsCountOnSingleBoard = 32
+        const val PINS_COUNT_ON_SINGLE_BOARD = 32
+        const val SINGLE_MUX_PINS_SIZE = 16
+        const val STD_IN_R = 1100F
+        const val STD_OUT_R = 210F
+        const val STD_SHUNT_R = 330F
+        const val STD_OUT_V = 0.7F
+        const val STD_OUT_HIGH_V = 0.9f
+    }
+    
+    val pins: Array<Pin>
+    
+    init {
+        val pinGroup = PinGroup(address)
+        val mutableListOfPins = mutableListOf<Pin>()
+        
+        for (pin_num in 0..(PINS_COUNT_ON_SINGLE_BOARD - 1)) {
+            val descriptor = PinDescriptor(PinAffinityAndId(address, pin_num), group = pinGroup)
+            
+            val inR = if (internalParams == null) {
+                STD_IN_R
+            }
+            else {
+                if (descriptor.getMuxNum() == 0) {
+                    internalParams.inputResistance0
+                }
+                else {
+                    internalParams.inputResistance1
+                }
+            }
+            
+            val outR = if (internalParams == null) STD_OUT_R
+            else {
+                if (descriptor.getMuxNum() == 0) internalParams.outputResistance0
+                else internalParams.outputResistance1
+            }
+            
+            val shuntR = if (internalParams == null) STD_SHUNT_R
+            else internalParams.shuntResistance
+            
+            val vOut = if (internalParams == null) {
+                if (voltageLevel == IoBoardsManager.VoltageLevel.High) STD_OUT_HIGH_V
+                else STD_OUT_V
+            }
+            else {
+                if (voltageLevel == IoBoardsManager.VoltageLevel.High) internalParams.outputVoltageHigh
+                else internalParams.outputVoltageLow
+            }
+            
+            
+            mutableListOfPins.add(Pin(descriptor,
+                                      belongsToBoard = WeakReference(this),
+                                      inResistance = inR,
+                                      outResistance = outR,
+                                      shuntResistance = shuntR,
+                                      outVoltage = vOut))
+        }
+        
+        pins = mutableListOfPins.toTypedArray()
     }
 }
 

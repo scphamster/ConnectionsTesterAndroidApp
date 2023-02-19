@@ -124,7 +124,7 @@ class ControllerManager(override val dataLink: DeviceLink) : ControllerManagerI,
             }
             var pinCounter = 0
             mutex.withLock {
-                repeat(boards.size * IoBoard.pinsCountOnSingleBoard) {
+                repeat(boards.size * IoBoard.PINS_COUNT_ON_SINGLE_BOARD) {
                     val msg = try {
                         withTimeout(FindAllConnections.SINGLE_PIN_RESULT_TIMEOUT_MS) {
                             inputMessagesChannel.receiveCatching()

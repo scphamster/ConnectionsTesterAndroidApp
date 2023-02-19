@@ -1,6 +1,7 @@
 package com.github.scphamster.bluetoothConnectionsTester.circuit
 
 import java.lang.ref.WeakReference
+import java.util.*
 
 interface PinIdentifier {
     /**
@@ -41,34 +42,18 @@ data class PinAffinityAndId(val boardId: BoardAddrT, val pinID: PinNumT) : PinId
 }
 
 data class PinDescriptor(val affinityAndId: PinAffinityAndId,
-                         val UID: PinNumT? = null,
                          var name: String? = null,
                          var group: PinGroup? = null) : PinIdentifier {
-    override fun getPrettyName(): String {
-        val string_builder = StringBuilder()
+    val UID: UUID = UUID.randomUUID()
 
-        if (group != null) {
-            string_builder.append(group?.getPrettyName())
-        }
-        else {
-            string_builder.append(affinityAndId.boardId.toString())
-        }
-
-        string_builder.append(":")
-
-        if (name != null) {
-            string_builder.append(name)
-        }
-        else {
-            string_builder.append(affinityAndId.pinID.toString())
-        }
-
-        return string_builder.toString()
+    companion object {
+        private val harnessToLogicalPinMap = arrayOf(6, 4, 2, 0, 9, 11, 13, 15, 22, 20, 18, 16, 25, 27, 29, 31,
+                                                     30, 28, 26, 24, 17, 19, 21, 23, 14, 12, 10, 8, 1, 3, 5, 7)
     }
-
+    
     override val pinAffinityAndId: PinAffinityAndId
         get() = affinityAndId
-
+    
     fun clearPinAndGroupNames() {
         group?.let {
             group = PinGroup(it.id, null)
@@ -76,16 +61,38 @@ data class PinDescriptor(val affinityAndId: PinAffinityAndId,
 
         name = null
     }
-
-    companion object {
-        private val harnessToLogicalPinMap = arrayOf(6, 4, 2, 0, 9, 11, 13, 15, 22, 20, 18, 16, 25, 27, 29, 31,
-                                                     30, 28, 26, 24, 17, 19, 21, 23, 14, 12, 10, 8, 1, 3, 5, 7)
-    }
-
+    
     fun getOnBoardPinNum(): Int? {
         val harness_id = affinityAndId.pinID
-        if (harness_id >= IoBoard.pinsCountOnSingleBoard) return null
+        if (harness_id >= IoBoard.PINS_COUNT_ON_SINGLE_BOARD) return null
         return harnessToLogicalPinMap.get(harness_id)
+    }
+    
+    fun getMuxNum() : Int {
+        if (harnessToLogicalPinMap.get(affinityAndId.pinID) >= IoBoard.SINGLE_MUX_PINS_SIZE) return 1
+        else return 0
+    }
+
+    override fun getPrettyName(): String {
+        val string_builder = StringBuilder()
+        
+        if (group != null) {
+            string_builder.append(group?.getPrettyName())
+        }
+        else {
+            string_builder.append(affinityAndId.boardId.toString())
+        }
+        
+        string_builder.append(":")
+        
+        if (name != null) {
+            string_builder.append(name)
+        }
+        else {
+            string_builder.append(affinityAndId.pinID.toString())
+        }
+        
+        return string_builder.toString()
     }
 }
 

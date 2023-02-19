@@ -163,7 +163,7 @@ class DeviceControlActivity : AppCompatActivity() {
 
             for (board in boards) {
                 if (board.pins.isEmpty()) {
-                    Log.e(Tag, "supplied board with id ${board.id} has empty list of pins")
+                    Log.e(Tag, "supplied board with id ${board.address} has empty list of pins")
                     return
                 }
 

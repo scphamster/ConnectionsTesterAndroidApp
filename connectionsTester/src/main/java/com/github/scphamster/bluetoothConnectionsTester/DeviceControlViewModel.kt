@@ -32,7 +32,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
     
     var maxDetectableResistance: Float = 0f
     
-    private val controllersManager = Director(app, viewModelScope, errorHandler)
+    private val controllersManager: Director
     private val bluetooth: BluetoothBridge //    private val logger by lazy { ToFileLogger(app) }
     
     private var isInitialized: Boolean
@@ -40,7 +40,9 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
     init {
         isInitialized = false
         bluetooth = BluetoothBridge(errorHandler)
-        measurementsHandler = MeasurementsHandler(errorHandler, bluetooth, app, viewModelScope, controllersManager)
+        measurementsHandler = MeasurementsHandler(errorHandler, bluetooth, app, viewModelScope)
+        controllersManager =
+            Director(app, viewModelScope, errorHandler, measurementsHandler.boardsManager.boardsArrayChannel)
     }
     
     fun setupViewModel(deviceName: String, mac: String?): Boolean {
