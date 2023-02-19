@@ -5,11 +5,8 @@ import com.github.scphamster.bluetoothConnectionsTester.device.ControllerRespons
 import java.lang.ref.WeakReference
 import android.util.Log
 import com.github.scphamster.bluetoothConnectionsTester.circuit.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.withContext
 
 class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope, val director: Director) {
     companion object {
@@ -71,6 +68,9 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope,
     
     init {
         pinoutInterpreter = PinoutFileInterpreter()
+        scope.launch(Dispatchers.Default) {
+            newPinConnectivityResultsReceiverTask()
+        }
     }
     
     fun getNamedPinGroups(): Array<PinGroup>? {
@@ -174,7 +174,9 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope,
         }
     }
     
-    fun updateConnectionsForPin(updated_pin: Pin, connections: Array<Connection>) {
+    suspend fun updateConnectionsForPin(updated_pin: Pin, connections: Array<Connection>) {
+        val Tag = Tag + ":PCU"
+        
         val new_connections = mutableListOf<Connection>()
         
         for (found_connection in connections) {
@@ -215,10 +217,13 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope,
             updated_pin.checkIfConnectionsListIsDifferent(new_connections, maxResistanceAsConnection)
         updated_pin.connections = new_connections
         
-        pinChangeCallback?.invoke(updated_pin)
+        Log.d(Tag, "pinchange callback invocation for pin ${updated_pin.toString()}")
+        withContext(Dispatchers.Main) {
+            pinChangeCallback?.invoke(updated_pin)
+        }
     }
     
-    fun updateConnectionsForPin(masterPin: PinAffinityAndId, connections: Array<SimpleConnection>) {
+    suspend fun updateConnectionsForPin(masterPin: PinAffinityAndId, connections: Array<SimpleConnection>) {
         val pin = findPinRefByAffinityAndId(masterPin)?.get()
         
         if (pin == null) {
@@ -235,7 +240,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope,
         updateConnectionsForPin(pin, newConnections)
     }
     
-    fun updateConnectionsByControllerMsg(connections_description: ControllerMessage.ConnectionsDescription) {
+    suspend fun updateConnectionsByControllerMsg(connections_description: ControllerMessage.ConnectionsDescription) {
         val updated_pin_ref = findPinRefByAffinityAndId(connections_description.ofPin)
         
         if (updated_pin_ref == null) {
@@ -500,6 +505,8 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope,
     }
     
     suspend fun newPinConnectivityResultsReceiverTask() = withContext(Dispatchers.Default) {
+        val Tag = Tag + ":PCT"
+        
         while (isActive) {
             val newResult = pinConnectivityResultsCh.receiveCatching()
                 .getOrNull()
@@ -511,8 +518,9 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope,
             
             try {
                 updateConnectionsForPin(newResult.masterPin, newResult.connections)
+                Log.d(Tag, "new connections arrived for pin :${newResult.masterPin} ")
             }
-            catch(e: Exception) {
+            catch (e: Exception) {
                 Log.e(Tag, "Exception caught while updating connections for pin: ${e.message}")
             }
         }

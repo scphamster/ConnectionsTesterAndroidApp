@@ -135,6 +135,7 @@ class DeviceControlActivity : AppCompatActivity() {
                 if (pin.descriptor.affinityAndId == pin_to_update.descriptor.affinityAndId) {
                     pin.connections = pin_to_update.connections
                     notifyItemChanged(counter)
+                    Log.d(Tag, "Pin connectivity updated: $pin")
                     return
                 }
 

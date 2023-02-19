@@ -293,7 +293,7 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
         val Tag = "CommandHandler"
     }
     
-    val boardsManager by lazy { IoBoardsManager(errorHandler, coroutineScope, director) }
+    val boardsManager = IoBoardsManager(errorHandler, coroutineScope, director)
     val responseInterpreter by lazy { ControllerResponseInterpreter() }
     val resultsSaver by lazy { MeasurementsToFileSaver() }
     private var connectionDescriptorMessageCounter = 0
@@ -302,7 +302,9 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
     
     init {
         responseInterpreter.onConnectionsDescriptionCallback = { new_connections ->
-            boardsManager.updateConnectionsByControllerMsg(new_connections)
+            coroutineScope.launch {
+                boardsManager.updateConnectionsByControllerMsg(new_connections)
+            }
             connectionDescriptorMessageCounter++
         }
         responseInterpreter.onHardwareDescriptionCallback = { message ->
