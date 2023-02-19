@@ -105,7 +105,7 @@ final class GetBoardsOnline : MasterToControllerMsg {
 
 final class FindAllConnections : MasterToControllerMsg {
     companion object {
-        const val SINGLE_PIN_RESULT_TIMEOUT_MS = 400.toLong()
+        const val SINGLE_PIN_RESULT_TIMEOUT_MS = 2000.toLong()
     }
     
     override fun serialize(): Collection<Byte> {

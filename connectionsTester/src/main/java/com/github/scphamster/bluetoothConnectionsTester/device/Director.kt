@@ -9,6 +9,7 @@ import com.github.scphamster.bluetoothConnectionsTester.dataLink.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import java.net.ServerSocket
+import java.net.Socket
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -40,20 +41,20 @@ class Director(val app: Application, val scope: CoroutineScope, val errorHandler
             }
         }
         
+        lateinit var serverSocket: ServerSocket
+        var socket = Socket()
+        
         suspend fun startEntrySocket() = withContext(Dispatchers.IO) {
             while (isActive) {
-                val ss = ServerSocket(STANDARD_ENTRY_SOCKET)
-                val socket = ss.accept()
-                
+                serverSocket = ServerSocket(STANDARD_ENTRY_SOCKET)
+                socket = serverSocket.accept()
                 Log.d(Tag, "Someone connected: ${socket.remoteSocketAddress}")
                 
                 val outputStream = socket.getOutputStream()
                 val inputStream = socket.getInputStream()
                 val newSocket = WorkSocket()
                 
-                launch(Dispatchers.Default) {
-                    socketChannel.send(newSocket)
-                }
+                socketChannel.send(newSocket)
                 
                 while (newSocket.port == -1) {
                     continue
@@ -78,12 +79,9 @@ class Director(val app: Application, val scope: CoroutineScope, val errorHandler
                         }
                     }
                 }
-                
-                outputStream.close()
-                inputStream.close()
-                socket.close()
-                ss.close()
             }
+            
+            serverSocket.close()
             Log.e(Tag, "Entry socket is closed!")
         }
         
@@ -135,14 +133,16 @@ class Director(val app: Application, val scope: CoroutineScope, val errorHandler
         }
     }
     
-    suspend fun checkAllConnections(connectionsChannel: Channel<SimpleConnectivityDescription>) = withContext(Dispatchers.IO) {
-        if (controllers.size == 1) {
-            controllers.get(0).checkConnectionsForLocalBoards(connectionsChannel)
+    suspend fun checkAllConnections(connectionsChannel: Channel<SimpleConnectivityDescription>) =
+        withContext(Dispatchers.IO) {
+            if (controllers.size == 1) {
+                controllers.get(0)
+                    .checkConnectionsForLocalBoards(connectionsChannel)
+            }
+            else {
+                Log.e(Tag, "Unimplemented check all connections with many controllers used!")
+            }
         }
-        else {
-            Log.e(Tag, "Unimplemented check all connections with many controllers used!")
-        }
-    }
     
     suspend fun getAllBoards() = withContext<Array<IoBoard>>(Dispatchers.Default) {
         val mutableListOfBoards = mutableListOf<IoBoard>()

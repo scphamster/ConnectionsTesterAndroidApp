@@ -19,7 +19,7 @@ class ControllerManager(override val dataLink: DeviceLink) : ControllerManagerI,
     companion object {
         private const val MESSAGES_CHANNEL_SIZE = 10
         private const val BaseTag = "ControllerManager"
-        private const val COMMAND_ACK_TIMEOUT_MS = 200
+        private const val COMMAND_ACK_TIMEOUT_MS = 1000.toLong()
     }
     
     //val id: Int //todo: implement
@@ -115,9 +115,9 @@ class ControllerManager(override val dataLink: DeviceLink) : ControllerManagerI,
     suspend fun checkConnectionsForLocalBoards(connectionsChannel: Channel<SimpleConnectivityDescription>) =
         withContext(Dispatchers.Default) /* overall operation result */ {
             outputMessagesChannel.send(FindAllConnections())
-    
+            
             val ack = checkAcknowledge().await()
-    
+            
             if (ack != ControllerResponse.CommandAcknowledge) {
                 Log.e(Tag, "No ack for find all connections command")
                 return@withContext
@@ -178,27 +178,19 @@ class ControllerManager(override val dataLink: DeviceLink) : ControllerManagerI,
     }
     
     override fun initialize() = launch {
-        val response = updateAvailableBoards().await();
-        
-        when (response) {
-            ControllerResponse.DeviceIsInitializing -> {
-                Log.d(Tag, "Controller is initializing answer obtained");
-                delay(2000);
-                
-                val response2 = updateAvailableBoards().await();
-                when (response2) {
-                    ControllerResponse.CommandPerformanceSuccess -> Log.d(Tag,
-                                                                          "Successful command execution after retry");
-                    ControllerResponse.DeviceIsInitializing -> Log.e(Tag, "Device is still initializing after retry!");
-                    else -> Log.e(Tag, "Error obtaining all boards: ${response2.name}")
-                }
+        while (true) {
+            val response = updateAvailableBoards().await();
+            if (response == ControllerResponse.DeviceIsInitializing) {
+                delay(1000)
+                continue
             }
-            
-            ControllerResponse.CommandPerformanceSuccess -> {
+            else if (response != ControllerResponse.CommandPerformanceSuccess) {
+                Log.e(Tag, "boards update failed with result : $response")
+            }
+            else {
                 initialized.set(true);
+                return@launch
             }
-            
-            else -> Log.e(Tag, "Failed to obtain all boards: ${response.name}")
         }
     }
     
@@ -412,7 +404,8 @@ class ControllerManager(override val dataLink: DeviceLink) : ControllerManagerI,
             while (System.currentTimeMillis() < deadline) continue
             if (mutex.isLocked || inputMessagesChannel.isEmpty) continue
             
-            val msg = inputMessagesChannel.receiveCatching().getOrNull()
+            val msg = inputMessagesChannel.receiveCatching()
+                .getOrNull()
             if (msg == null) {
                 Log.e("${Tag}:IMHT", "Unhandled message is null!")
                 continue
