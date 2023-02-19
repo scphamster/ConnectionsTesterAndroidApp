@@ -42,7 +42,7 @@ class PinoutFileInterpreter {
                     throw Exception("""Duplicate hardware pin usage for 
                                 |pin group: ${new_group.name}, 
                                 |logical pin: ${pin_name}, 
-                                |hw pin: ${affinity_and_id.idxOnBoard}, 
+                                |hw pin: ${affinity_and_id.pinID},
                                 |board: ${affinity_and_id.boardId}""".trimMargin())
                 }
             }

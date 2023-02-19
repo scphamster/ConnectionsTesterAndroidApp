@@ -8,7 +8,8 @@ import kotlinx.coroutines.Job
 interface ControllerManagerI {
     abstract val dataLink: DeviceLink
     
-    abstract fun setVoltageLevel(level: IoBoardsManager.VoltageLevel) : Deferred<ControllerResponse>
-    abstract fun getAllBoards() : Deferred<ControllerResponse>
+    abstract fun initialize(): Job
+    abstract fun setVoltageLevel(level: IoBoardsManager.VoltageLevel): Deferred<ControllerResponse>
+    abstract fun updateAvailableBoards(): Deferred<ControllerResponse>
     abstract fun startSocket(): Deferred<Unit>
 }

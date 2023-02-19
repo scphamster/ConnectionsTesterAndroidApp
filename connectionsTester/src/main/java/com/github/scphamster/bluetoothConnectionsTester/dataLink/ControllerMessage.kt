@@ -3,7 +3,6 @@ package com.github.scphamster.bluetoothConnectionsTester.dataLink
 import android.util.Log
 import com.github.scphamster.bluetoothConnectionsTester.circuit.*
 import com.github.scphamster.bluetoothConnectionsTester.device.IoBoardsManager
-import io.reactivex.Single
 
 sealed class Msg {
     companion object {
@@ -94,10 +93,25 @@ final class SetOutputVoltageLevel(val level: IoBoardsManager.VoltageLevel) : Mas
 }
 
 final class GetBoardsOnline : MasterToControllerMsg {
+    companion object {
+        const val RESULT_TIMEOUT_MS = 4000.toLong()
+    }
+    
     override val msg_id = MasterToControllerMsg.MessageID.GetBoardsOnline.id
     override fun serialize(): Collection<Byte> {
         return arrayListOf(msg_id)
     }
+}
+
+final class FindAllConnections : MasterToControllerMsg {
+    companion object {
+        const val SINGLE_PIN_RESULT_TIMEOUT_MS = 400.toLong()
+    }
+    override fun serialize(): Collection<Byte> {
+        return arrayListOf(msg_id)
+    }
+    
+    override val msg_id = MasterToControllerMsg.MessageID.CheckConnections.id
 }
 
 sealed class MessageFromController {
@@ -110,51 +124,42 @@ sealed class MessageFromController {
     
     companion object {
         private const val Tag = "MsgFromController"
-        fun deserialize(bytes: List<Byte>): MessageFromController? {
-            if (bytes.size == 0) {
+        fun deserialize(bytesIterator: Iterator<Byte>): MessageFromController? {
+            if (!bytesIterator.hasNext()) {
                 Log.e(Tag, "empty byte list!")
                 return null
             }
             
-            val id = bytes.get(0)
+            val id = bytesIterator.next()
             
             return when (id) {
-                Type.Connections.id -> Connectivity.deserialize(bytes.slice(1..(bytes.size - 1)))
-                Type.OperationConfirmation.id -> OperationStatus(bytes.slice(1..(bytes.size - 1)))
-                Type.BoardsInfo.id -> Boards(bytes.slice(1..(bytes.size - 1)))
-                Type.AllBoardsVoltages.id -> {
-                    val iterator = bytes.iterator()
-                    iterator.next()
-                    Voltages(iterator)
-                }
+                Type.Connections.id -> Connectivity(bytesIterator)
+                Type.OperationConfirmation.id -> OperationStatus(bytesIterator)
+                Type.BoardsInfo.id -> Boards(bytesIterator)
+                Type.AllBoardsVoltages.id -> Voltages(bytesIterator)
+                
                 else -> null
             }
         }
     }
     
-    class Connectivity(val masterPin: PinAffinityAndId,
-                       val connections: List<SimpleConnection>) : MessageFromController() {
+    class Connectivity(byteIterator: Iterator<Byte>) : MessageFromController() {
         companion object {
             const val SIZE_BYTES = 3
-            fun deserialize(bytes: List<Byte>): Connectivity {
-                val pin = PinAffinityAndId.deserialize(bytes.slice(0..1))
-                val number_of_connections = bytes.get(2)
-                
-                if (number_of_connections == 0.toByte()) return Connectivity(pin, emptyList<SimpleConnection>())
-                
-                val _connections = mutableListOf<SimpleConnection>()
-                
-                var startByte = 3
-                var endByte = startByte + SimpleConnection.SIZE_BYTES - 1
-                for (idx in 1..number_of_connections) {
-                    _connections.add(SimpleConnection.deserialize(bytes.slice(startByte..endByte)))
-                    
-                    startByte += SimpleConnection.SIZE_BYTES
-                    endByte += SimpleConnection.SIZE_BYTES
-                }
-                
-                return Connectivity(pin, _connections.toList())
+        }
+        
+        val masterPin: PinAffinityAndId
+        val connections: Array<SimpleConnection>
+        
+        init {
+            masterPin = PinAffinityAndId.deserialize(byteIterator)
+            val mutableSimpleConnections = mutableListOf<SimpleConnection>()
+            
+            while (byteIterator.hasNext()) {
+                mutableSimpleConnections.add(SimpleConnection.deserialize(byteIterator))
             }
+            
+            connections = mutableSimpleConnections.toTypedArray()
         }
         
         override fun toString(): String {
@@ -168,8 +173,8 @@ sealed class MessageFromController {
         lateinit var response: ControllerResponse
             private set
         
-        constructor(bytes: Collection<Byte>) : this() {
-            val byteValue = (bytes.toByteArray()).get(0)
+        constructor(iterator: Iterator<Byte>) : this() {
+            val byteValue = iterator.next()
             val enumConstant = ControllerResponse.values()
                 .find { enumVal -> enumVal.byteValue == byteValue }
             
@@ -181,23 +186,69 @@ sealed class MessageFromController {
         }
     }
     
-    class Boards() : MessageFromController() {
+    class Boards(byteIterator: Iterator<Byte>) : MessageFromController() {
+        class InternalParameters(byteIterator: Iterator<Byte>) {
+            companion object {
+                const val RAW_VOLTAGE_TO_REAL_COEFF = 1.toFloat() / 1000.toFloat()
+            }
+            
+            val outR1: CircuitParamT
+            val inR1: CircuitParamT
+            val outR2: CircuitParamT
+            val inR2: CircuitParamT
+            val shuntR: CircuitParamT
+            val outVLow: CircuitParamT
+            val outVHigh: CircuitParamT
+            
+            init {
+                outR1 = (UShort(byteIterator).toFloat())
+                inR1 = (UShort(byteIterator).toFloat())
+                outR2 = (UShort(byteIterator).toFloat())
+                inR2 = (UShort(byteIterator).toFloat())
+                shuntR = (UShort(byteIterator).toFloat())
+                outVLow = (UShort(byteIterator).toFloat() * RAW_VOLTAGE_TO_REAL_COEFF)
+                outVHigh = (UShort(byteIterator).toFloat() * RAW_VOLTAGE_TO_REAL_COEFF)
+            }
+        }
+        
+        class Info(byteIterator: Iterator<Byte>) {
+            val internals: InternalParameters
+            val address: Byte
+            val firmwareVersion: Byte
+            val voltageLevel: IoBoardsManager.VoltageLevel
+            val isHealthy: Boolean
+            
+            init {
+                internals = InternalParameters(byteIterator)
+                address = byteIterator.next()
+                firmwareVersion = byteIterator.next()
+                
+                val voltageLevelByteVal = byteIterator.next()
+                val vl = IoBoardsManager.VoltageLevel.values()
+                    .find { e ->
+                        e.byteValue == voltageLevelByteVal
+                    }
+                if (vl == null) {
+                    throw IllegalArgumentException("Board with address $address has forbidden voltage level value: $voltageLevelByteVal")
+                }
+                voltageLevel = vl
+                isHealthy = byteIterator.next() == 1.toByte()
+            }
+        }
+        
         companion object {
             private const val MAX_ADDRESS = 127.toByte()
         }
         
-        lateinit var boards: Array<BoardAddrT>
+        val boardsInfo: Array<Info>
         
-        constructor(bytes: Collection<Byte>) : this() {
-            if (bytes.isEmpty()) return
+        init {
+            val mutableBoardsInfo = mutableListOf<Info>()
+            while (byteIterator.hasNext()) {
+                mutableBoardsInfo.add(Info(byteIterator))
+            }
             
-            val new_boards = mutableListOf<BoardAddrT>()
-            new_boards.addAll(bytes.map { byte ->
-                if (byte > MAX_ADDRESS) throw IllegalArgumentException("Board address is higher than $MAX_ADDRESS : $byte")
-                
-                byte.toInt()
-            })
-            boards = new_boards.toTypedArray()
+            boardsInfo = mutableBoardsInfo.toTypedArray()
         }
     }
     
@@ -236,6 +287,8 @@ sealed class MessageFromController {
             boardsVoltages = _boardsVoltages.toTypedArray()
         }
     }
+    
+    
 }
 
 fun Int.toByteArray(): ByteArray {
@@ -247,4 +300,12 @@ fun Int.toByteArray(): ByteArray {
     }
     
     return byteArray
+}
+
+fun UShort(iterator: Iterator<Byte>): UShort {
+    return iterator.next()
+        .toUByte()
+        .toUShort() or (iterator.next()
+        .toUByte()
+        .toInt() shl 8).toUShort()
 }

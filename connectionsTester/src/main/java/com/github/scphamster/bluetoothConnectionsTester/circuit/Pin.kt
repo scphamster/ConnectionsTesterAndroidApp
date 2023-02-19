@@ -10,7 +10,7 @@ interface PinIdentifier {
     public val pinAffinityAndId: PinAffinityAndId
 }
 
-data class PinAffinityAndId(val boardId: BoardAddrT, val idxOnBoard: PinNumT) : PinIdentifier {
+data class PinAffinityAndId(val boardId: BoardAddrT, val pinID: PinNumT) : PinIdentifier {
     companion object {
         const val MIN_BOARD_ID = 1
         const val MAX_BOARD_ID = 127
@@ -18,13 +18,9 @@ data class PinAffinityAndId(val boardId: BoardAddrT, val idxOnBoard: PinNumT) : 
         const val MAX_IDX_ON_BOARD = 31
         const val SIZE_BYTES = 2
 
-        fun deserialize(bytes: List<Byte>): PinAffinityAndId {
-            if (bytes.size != SIZE_BYTES)
-                throw (IllegalArgumentException(
-                    "supplied number of bytes: ${bytes.size} is not conformant with needed size: $SIZE_BYTES"))
-
-            val board = bytes.get(0).toInt()
-            val id = bytes.get(1).toInt()
+        fun deserialize(byteIterator: Iterator<Byte>): PinAffinityAndId {
+            val board = byteIterator.next().toInt()
+            val id = byteIterator.next().toInt()
 
             if ((board < MIN_BOARD_ID) || (board > MAX_BOARD_ID))
                 throw (IllegalArgumentException("board number($board) is out of range!"))
@@ -37,11 +33,11 @@ data class PinAffinityAndId(val boardId: BoardAddrT, val idxOnBoard: PinNumT) : 
     }
 
     override fun getPrettyName(): String {
-        return "$boardId:$idxOnBoard"
+        return "$boardId:$pinID"
     }
 
     override val pinAffinityAndId: PinAffinityAndId
-        get() = PinAffinityAndId(boardId, idxOnBoard)
+        get() = PinAffinityAndId(boardId, pinID)
 }
 
 data class PinDescriptor(val affinityAndId: PinAffinityAndId,
@@ -64,7 +60,7 @@ data class PinDescriptor(val affinityAndId: PinAffinityAndId,
             string_builder.append(name)
         }
         else {
-            string_builder.append(affinityAndId.idxOnBoard.toString())
+            string_builder.append(affinityAndId.pinID.toString())
         }
 
         return string_builder.toString()
@@ -86,8 +82,8 @@ data class PinDescriptor(val affinityAndId: PinAffinityAndId,
                                                      30, 28, 26, 24, 17, 19, 21, 23, 14, 12, 10, 8, 1, 3, 5, 7)
     }
 
-    fun getLogicalPinNumber(): Int? {
-        val harness_id = affinityAndId.idxOnBoard
+    fun getOnBoardPinNum(): Int? {
+        val harness_id = affinityAndId.pinID
         if (harness_id >= IoBoard.pinsCountOnSingleBoard) return null
         return harnessToLogicalPinMap.get(harness_id)
     }

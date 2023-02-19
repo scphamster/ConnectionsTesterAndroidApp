@@ -142,7 +142,7 @@ class DeviceControlActivity : AppCompatActivity() {
             }
 
             Log.e(Tag, """Pin ${pin_to_update.descriptor.affinityAndId.boardId}:
-                      |${pin_to_update.descriptor.affinityAndId.idxOnBoard} 
+                      |${pin_to_update.descriptor.affinityAndId.pinID}
                       |is not found in stored pins list!""".trimMargin())
         }
 

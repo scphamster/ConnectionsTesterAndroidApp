@@ -1,8 +1,10 @@
 package com.github.scphamster.bluetoothConnectionsTester.circuit
 
+import com.github.scphamster.bluetoothConnectionsTester.device.ControllerManagerI
 import com.github.scphamster.bluetoothConnectionsTester.device.IoBoardsManager
 import com.github.scphamster.bluetoothConnectionsTester.device.getAllFloats
 import com.github.scphamster.bluetoothConnectionsTester.device.getAllIntegers
+import java.lang.ref.WeakReference
 import kotlin.math.absoluteValue
 import kotlin.math.ln
 import kotlin.math.floor
@@ -67,10 +69,10 @@ interface ElectricalValue {
 }
 
 data class Resistance(override val value: CircuitParamT, override val precision: Int = 2) : ElectricalValue {
-    val sign = "\u03A9"
+    val bigOmegaSymbol = "\u03A9"
     
     override fun toString(): String {
-        return "${toValueWithMultiplier()}$sign"
+        return "${toValueWithMultiplier()}$bigOmegaSymbol"
     }
 }
 
@@ -86,17 +88,16 @@ data class SimpleConnection(val toPin: PinAffinityAndId, val voltage: RawVoltage
     companion object {
         const val SIZE_BYTES = PinAffinityAndId.SIZE_BYTES + RawVoltageADCValue.SIZE_BYTES
         
-        fun deserialize(bytes: List<Byte>): SimpleConnection {
-            if (bytes.size != SIZE_BYTES) throw (IllegalArgumentException("number of bytes supplied is not conformant with expected: Supplied ${bytes.size}, expected $SIZE_BYTES"))
-            
-            val pin = PinAffinityAndId.deserialize(bytes.slice(0..PinAffinityAndId.SIZE_BYTES - 1))
-            val v =
-                RawVoltageADCValue.deserialize(bytes.slice(PinAffinityAndId.SIZE_BYTES..(PinAffinityAndId.SIZE_BYTES + RawVoltageADCValue.SIZE_BYTES - 1)))
+        fun deserialize(iterator: Iterator<Byte>): SimpleConnection {
+            val pin = PinAffinityAndId.deserialize(iterator)
+            val v = RawVoltageADCValue.deserialize(iterator)
             
             return SimpleConnection(pin, v)
         }
     }
 }
+
+data class SimpleConnectivityDescription(val masterPin: PinAffinityAndId, val connections: Array<SimpleConnection>)
 
 class Connection(val toPin: PinIdentifier,
                  val voltage: Voltage? = null,
@@ -148,7 +149,8 @@ data class IoBoardInternalParameters(
 data class IoBoard(val id: BoardAddrT,
                    val pins: MutableList<Pin> = mutableListOf(),
                    var internalParams: IoBoardInternalParameters? = null,
-                   var voltageLevel: IoBoardsManager.VoltageLevel = IoBoardsManager.VoltageLevel.Low) {
+                   var voltageLevel: IoBoardsManager.VoltageLevel = IoBoardsManager.VoltageLevel.Low,
+                   val belongsToController: WeakReference<ControllerManagerI> = WeakReference(null)) {
     companion object {
         const val pinsCountOnSingleBoard = 32
     }

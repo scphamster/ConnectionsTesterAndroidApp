@@ -22,22 +22,26 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
     companion object {
         private const val Tag = "ControlViewModel"
     }
-    private var isInitialized: Boolean
+    
     val errorHandler = ErrorHandler(app)
-    private val controllersManager = Director(app, viewModelScope, errorHandler)
-    private val bluetooth: BluetoothBridge
     val measurementsHandler: MeasurementsHandler
     val controllerIsNotConfigured: Boolean
         get() {
             return measurementsHandler.boardsManager.boards.value?.isEmpty() ?: true
         }
+    
     var maxDetectableResistance: Float = 0f
-    private val logger by lazy { ToFileLogger(app) }
+    
+    private val controllersManager = Director(app, viewModelScope, errorHandler)
+    private val bluetooth: BluetoothBridge
+//    private val logger by lazy { ToFileLogger(app) }
+
+    private var isInitialized: Boolean
 
     init {
         isInitialized = false
         bluetooth = BluetoothBridge(errorHandler)
-        measurementsHandler = MeasurementsHandler(errorHandler, bluetooth, app, viewModelScope)
+        measurementsHandler = MeasurementsHandler(errorHandler, bluetooth, app, viewModelScope, controllersManager)
     }
 
     fun setupViewModel(deviceName: String, mac: String?): Boolean {
@@ -166,7 +170,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
         }
         
         measurementsHandler.commander.sendCommand(Commands.CheckConnectivity(answer_domain, sequential = if_sequential))
-        logger.LogI("Model", "Check command sent")
+//        logger.LogI("Model", "Check command sent")
     }
 
     fun checkConnections(for_pin: Pin) {

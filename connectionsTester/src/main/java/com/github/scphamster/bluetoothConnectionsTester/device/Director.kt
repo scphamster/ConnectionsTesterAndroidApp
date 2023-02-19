@@ -2,8 +2,8 @@ package com.github.scphamster.bluetoothConnectionsTester.device
 
 import android.util.Log
 import android.app.Application
-import android.view.KeyEvent.DispatcherState
 import androidx.preference.PreferenceManager
+import com.github.scphamster.bluetoothConnectionsTester.circuit.IoBoard
 import com.github.scphamster.bluetoothConnectionsTester.dataLink.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -15,7 +15,7 @@ class Director(val app: Application, val scope: CoroutineScope, val errorHandler
     companion object {
         private const val Tag = "Director"
         private const val CHANNEL_SIZE = 10
-        private const val WAIT_FOR_NEW_SOCKETS_TIMEOUT = 10_000
+        private const val WAIT_FOR_NEW_SOCKETS_TIMEOUT = 4_000
         private const val STANDARD_ENTRY_SOCKET = 1500
     }
     
@@ -106,8 +106,16 @@ class Director(val app: Application, val scope: CoroutineScope, val errorHandler
             }
     }
     
+    val controllers = CopyOnWriteArrayList<ControllerManager>()
+    val isReady: Boolean
+        get() = controllersNumberHasSettled.get()
+    
     var machineState = MachineState.SearchingControllers
-    var voltageLevel = IoBoardsManager.VoltageLevel.Low
+    
+    private val newDeviceLinksChannel = Channel<DeviceLink>(CHANNEL_SIZE)
+    private val newSocketRegistator = NewSocketRegistator(newDeviceLinksChannel)
+    private val controllersNumberHasSettled: AtomicBoolean = AtomicBoolean(false)
+    private var voltageLevel = IoBoardsManager.VoltageLevel.Low
         private set(newVal) {
             synchronized(this) {
                 field = newVal
@@ -120,21 +128,28 @@ class Director(val app: Application, val scope: CoroutineScope, val errorHandler
             return value
         }
     
-    val isReady: Boolean
-        get() = controllersNumberHasSettled.get()
-    val newDeviceLinksChannel = Channel<DeviceLink>(CHANNEL_SIZE)
-    val controllersNumber: Int
-        get() = controllers.size
-    
-    private val controllers = CopyOnWriteArrayList<ControllerManager>()
-    private val deviceLinks = mutableListOf<DeviceLink>()
-    private val newSocketRegistator = NewSocketRegistator(newDeviceLinksChannel)
-    private val controllersNumberHasSettled: AtomicBoolean = AtomicBoolean(false)
-    
     init {
         scope.launch(Dispatchers.Default) {
             receiveNewDataLinksTask()
         }
+    }
+    
+    suspend fun getAllBoards() = withContext<Array<IoBoard>>(Dispatchers.Default) {
+        val mutableListOfBoards = mutableListOf<IoBoard>()
+        
+        val deferreds = controllers.map { c -> async { c.getBoards() } }
+        
+        val boardsArrays = try {
+            deferreds.awaitAll()
+        }
+        catch (e: Exception) {
+            Log.e(Tag, "get all boards command failed with exception: ${e.message}")
+            return@withContext emptyArray<IoBoard>()
+        }
+        
+        return@withContext boardsArrays.filterNot { it.isEmpty() }
+            .flatMap { it.toList() }
+            .toTypedArray()
     }
     
     suspend fun setVoltageLevelAccordingToPreferences() = withContext(Dispatchers.Default) {
@@ -170,6 +185,7 @@ class Director(val app: Application, val scope: CoroutineScope, val errorHandler
                 if (isActive) {
                     controllersNumberHasSettled.set(true)
                     Log.d(Tag, "Before initialization all ctles. Ctls count: ${controllers.size}")
+                    machineState = MachineState.InitializingControllers
                     initAllControllersAsync()
                 }
             }
@@ -188,10 +204,8 @@ class Director(val app: Application, val scope: CoroutineScope, val errorHandler
             }
             
             Log.d(Tag, "New socket arrived!")
-            deviceLinks.add(new_link)
             controllers.add(ControllerManager(new_link))
             
-            //start new controller
             launch {
                 startNewController(controllers.last())
             }
@@ -202,7 +216,8 @@ class Director(val app: Application, val scope: CoroutineScope, val errorHandler
     
     suspend fun startNewController(newController: ControllerManagerI) = withContext(Dispatchers.Default) {
         try {
-            newController.startSocket().await()
+            newController.startSocket()
+                .await()
         }
         catch (e: Exception) {
             val socketPort = newController.dataLink.id

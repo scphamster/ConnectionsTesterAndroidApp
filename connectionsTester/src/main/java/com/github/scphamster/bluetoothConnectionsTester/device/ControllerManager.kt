@@ -1,14 +1,17 @@
 package com.github.scphamster.bluetoothConnectionsTester.device
 
-import android.os.Message
 import android.util.Log
 import com.github.scphamster.bluetoothConnectionsTester.circuit.IoBoard
+import com.github.scphamster.bluetoothConnectionsTester.circuit.IoBoardInternalParameters
 import com.github.scphamster.bluetoothConnectionsTester.circuit.SingleBoardVoltages
 import com.github.scphamster.bluetoothConnectionsTester.dataLink.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.lang.ref.WeakReference
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicBoolean
 
 class ControllerManager(override val dataLink: DeviceLink) : ControllerManagerI,
                                                              CoroutineScope by CoroutineScope(Dispatchers.Default) {
@@ -18,52 +21,26 @@ class ControllerManager(override val dataLink: DeviceLink) : ControllerManagerI,
         private const val COMMAND_ACK_TIMEOUT_MS = 200
     }
     
-    var isReadyToOperate = false
-    var boards = emptyList<IoBoard>()
-        private set
+    //val id: Int //todo: implement
+    
+    val initialized = AtomicBoolean(false)
+    
+    val notReadyMtx = Mutex()
+    private var boards = CopyOnWriteArrayList<IoBoard>()
+    private var voltageLevel = IoBoardsManager.VoltageLevel.Low
+    
     private val Tag: String
-        get() = BaseTag + "${dataLink.id}"
+        get() = BaseTag + ":${dataLink.id}"
     private val inputDataCh = dataLink.inputDataChannel
     private val outputDataCh = dataLink.outputDataChannel
     private val inputMessagesChannel = Channel<MessageFromController>(MESSAGES_CHANNEL_SIZE)
     private val outputMessagesChannel = Channel<MasterToControllerMsg>(MESSAGES_CHANNEL_SIZE)
     private val mutex = Mutex()
-    private var voltageLevel = IoBoardsManager.VoltageLevel.Low
     
     init {
         launch { rawDataReceiverTask() }
         launch { inputMessagesHandlerTask() }
         launch { outputMessagesHandlerTask() } //        scope.launch { testTask() }
-    }
-    
-    fun initialize() = launch {
-        val response = getAllBoards().await();
-        
-        when (response) {
-            ControllerResponse.DeviceIsInitializing -> {
-                Log.d(Tag, "Controller is initializing answer obtained");
-                delay(2000);
-                
-                val response2 = getAllBoards().await();
-                when (response2) {
-                    ControllerResponse.CommandPerformanceSuccess -> Log.d(Tag,
-                                                                          "Successful command execution after retry");
-                    ControllerResponse.DeviceIsInitializing -> Log.e(Tag, "Device is still initializing after retry!");
-                    else -> Log.e(Tag, "Error obtaining all boards: ${response2.name}")
-                }
-            }
-            
-            ControllerResponse.CommandPerformanceSuccess -> {
-                isReadyToOperate = true;
-            }
-            
-            else -> Log.e(Tag, "Failed to obtain all boards: ${response.name}")
-        }
-        
-        launch {
-            Log.d(Tag, "Starting test task")
-            testTask()
-        }
     }
     
     fun cancelAllJobs() {
@@ -76,17 +53,8 @@ class ControllerManager(override val dataLink: DeviceLink) : ControllerManagerI,
         }
     }
     
-    protected fun finalize() {
-        try {
-            cancelAllJobs()
-        }
-        catch (e: Exception) {
-            Log.e(Tag, "Error in finalize method : ${e.message}")
-        }
-    }
-    
     fun measureAllVoltages() = async<SingleBoardVoltages?> {
-        if (!isReadyToOperate) {
+        if (!initialized.get()) {
             Log.e(Tag, "Sending commands before controller is ready is prohibited!")
             return@async null
         }
@@ -142,10 +110,92 @@ class ControllerManager(override val dataLink: DeviceLink) : ControllerManagerI,
         return@async null
     }
     
-    private fun testTask() = launch {
-        while (isActive) {
-            measureAllVoltages()
-            delay(1000)
+    //faster function to check connectivity if there is only one controller online
+    suspend fun checkConnectionsForLocalBoards(/* channel for results */) =
+        withContext(Dispatchers.Default) /* overall operation result */ {
+            outputMessagesChannel.send(FindAllConnections())
+            
+            val ack = checkAcknowledge().await()
+            
+            if (ack != ControllerResponse.CommandAcknowledge) {
+                Log.e(Tag, "No ack for find all connections command")
+                return@withContext
+            }
+            var pinCounter = 0
+            mutex.withLock {
+                repeat(boards.size * IoBoard.pinsCountOnSingleBoard) {
+                    val msg = try {
+                        withTimeout(FindAllConnections.SINGLE_PIN_RESULT_TIMEOUT_MS) {
+                            inputMessagesChannel.receiveCatching()
+                                .getOrNull()
+                        }
+                    }
+                    catch (e: TimeoutCancellationException) {
+                        Log.e(Tag, "Single pin results timeout!")
+                        return@withContext
+                    }
+                    catch (e: Exception) {
+                        Log.e(Tag,
+                              "Unexpected exception while waiting for single pin connectivity results: ${e.message}")
+                        return@withContext
+                    }
+                    
+                    if (msg == null) {
+                        Log.e(Tag, "Msg is null while getting connectivity info!")
+                        return@withContext
+                    }
+                    
+                    when (msg) {
+                        is MessageFromController.Connectivity -> {
+                            Log.d(Tag, "Connections for pin: ${msg.masterPin}")
+                        }
+                        
+                        is MessageFromController.OperationStatus -> {
+                            Log.e(Tag,
+                                  "Operation status message arrived while getting connectivity info: ${msg.response}")
+                            return@withContext
+                        }
+                        
+                        else -> {
+                            Log.e(Tag, "Unexpected message obtained while getting connectivity info")
+                            return@withContext
+                        }
+                    }
+                    
+                    pinCounter++
+                }
+                
+                Log.d(Tag, "All pins connectivity info arrived!")
+                
+            } //wait for all pins info
+        }
+    
+    suspend fun getBoards() = notReadyMtx.withLock<Array<IoBoard>> {
+        return boards.toTypedArray()
+    }
+    
+    override fun initialize() = launch {
+        val response = updateAvailableBoards().await();
+        
+        when (response) {
+            ControllerResponse.DeviceIsInitializing -> {
+                Log.d(Tag, "Controller is initializing answer obtained");
+                delay(2000);
+                
+                val response2 = updateAvailableBoards().await();
+                when (response2) {
+                    ControllerResponse.CommandPerformanceSuccess -> Log.d(Tag,
+                                                                          "Successful command execution after retry");
+                    ControllerResponse.DeviceIsInitializing -> Log.e(Tag, "Device is still initializing after retry!");
+                    else -> Log.e(Tag, "Error obtaining all boards: ${response2.name}")
+                }
+            }
+            
+            ControllerResponse.CommandPerformanceSuccess -> {
+                initialized.set(true);
+            }
+            
+            else -> Log.e(Tag, "Failed to obtain all boards: ${response.name}")
         }
     }
     
@@ -166,7 +216,7 @@ class ControllerManager(override val dataLink: DeviceLink) : ControllerManagerI,
         return@async checkCommandSuccess(300).await()
     }
     
-    override fun getAllBoards() = async<ControllerResponse> {
+    override fun updateAvailableBoards() = async<ControllerResponse> {
         launch {
             outputMessagesChannel.send(GetBoardsOnline())
         }
@@ -175,7 +225,7 @@ class ControllerManager(override val dataLink: DeviceLink) : ControllerManagerI,
         if (command_status != ControllerResponse.CommandAcknowledge) return@async command_status
         
         val newBoards = try {
-            withTimeout(2000) {
+            withTimeout(GetBoardsOnline.RESULT_TIMEOUT_MS) {
                 inputMessagesChannel.receiveCatching()
             }
         }
@@ -193,9 +243,48 @@ class ControllerManager(override val dataLink: DeviceLink) : ControllerManagerI,
             return@async ControllerResponse.CommandPerformanceFailure
         }
         
-        boards = newBoards.boards.map { b -> IoBoard(b) }
+        if (addNewBoards(newBoards)) {
+            Log.d(Tag, "New boards obtained! Boards count :${boards.size}")
+            if (boards.size == 0) {
+                Log.e(Tag, "Controller without boards!")
+            }
+        }
         
         return@async ControllerResponse.CommandPerformanceSuccess
+    }
+    
+    protected fun finalize() {
+        try {
+            cancelAllJobs()
+        }
+        catch (e: Exception) {
+            Log.e(Tag, "Error in finalize method : ${e.message}")
+        }
+    }
+    
+    private suspend fun addNewBoards(newBoards: MessageFromController.Boards) = notReadyMtx.withLock {
+        boards.clear()
+        return@withLock boards.addAll(newBoards.boardsInfo.map { b ->
+            IoBoard(b.address.toInt(),
+                    internalParams = IoBoardInternalParameters(b.internals.inR1,
+                                                               b.internals.outR1,
+                                                               b.internals.inR2,
+                                                               b.internals.outR2,
+                                                               b.internals.shuntR,
+                                                               b.internals.outVLow,
+                                                               b.internals.outVHigh
+            
+                    ),
+                    voltageLevel = b.voltageLevel,
+                    belongsToController = WeakReference(this))
+        })
+    }
+    
+    private fun testTask() = launch {
+        while (isActive) {
+            measureAllVoltages()
+            delay(1000)
+        }
     }
     
     private fun checkAcknowledge() = async<ControllerResponse> {
@@ -208,7 +297,7 @@ class ControllerManager(override val dataLink: DeviceLink) : ControllerManagerI,
                     }
                     
                     if (msg == null) {
-                        Log.e(Tag, "MSG is null, waiting for response on setVoltageLevel");
+                        Log.e(Tag, "Was waiting for acknowledge but got NULL msg!");
                         return@async ControllerResponse.CommunicationFailure
                     }
                     else {
@@ -291,7 +380,7 @@ class ControllerManager(override val dataLink: DeviceLink) : ControllerManagerI,
             }
             
             val msg = try {
-                MessageFromController.deserialize(bytes.toList())
+                MessageFromController.deserialize(bytes.iterator())
             }
             catch (e: Exception) {
                 Log.e(Tag, "Error while creating fromControllerMessage: ${e.message}")
