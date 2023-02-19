@@ -19,8 +19,8 @@ data class PinAffinityAndId(val boardId: BoardAddrT, val pinID: PinNumT) : PinId
         const val SIZE_BYTES = 2
 
         fun deserialize(byteIterator: Iterator<Byte>): PinAffinityAndId {
-            val board = byteIterator.next().toInt()
-            val id = byteIterator.next().toInt()
+            val board = byteIterator.next().toUByte().toInt()
+            val id = byteIterator.next().toUByte().toInt()
 
             if ((board < MIN_BOARD_ID) || (board > MAX_BOARD_ID))
                 throw (IllegalArgumentException("board number($board) is out of range!"))
@@ -28,7 +28,7 @@ data class PinAffinityAndId(val boardId: BoardAddrT, val pinID: PinNumT) : PinId
             if ((id < MIN_IDX_ON_BOARD) || (id > MAX_IDX_ON_BOARD))
                 throw (IllegalArgumentException("idx($id) is out of range!"))
 
-            return PinAffinityAndId(board.toInt(), id.toInt())
+            return PinAffinityAndId(board, id)
         }
     }
 

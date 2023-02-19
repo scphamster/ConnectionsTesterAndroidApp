@@ -107,6 +107,7 @@ final class FindAllConnections : MasterToControllerMsg {
     companion object {
         const val SINGLE_PIN_RESULT_TIMEOUT_MS = 400.toLong()
     }
+    
     override fun serialize(): Collection<Byte> {
         return arrayListOf(msg_id)
     }
@@ -287,8 +288,6 @@ sealed class MessageFromController {
             boardsVoltages = _boardsVoltages.toTypedArray()
         }
     }
-    
-    
 }
 
 fun Int.toByteArray(): ByteArray {
@@ -308,4 +307,19 @@ fun UShort(iterator: Iterator<Byte>): UShort {
         .toUShort() or (iterator.next()
         .toUByte()
         .toInt() shl 8).toUShort()
+}
+
+fun Int(iterator: Iterator<Byte>): Int {
+    return iterator.next()
+        .toUByte()
+        .toInt() or iterator.next()
+        .toUByte()
+        .toInt()
+        .shl(8) or iterator.next()
+        .toUByte()
+        .toInt()
+        .shl(8) or iterator.next()
+        .toUByte()
+        .toInt()
+        .shl(8)
 }

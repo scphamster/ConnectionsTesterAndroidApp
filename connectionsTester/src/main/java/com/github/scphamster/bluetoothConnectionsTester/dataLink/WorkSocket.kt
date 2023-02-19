@@ -1,6 +1,8 @@
 package com.github.scphamster.bluetoothConnectionsTester.dataLink
 
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import com.github.scphamster.bluetoothConnectionsTester.circuit.BoardAddrT
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -66,20 +68,38 @@ class WorkSocket : DeviceLink {
         }
     }
     
+    private fun readN(len: Int): Pair<Array<Byte>, Boolean> {
+        val buffer = ByteArray(len)
+        var obtained = 0
+        while (obtained < len) {
+            val nowObtained = inStream.read(buffer, obtained, len - obtained)
+            if (nowObtained < 0) break;
+            
+            obtained+=nowObtained
+        }
+        
+        return Pair(buffer.toTypedArray(), obtained == len)
+    }
+    
     private suspend fun inputChannelTask() = withContext(Dispatchers.IO) {
         while (isActive) {
-            while (inStream.available() == 0) continue
-            
-            val buffer = ByteArray(inStream.available() + 64)
-            val bytesReceived = inStream.read(buffer)
-            val data = buffer.slice(0..(bytesReceived - 1))
-            Log.d("$Tag:ICT", "New data arrived, size: ${data.size}")
-            
-            for ((index, byte) in data.withIndex()) {
-                Log.d("$Tag:ICT", "$index:$byte")
+            val messageSizeBuffer = readN(Int.SIZE_BYTES)
+            if (messageSizeBuffer.second != true) {
+                Log.e(Tag, "Not obtained all requested bytes!")
+                continue
             }
             
-            inputDataChannel.send(data)
+            val messageSize = Int(messageSizeBuffer.first.iterator())
+            
+            val messageBuffer = readN(messageSize)
+            
+            if (!messageBuffer.second) {
+                Log.e(Tag, "Not full message was obtained!")
+                continue
+            }
+            Log.d("$Tag:ICT", "New data arrived, size: $messageSize")
+            
+            inputDataChannel.send(messageBuffer.first.toList())
         }
     }
     

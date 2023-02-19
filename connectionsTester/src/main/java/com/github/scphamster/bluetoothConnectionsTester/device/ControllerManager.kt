@@ -3,6 +3,7 @@ package com.github.scphamster.bluetoothConnectionsTester.device
 import android.util.Log
 import com.github.scphamster.bluetoothConnectionsTester.circuit.IoBoard
 import com.github.scphamster.bluetoothConnectionsTester.circuit.IoBoardInternalParameters
+import com.github.scphamster.bluetoothConnectionsTester.circuit.SimpleConnectivityDescription
 import com.github.scphamster.bluetoothConnectionsTester.circuit.SingleBoardVoltages
 import com.github.scphamster.bluetoothConnectionsTester.dataLink.*
 import kotlinx.coroutines.*
@@ -111,12 +112,12 @@ class ControllerManager(override val dataLink: DeviceLink) : ControllerManagerI,
     }
     
     //faster function to check connectivity if there is only one controller online
-    suspend fun checkConnectionsForLocalBoards(/* channel for results */) =
+    suspend fun checkConnectionsForLocalBoards(connectionsChannel: Channel<SimpleConnectivityDescription>) =
         withContext(Dispatchers.Default) /* overall operation result */ {
             outputMessagesChannel.send(FindAllConnections())
-            
+    
             val ack = checkAcknowledge().await()
-            
+    
             if (ack != ControllerResponse.CommandAcknowledge) {
                 Log.e(Tag, "No ack for find all connections command")
                 return@withContext
@@ -148,6 +149,8 @@ class ControllerManager(override val dataLink: DeviceLink) : ControllerManagerI,
                     when (msg) {
                         is MessageFromController.Connectivity -> {
                             Log.d(Tag, "Connections for pin: ${msg.masterPin}")
+                            
+                            connectionsChannel.send(SimpleConnectivityDescription(msg.masterPin, msg.connections))
                         }
                         
                         is MessageFromController.OperationStatus -> {
@@ -383,7 +386,10 @@ class ControllerManager(override val dataLink: DeviceLink) : ControllerManagerI,
                 MessageFromController.deserialize(bytes.iterator())
             }
             catch (e: Exception) {
-                Log.e(Tag, "Error while creating fromControllerMessage: ${e.message}")
+                Log.e("$Tag:RWRT", "Error while creating fromControllerMessage: ${e.message}")
+                for ((index, byte) in bytes.withIndex()) {
+                    Log.e("$Tag:RWRT", "$index:${byte.toUByte()}")
+                }
                 continue
             }
             
@@ -406,15 +412,13 @@ class ControllerManager(override val dataLink: DeviceLink) : ControllerManagerI,
             while (System.currentTimeMillis() < deadline) continue
             if (mutex.isLocked || inputMessagesChannel.isEmpty) continue
             
-            val result = inputMessagesChannel.receiveCatching()
-            Log.d("$Tag:IMHT", "Unhandled message arrived")
-            val msg = result.getOrNull()
+            val msg = inputMessagesChannel.receiveCatching().getOrNull()
             if (msg == null) {
-                Log.e("${Tag}:IMHT", "Message is null!")
+                Log.e("${Tag}:IMHT", "Unhandled message is null!")
                 continue
             }
             
-            Log.d("$Tag:IMHT", "New message arrived!")
+            Log.d("$Tag:IMHT", "New unhandled message arrived!")
         }
     }
     

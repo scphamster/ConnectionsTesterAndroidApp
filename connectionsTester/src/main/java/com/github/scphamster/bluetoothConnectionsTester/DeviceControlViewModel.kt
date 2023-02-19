@@ -33,64 +33,62 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
     var maxDetectableResistance: Float = 0f
     
     private val controllersManager = Director(app, viewModelScope, errorHandler)
-    private val bluetooth: BluetoothBridge
-//    private val logger by lazy { ToFileLogger(app) }
-
+    private val bluetooth: BluetoothBridge //    private val logger by lazy { ToFileLogger(app) }
+    
     private var isInitialized: Boolean
-
+    
     init {
         isInitialized = false
         bluetooth = BluetoothBridge(errorHandler)
         measurementsHandler = MeasurementsHandler(errorHandler, bluetooth, app, viewModelScope, controllersManager)
     }
-
+    
     fun setupViewModel(deviceName: String, mac: String?): Boolean {
         if (!isInitialized) {
             bluetooth.deviceName = deviceName
             bluetooth.mac = mac
             bluetooth.connect()
-
+            
             getPinoutConfigFile()
             setupVoltageLevel()
-
+            
             isInitialized = true
         }
         return true
     }
-
+    
     fun setupVoltageLevel() {
-        val selected_voltage_level = PreferenceManager
-            .getDefaultSharedPreferences(app)
+        val selected_voltage_level = PreferenceManager.getDefaultSharedPreferences(app)
             .getString("output_voltage_level", "")
         val voltage_level = when (selected_voltage_level) {
             "Low(0.7V)" -> Commands.SetOutputVoltageLevel.VoltageLevel.Low
             "High(1.0V)" -> Commands.SetOutputVoltageLevel.VoltageLevel.High
             else -> Commands.SetOutputVoltageLevel.VoltageLevel.Low
         }
-
+        
         when (voltage_level) {
             Commands.SetOutputVoltageLevel.VoltageLevel.Low -> measurementsHandler.boardsManager.setOutputVoltageLevelForBoards(
                 IoBoardsManager.VoltageLevel.Low)
-
+            
             Commands.SetOutputVoltageLevel.VoltageLevel.High -> measurementsHandler.boardsManager.setOutputVoltageLevelForBoards(
                 IoBoardsManager.VoltageLevel.High)
         }
-
+        
         measurementsHandler.commander.sendCommand(Commands.SetOutputVoltageLevel(voltage_level))
     }
-
+    
     fun getPinoutConfigFile() {
         viewModelScope.launch {
             val workbook = viewModelScope.async {
                 Storage.getWorkBookFromFile(app)
             }
-
+            
             try {
                 val workbook_instance = workbook.await()
                 Log.d(Tag, "Workbook obtained, Not null? : ${workbook != null}")
-
+                
                 measurementsHandler.boardsManager.pinoutInterpreter.document = workbook_instance
-
+                
                 toast("Pinout descriptor found")
                 measurementsHandler.boardsManager.fetchPinsInfoFromExcelToPins()
             }
@@ -102,13 +100,13 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             }
         }
     }
-
+    
     fun storeMeasurementsToFile() = viewModelScope.launch {
         val job = viewModelScope.async(Dispatchers.Default) {
             measurementsHandler.resultsSaver.storeMeasurements(maxDetectableResistance)
             measurementsHandler.resultsSaver.storeExpectedToMeasuredDifferences(maxDetectableResistance)
         }
-
+        
         try {
             job.join()
             toast("Successfully stored results to file!")
@@ -120,7 +118,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             errorHandler.handleError(e.message)
         }
     }
-
+    
     fun reconnectToController() {
         if (isInitialized) {
             bluetooth.connect()
@@ -130,17 +128,17 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             toast("Error")
         }
     }
-
+    
     fun initializeHardware() {
         viewModelScope.launch(Dispatchers.IO) {
             measurementsHandler.commander.sendCommand(ControllerResponseInterpreter.Commands.CheckHardware())
-
+            
             delay(1000)
-
+            
             setupVoltageLevel()
         }
     }
-
+    
     fun calibrate() {
         viewModelScope.launch {
             measurementsHandler.calibrate { result_message ->
@@ -148,19 +146,17 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
                     toast(result_message)
                 }
             }
-
+            
         }
     }
-
+    
     fun checkConnections() {
-        val if_sequential = PreferenceManager
-            .getDefaultSharedPreferences(app)
+        val if_sequential = PreferenceManager.getDefaultSharedPreferences(app)
             .getBoolean(PreferencesFragment.Companion.SharedPreferenceKey.SequentialModeScan.text, false)
-
-        val domain = PreferenceManager
-            .getDefaultSharedPreferences(app)
+        
+        val domain = PreferenceManager.getDefaultSharedPreferences(app)
             .getString("connection_domain", "");
-
+        
         val answer_domain = when (domain) {
             "Raw" -> Commands.CheckConnectivity.AnswerDomain.Raw
             "Voltage" -> Commands.CheckConnectivity.AnswerDomain.Voltage
@@ -169,19 +165,19 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             else -> Commands.CheckConnectivity.AnswerDomain.Raw
         }
         
-        measurementsHandler.commander.sendCommand(Commands.CheckConnectivity(answer_domain, sequential = if_sequential))
-//        logger.LogI("Model", "Check command sent")
+        //        measurementsHandler.commander.sendCommand(Commands.CheckConnectivity(answer_domain, sequential = if_sequential))
+        viewModelScope.launch {
+            controllersManager.checkAllConnections(measurementsHandler.boardsManager.pinConnectivityResultsCh)
+        }
     }
-
+    
     fun checkConnections(for_pin: Pin) {
-        val if_sequential = PreferenceManager
-            .getDefaultSharedPreferences(app)
+        val if_sequential = PreferenceManager.getDefaultSharedPreferences(app)
             .getBoolean(PreferencesFragment.Companion.SharedPreferenceKey.SequentialModeScan.text, false)
-
-        val domain = PreferenceManager
-            .getDefaultSharedPreferences(app)
+        
+        val domain = PreferenceManager.getDefaultSharedPreferences(app)
             .getString("connection_domain", "");
-
+        
         val answer_domain = when (domain) {
             "Raw" -> Commands.CheckConnectivity.AnswerDomain.Raw
             "Voltage" -> Commands.CheckConnectivity.AnswerDomain.Voltage
@@ -189,34 +185,34 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             "SimpleBoolean" -> Commands.CheckConnectivity.AnswerDomain.SimpleConnectionFlag
             else -> Commands.CheckConnectivity.AnswerDomain.Raw
         }
-
-        measurementsHandler.commander.sendCommand(
-            Commands.CheckConnectivity(answer_domain, for_pin.descriptor.pinAffinityAndId, if_sequential))
+        
+        measurementsHandler.commander.sendCommand(Commands.CheckConnectivity(answer_domain,
+                                                                             for_pin.descriptor.pinAffinityAndId,
+                                                                             if_sequential))
     }
-
+    
     fun setMinimumResistanceToBeRecognizedAsConnection(value_as_text: String) {
         val resistance = value_as_text.toResistance()
-
+        
         resistance?.let {
             maxDetectableResistance = resistance.value
             measurementsHandler.boardsManager.maxResistanceAsConnection = maxDetectableResistance
         }
     }
-
+    
     fun disconnect() {
         bluetooth.disconnect()
     }
-
+    
     fun refreshHardware() {
         measurementsHandler.commander.sendCommand(Commands.CheckHardware())
     }
-
+    
     fun startServer() {
     }
-
+    
     private fun toast(msg: String?) {
-        Toast
-            .makeText(app, msg, Toast.LENGTH_LONG)
+        Toast.makeText(app, msg, Toast.LENGTH_LONG)
             .show()
     }
 }

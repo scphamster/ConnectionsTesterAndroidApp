@@ -4,6 +4,7 @@ import android.util.Log
 import android.app.Application
 import androidx.preference.PreferenceManager
 import com.github.scphamster.bluetoothConnectionsTester.circuit.IoBoard
+import com.github.scphamster.bluetoothConnectionsTester.circuit.SimpleConnectivityDescription
 import com.github.scphamster.bluetoothConnectionsTester.dataLink.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -131,6 +132,15 @@ class Director(val app: Application, val scope: CoroutineScope, val errorHandler
     init {
         scope.launch(Dispatchers.Default) {
             receiveNewDataLinksTask()
+        }
+    }
+    
+    suspend fun checkAllConnections(connectionsChannel: Channel<SimpleConnectivityDescription>) = withContext(Dispatchers.IO) {
+        if (controllers.size == 1) {
+            controllers.get(0).checkConnectionsForLocalBoards(connectionsChannel)
+        }
+        else {
+            Log.e(Tag, "Unimplemented check all connections with many controllers used!")
         }
     }
     

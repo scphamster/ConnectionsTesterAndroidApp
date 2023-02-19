@@ -10,7 +10,7 @@ data class RawVoltageADCValue(val value: Short) {
         const val MAX_VAL = 200
 
         fun deserialize(bytes: Iterator<Byte>): RawVoltageADCValue {
-            val v = bytes.next().toInt()
+            val v = bytes.next().toUByte().toInt()
             if ((v < MIN_VAL) || (v > MAX_VAL)) {
                 throw(IllegalArgumentException("Supplied value is $v, and is out of acceptable range of values"))
             }
