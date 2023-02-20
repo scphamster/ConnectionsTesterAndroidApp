@@ -237,12 +237,14 @@ class ControllerManager(override val dataLink: DeviceLink) : ControllerManagerI,
             Log.e(Tag, "New boards are null!")
             return@async ControllerResponse.CommandPerformanceFailure
         }
+     
+        if (newBoards.boardsInfo.size == 0){
+            Log.e(Tag, "Controller without boards!")
+            return@async ControllerResponse.DeviceIsInitializing
+        }
         
         if (addNewBoards(newBoards)) {
             Log.d(Tag, "New boards obtained! Boards count :${boards.size}")
-            if (boards.size == 0) {
-                Log.e(Tag, "Controller without boards!")
-            }
         }
         
         return@async ControllerResponse.CommandPerformanceSuccess

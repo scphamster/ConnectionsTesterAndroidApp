@@ -1,7 +1,7 @@
 package com.github.scphamster.bluetoothConnectionsTester.device
 
-import android.util.Log
 import android.app.Application
+import android.util.Log
 import androidx.preference.PreferenceManager
 import com.github.scphamster.bluetoothConnectionsTester.circuit.IoBoard
 import com.github.scphamster.bluetoothConnectionsTester.circuit.SimpleConnectivityDescription
@@ -21,7 +21,8 @@ class Director(val app: Application,
         private const val Tag = "Director"
         private const val CHANNEL_SIZE = 10
         private const val WAIT_FOR_NEW_SOCKETS_TIMEOUT = 4_000
-        private const val STANDARD_ENTRY_SOCKET = 1500
+        private const val STD_ENTRY_SOCKET_PORT = 1500
+        private const val STD_ENTRY_SOCKET_TIMEOUT_MS = 3000
     }
     
     enum class MachineState {
@@ -32,25 +33,41 @@ class Director(val app: Application,
     
     private inner class NewSocketRegistator(val socketChannel: Channel<DeviceLink>) {
         init {
-            scope.launch(Dispatchers.Default) {
-                while (isActive) {
-                    try {
-                        startEntrySocket()
-                    }
-                    catch (e: Exception) {
-                        Log.e(Tag, "Exception in entrySocketAsync task: ${e.message}")
-                    }
-                }
+            scope.launch {
+                startEntrySocket()
             }
         }
         
-        lateinit var serverSocket: ServerSocket
         var socket = Socket()
+        lateinit var serverSocket: ServerSocket
         
         suspend fun startEntrySocket() = withContext(Dispatchers.IO) {
+            val Tag = Tag + ":EntrySocket"
+            launch {
+                while (isActive) {
+                    Log.d("TestCoroutine", "is Active ${coroutineContext}")
+                    delay(1000)
+                }
+            }
             while (isActive) {
-                serverSocket = ServerSocket(STANDARD_ENTRY_SOCKET)
-                socket = serverSocket.accept()
+                try {
+                    serverSocket = ServerSocket(STD_ENTRY_SOCKET_PORT)
+                    serverSocket.soTimeout = STD_ENTRY_SOCKET_TIMEOUT_MS
+                    socket = serverSocket.accept()
+                }
+                catch (e: TimeoutCancellationException) {
+                    Log.d(Tag, "serverSocket timeout!")
+                    if (!serverSocket.isClosed) serverSocket.close()
+                    continue
+                }
+                catch (e: Exception) {
+                    Log.e(Tag, "Unexpected error in server socket! ${e.message}")
+                    if (!serverSocket.isClosed) serverSocket.close()
+                    delay(500)
+                    continue
+                }
+                
+                
                 Log.d(Tag, "Someone connected: ${socket.remoteSocketAddress}")
                 
                 val outputStream = socket.getOutputStream()
@@ -82,6 +99,8 @@ class Director(val app: Application,
                         }
                     }
                 }
+                
+                serverSocket.close()
             }
             
             serverSocket.close()

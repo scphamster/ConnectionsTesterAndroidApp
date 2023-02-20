@@ -200,7 +200,8 @@ class DeviceControlActivity : AppCompatActivity() {
 
         model.startServer()
     }
-
+    
+    
     private fun setupEntryViewState() {
         supportActionBar?.setCustomView(R.layout.ctl_actty_action_bar)
         supportActionBar?.setDisplayOptions(ActionBar.DISPLAY_SHOW_CUSTOM)

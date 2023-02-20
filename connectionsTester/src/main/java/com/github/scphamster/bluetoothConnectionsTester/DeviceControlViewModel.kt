@@ -43,6 +43,22 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
         measurementsHandler = MeasurementsHandler(errorHandler, bluetooth, app, viewModelScope)
         controllersManager =
             Director(app, viewModelScope, errorHandler, measurementsHandler.boardsManager.boardsArrayChannel)
+        
+//        viewModelScope.launch { testCoroutine() }
+    }
+    
+    override fun onCleared() {
+        Log.d(Tag, "Clearing ViewModel!")
+        viewModelScope.cancel("End of viewModelScope")
+        viewModelScope.coroutineContext.cancelChildren(CancellationException("End of viewModelScope"))
+        super.onCleared()
+    }
+    
+    suspend fun testCoroutine() = withContext(Dispatchers.IO) {
+        while (isActive) {
+            Log.d("TestCoroutine", "is active: ${coroutineContext}")
+            delay(1000)
+        }
     }
     
     fun setupViewModel(deviceName: String, mac: String?): Boolean {
