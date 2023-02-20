@@ -10,6 +10,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import java.net.ServerSocket
 import java.net.Socket
+import java.net.SocketTimeoutException
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -43,19 +44,14 @@ class Director(val app: Application,
         
         suspend fun startEntrySocket() = withContext(Dispatchers.IO) {
             val Tag = Tag + ":EntrySocket"
-            launch {
-                while (isActive) {
-                    Log.d("TestCoroutine", "is Active ${coroutineContext}")
-                    delay(1000)
-                }
-            }
+
             while (isActive) {
                 try {
                     serverSocket = ServerSocket(STD_ENTRY_SOCKET_PORT)
                     serverSocket.soTimeout = STD_ENTRY_SOCKET_TIMEOUT_MS
                     socket = serverSocket.accept()
                 }
-                catch (e: TimeoutCancellationException) {
+                catch (e: SocketTimeoutException) {
                     Log.d(Tag, "serverSocket timeout!")
                     if (!serverSocket.isClosed) serverSocket.close()
                     continue
