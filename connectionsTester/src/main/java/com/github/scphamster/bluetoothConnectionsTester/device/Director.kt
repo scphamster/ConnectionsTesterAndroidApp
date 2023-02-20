@@ -89,10 +89,6 @@ class Director(val app: Application,
                         is Msg.OperationConfirmation -> {
                             Log.d(Tag, "New socket: confirmation: ${msg.confirmationValue}")
                         }
-                        
-                        else -> {
-                            Log.e(Tag, "New socket: Expected operation confirmation but obtained other type!")
-                        }
                     }
                 }
                 

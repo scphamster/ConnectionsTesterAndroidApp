@@ -12,12 +12,14 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.net.ServerSocket
 import java.net.Socket
+import java.net.SocketTimeoutException
 
 class WorkSocket : DeviceLink {
     companion object {
         const val Tag = "WorkSocket"
         const val DEADLINE_MS = 1000
         private const val OUT_CHANNEL_SIZE = 10
+        private const val SOCKET_CONNECTION_TIMEOUT = 10_000
     }
     
     var boardAddr: BoardAddrT = -1
@@ -42,7 +44,20 @@ class WorkSocket : DeviceLink {
         
         Log.d(Tag, "New working socket: ${serverSocket.localPort}")
         
-        socket = serverSocket.accept()
+        socket.soTimeout = SOCKET_CONNECTION_TIMEOUT
+
+        try {
+            socket = serverSocket.accept()
+        }
+        catch(e: SocketTimeoutException) {
+            Log.e(Tag, "Socket timeout occurred! Timeout is ${SOCKET_CONNECTION_TIMEOUT}ms ${e.message}")
+        }
+        catch(e: Exception) {
+            Log.e(Tag, "Unexpected exception on socket accept! E: ${e.message}")
+        }
+        
+        socket.setPerformancePreferences(0, 10, 5)
+        
         outStream = socket.getOutputStream()
         inStream = socket.getInputStream()
         
