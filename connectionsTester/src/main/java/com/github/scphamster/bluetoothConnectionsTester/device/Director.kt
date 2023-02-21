@@ -44,7 +44,7 @@ class Director(val app: Application,
         
         suspend fun startEntrySocket() = withContext(Dispatchers.IO) {
             val Tag = Tag + ":EntrySocket"
-
+            
             while (isActive) {
                 try {
                     serverSocket = ServerSocket(STD_ENTRY_SOCKET_PORT)
@@ -150,7 +150,10 @@ class Director(val app: Application,
     
     suspend fun checkAllConnections(connectionsChannel: Channel<SimpleConnectivityDescription>) =
         withContext(Dispatchers.IO) {
-            if (controllers.size == 1) {
+            if (controllers.size == 0) {
+                Log.e(Tag, "There are no controllers to operate with!")
+            }
+            else if (controllers.size == 1) {
                 controllers.get(0)
                     .checkConnectionsForLocalBoards(connectionsChannel)
             }
@@ -230,7 +233,16 @@ class Director(val app: Application,
             }
             
             Log.d(Tag, "New socket arrived!")
-            controllers.add(ControllerManager(new_link))
+            controllers.add(ControllerManager(new_link) {
+                controllers.removeIf() {
+                    if (it.dataLink.hashCode() == new_link.hashCode()) {
+                        Log.e(Tag, "Controller is removed due to fatal error")
+                        it.cancelAllJobs()
+                        true
+                    }
+                    else false
+                }
+            })
             
             launch {
                 startNewController(controllers.last())

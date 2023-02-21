@@ -9,4 +9,5 @@ interface DeviceLink {
     abstract val id: Int
     
     abstract suspend fun start(): Unit
+    abstract fun stop()
 }

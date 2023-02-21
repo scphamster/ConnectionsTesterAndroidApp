@@ -37,32 +37,26 @@ class WorkSocket : DeviceLink {
     private val defaultDispatcher = Dispatchers.IO
     private val mutex = Mutex()
     
+    private lateinit var inputJob: Job
+    private lateinit var outputJob: Job
+    private lateinit var serverSocket: ServerSocket
+    
     override suspend fun start() = withContext<Unit>(Dispatchers.IO) {
         Log.d(Tag, "Starting new working socket")
-        val serverSocket = ServerSocket(0)
+        serverSocket = ServerSocket(0)
         port = serverSocket.localPort
         
         Log.d(Tag, "New working socket: ${serverSocket.localPort}")
         
-        socket.soTimeout = SOCKET_CONNECTION_TIMEOUT
-
-        try {
-            socket = serverSocket.accept()
-        }
-        catch(e: SocketTimeoutException) {
-            Log.e(Tag, "Socket timeout occurred! Timeout is ${SOCKET_CONNECTION_TIMEOUT}ms ${e.message}")
-        }
-        catch(e: Exception) {
-            Log.e(Tag, "Unexpected exception on socket accept! E: ${e.message}")
-        }
+        serverSocket.soTimeout = SOCKET_CONNECTION_TIMEOUT
         
+        socket = serverSocket.accept() //        }
+
         socket.setPerformancePreferences(0, 10, 5)
         
         outStream = socket.getOutputStream()
         inStream = socket.getInputStream()
         
-        var inputJob = Job() as Job
-        var outputJob = Job() as Job
         try {
             inputJob = launch {
                 inputChannelTask()
@@ -83,6 +77,12 @@ class WorkSocket : DeviceLink {
         }
     }
     
+    override fun stop() {
+        if (::inputJob.isInitialized) inputJob.cancel("Stop invoked")
+        if (::outputJob.isInitialized) outputJob.cancel("Stop invoked")
+        if(::serverSocket.isInitialized && !serverSocket.isClosed) serverSocket.close()
+    }
+    
     private fun readN(len: Int): Pair<Array<Byte>, Boolean> {
         val buffer = ByteArray(len)
         var obtained = 0
@@ -90,7 +90,7 @@ class WorkSocket : DeviceLink {
             val nowObtained = inStream.read(buffer, obtained, len - obtained)
             if (nowObtained < 0) break;
             
-            obtained+=nowObtained
+            obtained += nowObtained
         }
         
         return Pair(buffer.toTypedArray(), obtained == len)

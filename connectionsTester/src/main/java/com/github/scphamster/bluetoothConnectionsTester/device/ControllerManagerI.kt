@@ -12,4 +12,5 @@ interface ControllerManagerI {
     abstract fun setVoltageLevel(level: IoBoardsManager.VoltageLevel): Deferred<ControllerResponse>
     abstract fun updateAvailableBoards(): Deferred<ControllerResponse>
     abstract fun startSocket(): Deferred<Unit>
+    abstract fun stop()
 }

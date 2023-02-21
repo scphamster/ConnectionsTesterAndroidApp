@@ -14,8 +14,9 @@ import java.lang.ref.WeakReference
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 
-class ControllerManager(override val dataLink: DeviceLink) : ControllerManagerI,
-                                                             CoroutineScope by CoroutineScope(Dispatchers.Default) {
+class ControllerManager(override val dataLink: DeviceLink, val onFatalErrorCallback: () -> Unit) :
+    ControllerManagerI,
+    CoroutineScope by CoroutineScope(Dispatchers.Default) {
     companion object {
         private const val MESSAGES_CHANNEL_SIZE = 10
         private const val BaseTag = "ControllerManager"
@@ -47,6 +48,7 @@ class ControllerManager(override val dataLink: DeviceLink) : ControllerManagerI,
     fun cancelAllJobs() {
         try {
             Log.d(Tag, "Finalize method called!")
+            dataLink.stop()
             cancel("Object destructed")
         }
         catch (e: Exception) {
@@ -199,6 +201,10 @@ class ControllerManager(override val dataLink: DeviceLink) : ControllerManagerI,
         dataLink.start()
     }
     
+    override fun stop() {
+        cancelAllJobs()
+    }
+    
     override fun setVoltageLevel(level: IoBoardsManager.VoltageLevel): Deferred<ControllerResponse> = async {
         launch(Dispatchers.Default) {
             outputMessagesChannel.send(SetOutputVoltageLevel(level))
@@ -237,8 +243,8 @@ class ControllerManager(override val dataLink: DeviceLink) : ControllerManagerI,
             Log.e(Tag, "New boards are null!")
             return@async ControllerResponse.CommandPerformanceFailure
         }
-     
-        if (newBoards.boardsInfo.size == 0){
+        
+        if (newBoards.boardsInfo.size == 0) {
             Log.e(Tag, "Controller without boards!")
             return@async ControllerResponse.DeviceIsInitializing
         }
@@ -250,14 +256,14 @@ class ControllerManager(override val dataLink: DeviceLink) : ControllerManagerI,
         return@async ControllerResponse.CommandPerformanceSuccess
     }
     
-    protected fun finalize() {
-        try {
-            cancelAllJobs()
-        }
-        catch (e: Exception) {
-            Log.e(Tag, "Error in finalize method : ${e.message}")
-        }
-    }
+//    protected fun finalize() {
+//        try {
+//            cancelAllJobs()
+//        }
+//        catch (e: Exception) {
+//            Log.e(Tag, "Error in finalize method : ${e.message}")
+//        }
+//    }
     
     private suspend fun addNewBoards(newBoards: MessageFromController.Boards) = notReadyMtx.withLock {
         boards.clear()
