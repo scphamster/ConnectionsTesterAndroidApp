@@ -44,7 +44,6 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
         controllersManager =
             Director(app, viewModelScope, errorHandler, measurementsHandler.boardsManager.boardsArrayChannel)
         
-//        viewModelScope.launch { testCoroutine() }
     }
     
     override fun onCleared() {
@@ -224,9 +223,6 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
     
     fun refreshHardware() {
         measurementsHandler.commander.sendCommand(Commands.CheckHardware())
-    }
-    
-    fun startServer() {
     }
     
     private fun toast(msg: String?) {

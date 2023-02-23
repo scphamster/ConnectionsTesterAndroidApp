@@ -1,86 +1,130 @@
 package com.github.scphamster.bluetoothConnectionsTester.dataLink
 
-import android.os.Build
 import android.util.Log
-import androidx.annotation.RequiresApi
-import com.github.scphamster.bluetoothConnectionsTester.circuit.BoardAddrT
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.ServerSocket
 import java.net.Socket
-import java.net.SocketTimeoutException
+import java.util.concurrent.CancellationException
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
-class WorkSocket : DeviceLink {
+class WorkSocket(val keepAliveMessage: KeepAliveMessage? = null) : DeviceLink {
     companion object {
-        const val Tag = "WorkSocket"
-        const val DEADLINE_MS = 1000
-        private const val OUT_CHANNEL_SIZE = 10
+        private const val Tag = "WorkSocket"
         private const val SOCKET_CONNECTION_TIMEOUT = 10_000
+        private const val AUTOMATIC_SOCKET_NUMBER_FLAG = 0
+        private const val SOCKET_PERF_BANDWIDTH = 5
+        private const val SOCKET_PERF_LATENCY = 10
+        private const val SOCKET_PERF_CONNECTION_TIME = 0
     }
     
-    var boardAddr: BoardAddrT = -1
+    data class KeepAliveMessage(val message: Collection<Byte>, val sendPeriodMs: Int)
+    class SocketIsDeadException(val msg: String) : Exception(msg)
+    
     var port: Int = -1
     
+    val isAlive = AtomicBoolean(false)
+    override val isReady = AtomicBoolean(false)
     override val id: Int
         get() = port
-    override val outputDataChannel = Channel<Collection<Byte>>(OUT_CHANNEL_SIZE)
-    override val inputDataChannel = Channel<Collection<Byte>>(OUT_CHANNEL_SIZE)
+    override val outputDataChannel = Channel<Collection<Byte>>(Channel.UNLIMITED)
+    override val inputDataChannel = Channel<Collection<Byte>>(Channel.UNLIMITED)
     
+    private val lastSendOperationTimeMs = AtomicLong(0)
+    private val lastReadOperationTimeMs = AtomicLong(0)
+    private val Tag: String
+        get() = Companion.Tag + "$port"
+    
+    lateinit private var serverSocket: ServerSocket
+    lateinit private var socket: Socket
     lateinit private var outStream: OutputStream
     lateinit private var inStream: InputStream
-    lateinit private var socket: Socket
+    lateinit private var inputJob: Deferred<Unit>
+    lateinit private var outputJob: Deferred<Unit>
     
-    private val defaultDispatcher = Dispatchers.IO
-    private val mutex = Mutex()
-    
-    private lateinit var inputJob: Job
-    private lateinit var outputJob: Job
-    private lateinit var serverSocket: ServerSocket
-    
-    override suspend fun start() = withContext<Unit>(Dispatchers.IO) {
+    override suspend fun run() = withContext<Unit>(Dispatchers.IO) {
+        val Tag = Tag + ":MAIN"
+        
         Log.d(Tag, "Starting new working socket")
-        serverSocket = ServerSocket(0)
-        port = serverSocket.localPort
-        
-        Log.d(Tag, "New working socket: ${serverSocket.localPort}")
-        
-        serverSocket.soTimeout = SOCKET_CONNECTION_TIMEOUT
-        
-        socket = serverSocket.accept() //        }
-
-        socket.setPerformancePreferences(0, 10, 5)
-        
-        outStream = socket.getOutputStream()
-        inStream = socket.getInputStream()
-        
         try {
-            inputJob = launch {
+            serverSocket = ServerSocket(AUTOMATIC_SOCKET_NUMBER_FLAG)
+            port = serverSocket.localPort
+            
+            Log.d(Tag, "New working socket has port number: ${serverSocket.localPort}")
+            
+            serverSocket.soTimeout = SOCKET_CONNECTION_TIMEOUT
+            socket = serverSocket.accept()
+            socket.setPerformancePreferences(SOCKET_PERF_CONNECTION_TIME, SOCKET_PERF_LATENCY, SOCKET_PERF_BANDWIDTH)
+            socket.keepAlive = true
+            
+            outStream = socket.getOutputStream()
+            inStream = socket.getInputStream()
+
+            inputJob = async {
                 inputChannelTask()
             }
-            outputJob = launch {
+            outputJob = async {
                 outputChannelTask()
             }
             
-            awaitCancellation()
+            val keepAliveJob = if (keepAliveMessage != null) {
+                async {
+                    keepAliveWriteTask()
+                } //                launch {
+                //                    keepAliveReadTask()
+                //                }
+            }
+            else null
+            
+            val watchSocket = async {
+                while (isActive) {
+                    if (!socket.isBound) throw Exception("Socket has been closed")
+                    if (!socket.isConnected) throw Exception("Socket is not connected!")
+                }
+            }
+            
+            isReady.set(true)
+            val jobs = arrayListOf(inputJob, outputJob, watchSocket)
+            
+            if (keepAliveJob != null) jobs.add(keepAliveJob)
+            jobs.add(watchSocket)
+            
+            jobs.awaitAll()
+        }
+        catch (e: CancellationException) {
+            Log.d(Tag, "WorkSocket cancelled due to: ${e.message} : ${e.cause}")
         }
         catch (e: Exception) {
-            Log.d("$Tag:MAIN", "Port $port is closing, cause: ${e.message}")
+            Log.e(Tag, "Unexpected exception: ${e.message} : ${e.cause}")
         } finally {
-            inputJob.cancel("end of work")
-            outputJob.cancel("end of work")
-            serverSocket.close()
-            socket.close()
+            Log.d(Tag, "Returning from worksocket")
+            stop()
         }
     }
     
     override fun stop() {
-        if (::inputJob.isInitialized) inputJob.cancel("Stop invoked")
-        if (::outputJob.isInitialized) outputJob.cancel("Stop invoked")
-        if(::serverSocket.isInitialized && !serverSocket.isClosed) serverSocket.close()
+        if (::inputJob.isInitialized && inputJob.isActive) {
+            Log.d(Tag, "input job canceling")
+            inputJob.cancel("Stop invoked")
+        }
+        if (::outputJob.isInitialized && outputJob.isActive) {
+            Log.d(Tag, "output job canceling")
+            outputJob.cancel("Stop invoked")
+        }
+        
+        if (::socket.isInitialized && !socket.isClosed) {
+            Log.d(Tag, "closing socket ")
+            socket.close()
+        }
+        
+        if (::serverSocket.isInitialized && !serverSocket.isClosed) {
+            Log.d(Tag, "server socket is closing")
+            serverSocket.close()
+            Log.d(Tag, "Server socket is closed")
+        }
     }
     
     private fun readN(len: Int): Pair<Array<Byte>, Boolean> {
@@ -88,6 +132,7 @@ class WorkSocket : DeviceLink {
         var obtained = 0
         while (obtained < len) {
             val nowObtained = inStream.read(buffer, obtained, len - obtained)
+            
             if (nowObtained < 0) break;
             
             obtained += nowObtained
@@ -96,9 +141,34 @@ class WorkSocket : DeviceLink {
         return Pair(buffer.toTypedArray(), obtained == len)
     }
     
+    private suspend fun keepAliveWriteTask() = withContext(Dispatchers.Default) {
+        if (keepAliveMessage == null) return@withContext
+        lastSendOperationTimeMs.set(System.currentTimeMillis())
+        
+        while (isActive) {
+            if ((lastSendOperationTimeMs.get() + keepAliveMessage.sendPeriodMs) > System.currentTimeMillis() || (lastReadOperationTimeMs.get() + keepAliveMessage.sendPeriodMs) > System.currentTimeMillis()) continue
+            
+            Log.d(Tag, "KeepAlive send")
+            outputDataChannel.send(keepAliveMessage.message)
+            lastSendOperationTimeMs.set(System.currentTimeMillis())
+        }
+    }
+    
+    private suspend fun keepAliveReadTask() = withContext(Dispatchers.Default) {
+        if (keepAliveMessage == null) return@withContext
+        lastReadOperationTimeMs.set(System.currentTimeMillis())
+        
+        while (isActive) {
+            if (System.currentTimeMillis() > lastReadOperationTimeMs.get() + System.currentTimeMillis()) throw SocketIsDeadException(
+                "timeout at keepAlive reading task, period is : ${keepAliveMessage.sendPeriodMs}ms")
+        }
+    }
+    
     private suspend fun inputChannelTask() = withContext(Dispatchers.IO) {
         while (isActive) {
             val messageSizeBuffer = readN(Int.SIZE_BYTES)
+            lastReadOperationTimeMs.set(System.currentTimeMillis())
+            
             if (messageSizeBuffer.second != true) {
                 Log.e(Tag, "Not obtained all requested bytes!")
                 continue
@@ -107,6 +177,7 @@ class WorkSocket : DeviceLink {
             val messageSize = Int(messageSizeBuffer.first.iterator())
             
             val messageBuffer = readN(messageSize)
+            lastReadOperationTimeMs.set(System.currentTimeMillis())
             
             if (!messageBuffer.second) {
                 Log.e(Tag, "Not full message was obtained!")
@@ -138,10 +209,15 @@ class WorkSocket : DeviceLink {
                 .toMutableList()
             bytes.addAll(data.toList())
             
-            
-            mutex.withLock {
+            try {
                 outStream.write(bytes.toByteArray())
             }
+            catch (e: Exception) {
+                Log.e("$Tag:OCT", "Exception during output stream write: ${e.message}")
+                return@withContext
+            }
+            
+            lastSendOperationTimeMs.set(System.currentTimeMillis())
         }
         
         outStream.close()

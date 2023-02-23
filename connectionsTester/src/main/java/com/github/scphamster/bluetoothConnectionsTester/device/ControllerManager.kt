@@ -11,19 +11,21 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.lang.ref.WeakReference
+import java.net.SocketTimeoutException
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 
-class ControllerManager(override val dataLink: DeviceLink, val onFatalErrorCallback: () -> Unit) :
-    ControllerManagerI,
-    CoroutineScope by CoroutineScope(Dispatchers.Default) {
+class ControllerManager(override val dataLink: DeviceLink,
+                        val exHandler: CoroutineExceptionHandler = CoroutineExceptionHandler { _, ex ->
+                            Log.e("CM", "Exception : $ex")
+                        },
+                        val onFatalErrorCallback: () -> Unit) : ControllerManagerI,
+                                                                CoroutineScope by CoroutineScope(Dispatchers.Default + exHandler) {
     companion object {
         private const val MESSAGES_CHANNEL_SIZE = 10
         private const val BaseTag = "ControllerManager"
         private const val COMMAND_ACK_TIMEOUT_MS = 1000.toLong()
     }
-    
-    //val id: Int //todo: implement
     
     val initialized = AtomicBoolean(false)
     
@@ -37,22 +39,47 @@ class ControllerManager(override val dataLink: DeviceLink, val onFatalErrorCallb
     private val outputDataCh = dataLink.outputDataChannel
     private val inputMessagesChannel = Channel<MessageFromController>(MESSAGES_CHANNEL_SIZE)
     private val outputMessagesChannel = Channel<MasterToControllerMsg>(MESSAGES_CHANNEL_SIZE)
-    private val mutex = Mutex()
+    private val inputMessagesChannelMutex = Mutex()
     
     init {
         launch { rawDataReceiverTask() }
         launch { inputMessagesHandlerTask() }
-        launch { outputMessagesHandlerTask() } //        scope.launch { testTask() }
+        launch { outputMessagesHandlerTask() }
+        launch {
+            Log.d(Tag, "Initialization controller manager")
+            
+            launch {
+                runDataLink()
+            }
+            
+            while (!dataLink.isReady.get()) continue
+            
+            Log.d(Tag, "Socket started, getting all boards!")
+            
+            //todo: add timeout
+            try {
+                initialize()
+            }
+            catch (e: Exception) {
+                Log.e(Tag, "Exception during controller boards obtainment! ${e.message}")
+                onFatalErrorCallback()
+            }
+            
+            initialized.set(true);
+            Log.d(Tag, "Controller initialized!")
+            
+        }
     }
     
     fun cancelAllJobs() {
+        initialized.set(false)
+        
         try {
-            Log.d(Tag, "Finalize method called!")
             dataLink.stop()
             cancel("Object destructed")
         }
         catch (e: Exception) {
-            Log.e(Tag, "Exception in finalize method! E: ${e.message}")
+            Log.e(Tag, "CancelAllJobs exception caught: ${e.message}")
         }
     }
     
@@ -113,74 +140,76 @@ class ControllerManager(override val dataLink: DeviceLink, val onFatalErrorCallb
         return@async null
     }
     
-    //faster function to check connectivity if there is only one controller online
+    /**
+     * @brief fast connections check method if there is only one ControllerManager connected
+     */
     suspend fun checkConnectionsForLocalBoards(connectionsChannel: Channel<SimpleConnectivityDescription>) =
-        withContext(Dispatchers.Default) /* overall operation result */ {
-            outputMessagesChannel.send(FindAllConnections())
-            
-            val ack = checkAcknowledge().await()
-            
-            if (ack != ControllerResponse.CommandAcknowledge) {
-                Log.e(Tag, "No ack for find all connections command")
-                return@withContext
-            }
-            var pinCounter = 0
-            mutex.withLock {
-                repeat(boards.size * IoBoard.PINS_COUNT_ON_SINGLE_BOARD) {
-                    val msg = try {
-                        withTimeout(FindAllConnections.SINGLE_PIN_RESULT_TIMEOUT_MS) {
-                            inputMessagesChannel.receiveCatching()
-                                .getOrNull()
-                        }
-                    }
-                    catch (e: TimeoutCancellationException) {
-                        Log.e(Tag, "Single pin results timeout!")
-                        return@withContext
-                    }
-                    catch (e: Exception) {
-                        Log.e(Tag,
-                              "Unexpected exception while waiting for single pin connectivity results: ${e.message}")
-                        return@withContext
-                    }
-                    
-                    if (msg == null) {
-                        Log.e(Tag, "Msg is null while getting connectivity info!")
-                        return@withContext
-                    }
-                    
-                    when (msg) {
-                        is MessageFromController.Connectivity -> {
-                            Log.d(Tag, "Connections for pin: ${msg.masterPin}")
-                            
-                            connectionsChannel.send(SimpleConnectivityDescription(msg.masterPin, msg.connections))
-                        }
-                        
-                        is MessageFromController.OperationStatus -> {
-                            Log.e(Tag,
-                                  "Operation status message arrived while getting connectivity info: ${msg.response}")
-                            return@withContext
-                        }
-                        
-                        else -> {
-                            Log.e(Tag, "Unexpected message obtained while getting connectivity info")
-                            return@withContext
-                        }
-                    }
-                    
-                    pinCounter++
+            withContext(Dispatchers.Default) /* overall operation result */ {
+                outputMessagesChannel.send(FindAllConnections())
+                
+                val ack = checkAcknowledge().await()
+                
+                if (ack != ControllerResponse.CommandAcknowledge) {
+                    Log.e(Tag, "No ack for find all connections command")
+                    return@withContext
                 }
-                
-                Log.d(Tag, "All pins connectivity info arrived!")
-                
-            } //wait for all pins info
-        }
+                var pinCounter = 0
+                inputMessagesChannelMutex.withLock {
+                    repeat(boards.size * IoBoard.PINS_COUNT_ON_SINGLE_BOARD) {
+                        val msg = try {
+                            withTimeout(FindAllConnections.SINGLE_PIN_RESULT_TIMEOUT_MS) {
+                                inputMessagesChannel.receiveCatching()
+                                    .getOrNull()
+                            }
+                        }
+                        catch (e: TimeoutCancellationException) {
+                            Log.e(Tag, "Single pin results timeout!")
+                            return@withContext
+                        }
+                        catch (e: Exception) {
+                            Log.e(Tag,
+                                  "Unexpected exception while waiting for single pin connectivity results: ${e.message}")
+                            return@withContext
+                        }
+                        
+                        if (msg == null) {
+                            Log.e(Tag, "Msg is null while getting connectivity info!")
+                            return@withContext
+                        }
+                        
+                        when (msg) {
+                            is MessageFromController.Connectivity -> {
+                                Log.d(Tag, "Connections for pin: ${msg.masterPin}")
+                                
+                                connectionsChannel.send(SimpleConnectivityDescription(msg.masterPin, msg.connections))
+                            }
+                            
+                            is MessageFromController.OperationStatus -> {
+                                Log.e(Tag,
+                                      "Operation status message arrived while getting connectivity info: ${msg.response}")
+                                return@withContext
+                            }
+                            
+                            else -> {
+                                Log.e(Tag, "Unexpected message obtained while getting connectivity info")
+                                return@withContext
+                            }
+                        }
+                        
+                        pinCounter++
+                    }
+                    
+                    Log.d(Tag, "All pins connectivity info arrived!")
+                    
+                } //wait for all pins info
+            }
     
     suspend fun getBoards() = notReadyMtx.withLock<Array<IoBoard>> {
         return boards.toTypedArray()
     }
     
-    override fun initialize() = launch {
-        while (true) {
+    override suspend fun initialize() = withContext(Dispatchers.Default) {
+        while (isActive) {
             val response = updateAvailableBoards().await();
             if (response == ControllerResponse.DeviceIsInitializing) {
                 delay(1000)
@@ -189,16 +218,35 @@ class ControllerManager(override val dataLink: DeviceLink, val onFatalErrorCallb
             else if (response != ControllerResponse.CommandPerformanceSuccess) {
                 Log.e(Tag, "boards update failed with result : $response")
             }
-            else {
-                initialized.set(true);
-                return@launch
-            }
+            else return@withContext
         }
     }
     
-    override fun startSocket() = async {
-        Log.d(Tag, "Starting new controller: ${dataLink.id}")
-        dataLink.start()
+    override suspend fun runDataLink() = withContext(Dispatchers.Default) {
+        Log.d(Tag, "Starting new Controller DataLink: ${dataLink.id}")
+        
+        val dataLinkJob = async {
+            dataLink.run()
+        }
+        
+        try {
+            dataLinkJob.await()
+            Log.e(Tag, "DataLink ended its job!")
+        }
+        catch (e: SocketTimeoutException) {
+            Log.e(Tag, "socket connection timeout")
+        }
+        catch (e: CancellationException) {
+            Log.e(Tag, "DataLink task canceled due to: ${e.message} : ${e.cause}")
+        }
+        catch (e: Exception) {
+            Log.e(Tag, "Unexpected exception caught from DataLink: ${e.message}")
+        }
+        finally{
+            onFatalErrorCallback()
+        }
+        return@withContext
+        
     }
     
     override fun stop() {
@@ -256,14 +304,14 @@ class ControllerManager(override val dataLink: DeviceLink, val onFatalErrorCallb
         return@async ControllerResponse.CommandPerformanceSuccess
     }
     
-//    protected fun finalize() {
-//        try {
-//            cancelAllJobs()
-//        }
-//        catch (e: Exception) {
-//            Log.e(Tag, "Error in finalize method : ${e.message}")
-//        }
-//    }
+    //    protected fun finalize() {
+    //        try {
+    //            cancelAllJobs()
+    //        }
+    //        catch (e: Exception) {
+    //            Log.e(Tag, "Error in finalize method : ${e.message}")
+    //        }
+    //    }
     
     private suspend fun addNewBoards(newBoards: MessageFromController.Boards) = notReadyMtx.withLock {
         boards.clear()
@@ -294,7 +342,7 @@ class ControllerManager(override val dataLink: DeviceLink, val onFatalErrorCallb
         val ackResult = try {
             withTimeout(COMMAND_ACK_TIMEOUT_MS.toLong()) {
                 async<ControllerResponse>(Dispatchers.Default) {
-                    val msg = mutex.withLock {
+                    val msg = inputMessagesChannelMutex.withLock {
                         inputMessagesChannel.receiveCatching()
                             .getOrNull()
                     }
@@ -330,7 +378,7 @@ class ControllerManager(override val dataLink: DeviceLink, val onFatalErrorCallb
         val commandResult = try {
             withTimeout(delayToCheck.toLong()) {
                 async<ControllerResponse>(Dispatchers.Default) {
-                    val msg = mutex.withLock {
+                    val msg = inputMessagesChannelMutex.withLock {
                         inputMessagesChannel.receiveCatching()
                             .getOrNull()
                     }
@@ -410,7 +458,7 @@ class ControllerManager(override val dataLink: DeviceLink, val onFatalErrorCallb
             while (inputMessagesChannel.isEmpty) continue
             val deadline = System.currentTimeMillis() + 500
             while (System.currentTimeMillis() < deadline) continue
-            if (mutex.isLocked || inputMessagesChannel.isEmpty) continue
+            if (inputMessagesChannelMutex.isLocked || inputMessagesChannel.isEmpty) continue
             
             val msg = inputMessagesChannel.receiveCatching()
                 .getOrNull()

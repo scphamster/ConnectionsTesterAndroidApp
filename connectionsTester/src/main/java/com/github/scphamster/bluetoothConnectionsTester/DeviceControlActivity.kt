@@ -197,8 +197,6 @@ class DeviceControlActivity : AppCompatActivity() {
             finish()
             return
         }
-
-        model.startServer()
     }
     
     

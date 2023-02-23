@@ -21,15 +21,10 @@ class Director(val app: Application,
     companion object {
         private const val Tag = "Director"
         private const val CHANNEL_SIZE = 10
-        private const val WAIT_FOR_NEW_SOCKETS_TIMEOUT = 4_000
+        private const val WAIT_FOR_NEW_SOCKETS_TIMEOUT = 4_000.toLong()
         private const val STD_ENTRY_SOCKET_PORT = 1500
         private const val STD_ENTRY_SOCKET_TIMEOUT_MS = 3000
-    }
-    
-    enum class MachineState {
-        SearchingControllers,
-        InitializingControllers,
-        Operating
+        private const val KEEPALIVE_MSG_PERIOD_MS = 1000
     }
     
     private inner class NewSocketRegistator(val socketChannel: Channel<DeviceLink>) {
@@ -44,6 +39,8 @@ class Director(val app: Application,
         
         suspend fun startEntrySocket() = withContext(Dispatchers.IO) {
             val Tag = Tag + ":EntrySocket"
+            
+            val keepAliveMessage = WorkSocket.KeepAliveMessage(KeepAliveMessage().serialize(), 1000)
             
             while (isActive) {
                 try {
@@ -68,7 +65,7 @@ class Director(val app: Application,
                 
                 val outputStream = socket.getOutputStream()
                 val inputStream = socket.getInputStream()
-                val newSocket = WorkSocket()
+                val newSocket = WorkSocket(keepAliveMessage)
                 
                 socketChannel.send(newSocket)
                 
@@ -119,37 +116,78 @@ class Director(val app: Application,
             }
     }
     
+    enum class State {
+        InitializingDirector,
+        SearchingForControllers,
+        InitializingControllers,
+        GettingBoards,
+        Operating
+    }
+    
+    private inner class MachineState {
+        
+        val ready: Boolean
+            get() = state == State.Operating
+        
+        val allControllersInitialized: Boolean
+            get() {
+                var someoneIsNotInitialized = false
+                
+                controllers.forEach() {
+                    if (!it.initialized.get()) {
+                        someoneIsNotInitialized = true
+                        return@forEach
+                    }
+                }
+                if (controllers.size == 0) someoneIsNotInitialized = true
+                
+                
+                return someoneIsNotInitialized == false
+            }
+        
+        var controllersQuantitySettled = AtomicBoolean(false)
+        var state: State = State.InitializingDirector
+    }
+    
+    private class ControllersCommonSettings {
+        var voltageLevel = IoBoardsManager.VoltageLevel.Low
+            set(newVal) {
+                synchronized(this) {
+                    field = newVal
+                }
+            }
+            get() {
+                val value = synchronized(this) {
+                    field
+                }
+                return value
+            }
+    }
+    
     val controllers = CopyOnWriteArrayList<ControllerManager>()
     val isReady: Boolean
         get() = controllersNumberHasSettled.get()
-    val allControllersAreInitialized = AtomicBoolean(false)
     
-    var machineState = MachineState.SearchingControllers
-    
+    private val machineState = MachineState()
     private val newDeviceLinksChannel = Channel<DeviceLink>(CHANNEL_SIZE)
     private val newSocketRegistator = NewSocketRegistator(newDeviceLinksChannel)
     private val controllersNumberHasSettled: AtomicBoolean = AtomicBoolean(false)
-    private var voltageLevel = IoBoardsManager.VoltageLevel.Low
-        private set(newVal) {
-            synchronized(this) {
-                field = newVal
-            }
-        }
-        get() {
-            val value = synchronized(this) {
-                field
-            }
-            return value
-        }
+    private val controllersSettings = ControllersCommonSettings()
     
     init {
-        scope.launch(Dispatchers.Default) {
-            receiveNewDataLinksTask()
+        scope.launch {
+            newDeviceLinksReceiverTask()
         }
     }
     
+    //measurement functions
     suspend fun checkAllConnections(connectionsChannel: Channel<SimpleConnectivityDescription>) =
         withContext(Dispatchers.IO) {
+            if (!machineState.allControllersInitialized) {
+                Log.e(Tag, "Not all controllers are initialized, failed check!")
+                return@withContext
+            }
+            
             if (controllers.size == 0) {
                 Log.e(Tag, "There are no controllers to operate with!")
             }
@@ -158,7 +196,8 @@ class Director(val app: Application,
                     .checkConnectionsForLocalBoards(connectionsChannel)
             }
             else {
-                Log.e(Tag, "Unimplemented check all connections with many controllers used!")
+                Log.e(Tag,
+                      "Unimplemented check all connections with many controllers used! Controllers num = ${controllers.size}")
             }
         }
     
@@ -203,27 +242,43 @@ class Director(val app: Application,
             }
         }
         
-        voltageLevel = new_voltage_level
+        controllersSettings.voltageLevel = new_voltage_level
     }
     
-    private suspend fun receiveNewDataLinksTask() = withContext(Dispatchers.Default) {
+    private suspend fun updateAllBoards() = withContext(Dispatchers.Default) {
+        Log.d(Tag, "Updating all boards, waiting for all controllers to be initialized")
+        while (!machineState.allControllersInitialized) {
+            continue
+        }
+        
+        Log.d(Tag, "All controllers initialized, sending boards to boards controller")
+        
+        val allBoards = getAllBoards()
+        if (allBoards.isEmpty()) {
+            Log.e(Tag, "No boards found!")
+        }
+        else {
+            Log.d(Tag, "Found ${allBoards.size} boards!")
+            boardsArrayChannel.send(allBoards)
+        }
+    }
+    
+    private suspend fun newDeviceLinksReceiverTask() = withContext(Dispatchers.Default) {
         while (isActive) {
             val waitForAllDevicesToConnectTimeoutJob = async {
-                delay(WAIT_FOR_NEW_SOCKETS_TIMEOUT.toLong())
+                delay(WAIT_FOR_NEW_SOCKETS_TIMEOUT)
                 if (isActive) {
-                    controllersNumberHasSettled.set(true)
-                    Log.d(Tag, "Before initialization all ctles. Ctls count: ${controllers.size}")
-                    machineState = MachineState.InitializingControllers
-                    initAllControllersAsync()
+                    if (controllers.size == 0) return@async
+                    
+                    machineState.controllersQuantitySettled.set(true)
+                    updateAllBoards()
                 }
             }
             
             val result = newDeviceLinksChannel.receiveCatching()
             waitForAllDevicesToConnectTimeoutJob.cancel()
             
-            machineState = MachineState.SearchingControllers
-            controllersNumberHasSettled.set(false)
-            allControllersAreInitialized.set(false)
+            machineState.controllersQuantitySettled.set(false)
             
             val new_link = result.getOrNull()
             if (new_link == null) {
@@ -242,71 +297,13 @@ class Director(val app: Application,
                     }
                     else false
                 }
+                
+                scope.launch{
+                    updateAllBoards()
+                }
             })
-            
-            launch {
-                startNewController(controllers.last())
-            }
         }
         
         Log.e(Tag, "New sockets receiver task ended!")
-    }
-    
-    suspend fun startNewController(newController: ControllerManagerI) = withContext(Dispatchers.Default) {
-        try {
-            newController.startSocket()
-                .await()
-        }
-        catch (e: Exception) {
-            val socketPort = newController.dataLink.id
-            
-            Log.e(Tag, "Exception caught in controller socket with port $socketPort: ${e.message}")
-            try {
-                if (controllers.removeIf {
-                        if (it.dataLink.id == socketPort) {
-                            it.cancelAllJobs()
-                            true
-                        }
-                        else false
-                    }) {
-                    Log.d(Tag, "Controller $socketPort was removed!")
-                }
-                else {
-                    Log.e(Tag, "Controller with socket: $socketPort was not found to be removed")
-                }
-            }
-            catch (e: Exception) {
-                Log.e(Tag, "Exception during controller removal: ${e.message}")
-            }
-        }
-    }
-    
-    suspend fun initAllControllersAsync() = withContext(Dispatchers.Default) {
-        Log.d(Tag, "Controllers count: ${controllers.size}")
-        for ((index, controller) in controllers.withIndex()) {
-            Log.d(Tag, "Initializing $index controller")
-            launch {
-                controller.initialize()
-            }
-        }
-        var allAreInitialized = false
-        while (!allAreInitialized) {
-            allAreInitialized = true
-            
-            for (controller in controllers) {
-                if (controller.initialized.get() != true) allAreInitialized = false
-            }
-        }
-        
-        Log.d(Tag, "All controllers initialized, sending boards to boards controller")
-        allControllersAreInitialized.set(true)
-        
-        val allBoards = getAllBoards()
-        if (allBoards.isEmpty()) {
-            Log.e(Tag, "No boards found!")
-        }
-        else {
-            boardsArrayChannel.send(allBoards)
-        }
     }
 }

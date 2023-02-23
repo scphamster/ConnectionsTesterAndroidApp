@@ -43,7 +43,7 @@ sealed class Msg {
 
 interface MasterToControllerMsg {
     abstract fun serialize(): Collection<Byte>
-    abstract val msg_id: Byte
+    abstract val msgId: Byte
     
     enum class MessageID(val id: Byte) {
         MeasureAllVoltages(100),
@@ -60,6 +60,7 @@ interface MasterToControllerMsg {
         SetInternalParameters(111),
         GetInternalParameters(112),
         Test(113),
+        DataLinkKeepAlive(114),
     }
 }
 
@@ -69,7 +70,7 @@ final class MeasureAllVoltages : MasterToControllerMsg {
         val CMD_ID: Byte = MasterToControllerMsg.MessageID.MeasureAllVoltages.id
     }
     
-    override val msg_id = MasterToControllerMsg.MessageID.MeasureAllVoltages.id
+    override val msgId = MasterToControllerMsg.MessageID.MeasureAllVoltages.id
     override fun serialize(): Collection<Byte> {
         val bytes = ArrayList<Byte>()
         bytes.add(CMD_ID)
@@ -83,7 +84,7 @@ final class SetOutputVoltageLevel(val level: IoBoardsManager.VoltageLevel) : Mas
         private const val SIZE_BYTES = Byte.SIZE_BYTES * 2
     }
     
-    override val msg_id = MasterToControllerMsg.MessageID.SetOutputVoltageLevel.id
+    override val msgId = MasterToControllerMsg.MessageID.SetOutputVoltageLevel.id
     override fun serialize(): Collection<Byte> {
         val bytes = mutableListOf<Byte>()
         bytes.add(CMD_ID)
@@ -97,9 +98,9 @@ final class GetBoardsOnline : MasterToControllerMsg {
         const val RESULT_TIMEOUT_MS = 4000.toLong()
     }
     
-    override val msg_id = MasterToControllerMsg.MessageID.GetBoardsOnline.id
+    override val msgId = MasterToControllerMsg.MessageID.GetBoardsOnline.id
     override fun serialize(): Collection<Byte> {
-        return arrayListOf(msg_id)
+        return arrayListOf(msgId)
     }
 }
 
@@ -109,10 +110,18 @@ final class FindAllConnections : MasterToControllerMsg {
     }
     
     override fun serialize(): Collection<Byte> {
-        return arrayListOf(msg_id)
+        return arrayListOf(msgId)
     }
     
-    override val msg_id = MasterToControllerMsg.MessageID.CheckConnections.id
+    override val msgId = MasterToControllerMsg.MessageID.CheckConnections.id
+}
+
+final class KeepAliveMessage: MasterToControllerMsg{
+    override val msgId = MasterToControllerMsg.MessageID.DataLinkKeepAlive.id
+    
+    override fun serialize(): Collection<Byte> {
+        return byteArrayOf(msgId).toList()
+    }
 }
 
 sealed class MessageFromController {
