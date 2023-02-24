@@ -193,7 +193,7 @@ class Director(val app: Application,
     
     //measurement functions
     suspend fun checkAllConnections(connectionsChannel: Channel<SimpleConnectivityDescription>) =
-            withContext(Dispatchers.IO) {
+            withContext(Dispatchers.Default) {
                 if (!machineState.allControllersInitialized) {
                     Log.e(Tag, "Not all controllers are initialized, failed check!")
                     return@withContext

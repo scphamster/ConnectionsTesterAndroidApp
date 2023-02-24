@@ -104,13 +104,22 @@ final class GetBoardsOnline : MasterToControllerMsg {
     }
 }
 
-final class FindAllConnections : MasterToControllerMsg {
+final class FindConnection(val pin: PinAffinityAndId? = null) : MasterToControllerMsg {
     companion object {
         const val SINGLE_PIN_RESULT_TIMEOUT_MS = 2000.toLong()
+        const val MEASURE_ALL_PIN_ID_FILLER = UByte.MAX_VALUE
     }
     
     override fun serialize(): Collection<Byte> {
-        return arrayListOf(msgId)
+        
+        val pinAsBytes = if(pin != null) {
+            arrayOf(pin.boardId.toByte(), pin.pinID.toByte())
+        }
+        else {
+            arrayOf(MEASURE_ALL_PIN_ID_FILLER.toByte(), MEASURE_ALL_PIN_ID_FILLER.toByte())
+        }
+        
+        return (arrayListOf(msgId) + pinAsBytes.toList())
     }
     
     override val msgId = MasterToControllerMsg.MessageID.CheckConnections.id

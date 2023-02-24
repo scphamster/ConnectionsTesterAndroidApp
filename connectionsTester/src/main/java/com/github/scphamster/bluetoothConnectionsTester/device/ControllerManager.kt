@@ -144,65 +144,65 @@ class ControllerManager(override val dataLink: DeviceLink,
      * @brief fast connections check method if there is only one ControllerManager connected
      */
     suspend fun checkConnectionsForLocalBoards(connectionsChannel: Channel<SimpleConnectivityDescription>) =
-            withContext(Dispatchers.Default) /* overall operation result */ {
-                outputMessagesChannel.send(FindAllConnections())
-                
-                val ack = checkAcknowledge().await()
-                
-                if (ack != ControllerResponse.CommandAcknowledge) {
-                    Log.e(Tag, "No ack for find all connections command")
-                    return@withContext
-                }
-                var pinCounter = 0
-                inputMessagesChannelMutex.withLock {
-                    repeat(boards.size * IoBoard.PINS_COUNT_ON_SINGLE_BOARD) {
-                        val msg = try {
-                            withTimeout(FindAllConnections.SINGLE_PIN_RESULT_TIMEOUT_MS) {
-                                inputMessagesChannel.receiveCatching()
-                                    .getOrNull()
-                            }
+        withContext(Dispatchers.Default) /* overall operation result */ {
+            outputMessagesChannel.send(FindConnection())
+            
+            val ack = checkAcknowledge().await()
+            
+            if (ack != ControllerResponse.CommandAcknowledge) {
+                Log.e(Tag, "No ack for find all connections command")
+                return@withContext
+            }
+            var pinCounter = 0
+            inputMessagesChannelMutex.withLock {
+                repeat(boards.size * IoBoard.PINS_COUNT_ON_SINGLE_BOARD) {
+                    val msg = try {
+                        withTimeout(FindConnection.SINGLE_PIN_RESULT_TIMEOUT_MS) {
+                            inputMessagesChannel.receiveCatching()
+                                .getOrNull()
                         }
-                        catch (e: TimeoutCancellationException) {
-                            Log.e(Tag, "Single pin results timeout!")
-                            return@withContext
-                        }
-                        catch (e: Exception) {
-                            Log.e(Tag,
-                                  "Unexpected exception while waiting for single pin connectivity results: ${e.message}")
-                            return@withContext
-                        }
-                        
-                        if (msg == null) {
-                            Log.e(Tag, "Msg is null while getting connectivity info!")
-                            return@withContext
-                        }
-                        
-                        when (msg) {
-                            is MessageFromController.Connectivity -> {
-                                Log.d(Tag, "Connections for pin: ${msg.masterPin}")
-                                
-                                connectionsChannel.send(SimpleConnectivityDescription(msg.masterPin, msg.connections))
-                            }
-                            
-                            is MessageFromController.OperationStatus -> {
-                                Log.e(Tag,
-                                      "Operation status message arrived while getting connectivity info: ${msg.response}")
-                                return@withContext
-                            }
-                            
-                            else -> {
-                                Log.e(Tag, "Unexpected message obtained while getting connectivity info")
-                                return@withContext
-                            }
-                        }
-                        
-                        pinCounter++
+                    }
+                    catch (e: TimeoutCancellationException) {
+                        Log.e(Tag, "Single pin results timeout!")
+                        return@withContext
+                    }
+                    catch (e: Exception) {
+                        Log.e(Tag,
+                              "Unexpected exception while waiting for single pin connectivity results: ${e.message}")
+                        return@withContext
                     }
                     
-                    Log.d(Tag, "All pins connectivity info arrived!")
+                    if (msg == null) {
+                        Log.e(Tag, "Msg is null while getting connectivity info!")
+                        return@withContext
+                    }
                     
-                } //wait for all pins info
-            }
+                    when (msg) {
+                        is MessageFromController.Connectivity -> {
+                            Log.d(Tag, "Connections for pin: ${msg.masterPin}")
+                            
+                            connectionsChannel.send(SimpleConnectivityDescription(msg.masterPin, msg.connections))
+                        }
+                        
+                        is MessageFromController.OperationStatus -> {
+                            Log.e(Tag,
+                                  "Operation status message arrived while getting connectivity info: ${msg.response}")
+                            return@withContext
+                        }
+                        
+                        else -> {
+                            Log.e(Tag, "Unexpected message obtained while getting connectivity info")
+                            return@withContext
+                        }
+                    }
+                    
+                    pinCounter++
+                }
+                
+                Log.d(Tag, "All pins connectivity info arrived!")
+                
+            } //wait for all pins info
+        }
     
     suspend fun getBoards() = notReadyMtx.withLock<Array<IoBoard>> {
         return boards.toTypedArray()
@@ -241,8 +241,7 @@ class ControllerManager(override val dataLink: DeviceLink,
         }
         catch (e: Exception) {
             Log.e(Tag, "Unexpected exception caught from DataLink: ${e.message}")
-        }
-        finally{
+        } finally {
             onFatalErrorCallback()
         }
         return@withContext
