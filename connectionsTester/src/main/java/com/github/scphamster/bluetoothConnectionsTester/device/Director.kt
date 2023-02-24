@@ -23,7 +23,7 @@ class Director(val app: Application,
         private const val CHANNEL_SIZE = 10
         private const val WAIT_FOR_NEW_SOCKETS_TIMEOUT = 4_000.toLong()
         private const val STD_ENTRY_SOCKET_PORT = 1500
-        private const val STD_ENTRY_SOCKET_TIMEOUT_MS = 3000
+        private const val STD_ENTRY_SOCKET_TIMEOUT_MS = 4000
         private const val KEEPALIVE_MSG_PERIOD_MS = 1000
     }
     
@@ -62,6 +62,7 @@ class Director(val app: Application,
             val keepAliveMessage = WorkSocket.KeepAliveMessage(KeepAliveMessage().serialize(), 1000)
             
             while (isActive) {
+                Log.w(Tag, "Restart")
                 try {
                     serverSocket = ServerSocket(STD_ENTRY_SOCKET_PORT)
                     serverSocket.soTimeout = STD_ENTRY_SOCKET_TIMEOUT_MS
