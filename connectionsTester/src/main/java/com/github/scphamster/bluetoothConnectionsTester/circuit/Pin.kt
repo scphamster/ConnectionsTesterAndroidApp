@@ -18,38 +18,78 @@ data class PinAffinityAndId(val boardId: BoardAddrT, val pinID: PinNumT) : PinId
         const val MIN_IDX_ON_BOARD = 0
         const val MAX_IDX_ON_BOARD = 31
         const val SIZE_BYTES = 2
-
+        private val harnessToLogicalPinMap = arrayOf(6,
+                                                     4,
+                                                     2,
+                                                     0,
+                                                     9,
+                                                     11,
+                                                     13,
+                                                     15,
+                                                     22,
+                                                     20,
+                                                     18,
+                                                     16,
+                                                     25,
+                                                     27,
+                                                     29,
+                                                     31,
+                                                     30,
+                                                     28,
+                                                     26,
+                                                     24,
+                                                     17,
+                                                     19,
+                                                     21,
+                                                     23,
+                                                     14,
+                                                     12,
+                                                     10,
+                                                     8,
+                                                     1,
+                                                     3,
+                                                     5,
+                                                     7)
+        
         fun deserialize(byteIterator: Iterator<Byte>): PinAffinityAndId {
-            val board = byteIterator.next().toUByte().toInt()
-            val id = byteIterator.next().toUByte().toInt()
-
-            if ((board < MIN_BOARD_ID) || (board > MAX_BOARD_ID))
-                throw (IllegalArgumentException("board number($board) is out of range!"))
-
-            if ((id < MIN_IDX_ON_BOARD) || (id > MAX_IDX_ON_BOARD))
-                throw (IllegalArgumentException("idx($id) is out of range!"))
-
+            val board = byteIterator.next()
+                .toUByte()
+                .toInt()
+            val id = byteIterator.next()
+                .toUByte()
+                .toInt()
+            
+            if ((board < MIN_BOARD_ID) || (board > MAX_BOARD_ID)) throw (IllegalArgumentException("board number($board) is out of range!"))
+            
+            if ((id < MIN_IDX_ON_BOARD) || (id > MAX_IDX_ON_BOARD)) throw (IllegalArgumentException("idx($id) is out of range!"))
+            
             return PinAffinityAndId(board, id)
         }
     }
-
+    
     override fun getPrettyName(): String {
         return "$boardId:$pinID"
     }
-
+    
     override val pinAffinityAndId: PinAffinityAndId
         get() = PinAffinityAndId(boardId, pinID)
+    
+    fun getPhysicalOnBoardPinNum(): PinNumT {
+        if (pinID >= IoBoard.PINS_COUNT_ON_SINGLE_BOARD)
+            throw IllegalArgumentException("Pin number is higher than pin count on board: ${pinID}")
+        
+        return harnessToLogicalPinMap.get(pinID)
+    }
+    
+    fun getPhysicalPinAffinityAndID(): PinAffinityAndId {
+        return PinAffinityAndId(boardId, harnessToLogicalPinMap.get(pinID))
+    }
 }
 
-data class PinDescriptor(val affinityAndId: PinAffinityAndId,
-                         var name: String? = null,
-                         var group: PinGroup? = null) : PinIdentifier {
+data class PinDescriptor(val affinityAndId: PinAffinityAndId, var name: String? = null, var group: PinGroup? = null) :
+    PinIdentifier {
     val UID: UUID = UUID.randomUUID()
-
-    companion object {
-        private val harnessToLogicalPinMap = arrayOf(6, 4, 2, 0, 9, 11, 13, 15, 22, 20, 18, 16, 25, 27, 29, 31,
-                                                     30, 28, 26, 24, 17, 19, 21, 23, 14, 12, 10, 8, 1, 3, 5, 7)
-    }
+    
     
     override val pinAffinityAndId: PinAffinityAndId
         get() = affinityAndId
@@ -58,21 +98,15 @@ data class PinDescriptor(val affinityAndId: PinAffinityAndId,
         group?.let {
             group = PinGroup(it.id, null)
         }
-
+        
         name = null
     }
     
-    fun getOnBoardPinNum(): Int? {
-        val harness_id = affinityAndId.pinID
-        if (harness_id >= IoBoard.PINS_COUNT_ON_SINGLE_BOARD) return null
-        return harnessToLogicalPinMap.get(harness_id)
-    }
-    
-    fun getMuxNum() : Int {
-        if (harnessToLogicalPinMap.get(affinityAndId.pinID) >= IoBoard.SINGLE_MUX_PINS_SIZE) return 1
+    fun getMuxNum(): Int {
+        if (affinityAndId.getPhysicalOnBoardPinNum() >= IoBoard.SINGLE_MUX_PINS_SIZE) return 1
         else return 0
     }
-
+    
     override fun getPrettyName(): String {
         val string_builder = StringBuilder()
         
@@ -111,10 +145,10 @@ class Pin(val descriptor: PinDescriptor,
                 notPresentExpectedConnections = expected.filter {
                     !hasConnection(it)
                 }
-
+                
                 unexpectedConnections = field.filter { some_present_connection ->
                     (some_present_connection.toPin.pinAffinityAndId != descriptor.pinAffinityAndId) && (expected.find { some_present_connection.toPin.pinAffinityAndId == it.toPin.pinAffinityAndId } == null)
-
+                    
                 }
             }
         }
@@ -123,59 +157,59 @@ class Pin(val descriptor: PinDescriptor,
     var notPresentExpectedConnections: List<Connection>? = null
     var isHealthy = false
         private set
-
+    
     fun hasConnection(connection: Connection): Boolean {
         if (connections.isEmpty()) return false
-
+        
         return connections.find { some_connection ->
             some_connection.toPin.pinAffinityAndId == connection.toPin.pinAffinityAndId
         } != null
     }
-
+    
     fun hasConnection(searched_pin_affinity_and_id: PinIdentifier): Boolean {
         if (connections.isEmpty()) return false
-
+        
         val connection = connections.find { some_connection ->
             some_connection.toPin.pinAffinityAndId == searched_pin_affinity_and_id
         }
-
+        
         return connection != null
     }
-
+    
     fun getConnection(searched_pin_affinity_and_id: PinIdentifier): Connection? {
         if (connections.isEmpty()) return null
-
+        
         return connections.find { some_connection ->
             some_connection.toPin.pinAffinityAndId == searched_pin_affinity_and_id
         }
     }
-
+    
     fun checkIfConnectionsListIsDifferent(checked_connections: List<Connection>, maxResistance: Float = 0f): Boolean {
-
+        
         val connections_not_in_my_list = checked_connections.filter {
             !hasConnection(it)
         }
-
+        
         for (connection in connections_not_in_my_list) {
             if (connection.resistance != null) {
                 if (connection.resistance.value < maxResistance) return true
             }
             else return true
         }
-
+        
         val connections_not_in_checked = connections.filter { my_connection ->
             checked_connections.find {
                 my_connection.toPin == it.toPin
             } == null
         }
-
+        
         for (connection in connections_not_in_checked) {
             if (connection.resistance != null) {
                 if (connection.resistance.value < maxResistance) return true
             }
             else return true
         }
-
+        
         return false
     }
 }

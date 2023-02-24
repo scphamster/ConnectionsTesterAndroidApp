@@ -208,6 +208,9 @@ class Director(val app: Application,
                     .checkConnectionsForLocalBoards(connectionsChannel)
             }
             else {
+                //for board in boards send SetVoltageAtPin .. MeasureAll || Verify connectivity
+         
+         
                 Log.e(Tag,
                       "Unimplemented check all connections with many controllers used! Controllers num = ${controllers.size}")
             }
@@ -222,6 +225,8 @@ class Director(val app: Application,
                 ?.checkSingleConnection(pinAffinityAndId, connectionsChannel)
             
         }
+    
+    
     
     suspend fun getAllBoards() = withContext<Array<IoBoard>>(Dispatchers.Default) {
         val mutableListOfBoards = mutableListOf<IoBoard>()

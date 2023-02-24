@@ -16,8 +16,6 @@ import com.github.scphamster.bluetoothConnectionsTester.device.ControllerRespons
 import com.github.scphamster.bluetoothConnectionsTester.device.*
 import kotlinx.coroutines.*
 
-typealias BoardCountT = Int
-
 class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
     companion object {
         private const val Tag = "ControlViewModel"
@@ -50,13 +48,6 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
         viewModelScope.cancel("End of viewModelScope")
         viewModelScope.coroutineContext.cancelChildren(CancellationException("End of viewModelScope"))
         super.onCleared()
-    }
-    
-    suspend fun testCoroutine() = withContext(Dispatchers.IO) {
-        while (isActive) {
-            Log.d("TestCoroutine", "is active: ${coroutineContext}")
-            delay(1000)
-        }
     }
     
     fun setupViewModel(deviceName: String, mac: String?): Boolean {
@@ -207,7 +198,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
         //                                                                             if_sequential))
         //
         viewModelScope.launch {
-            controllersManager.checkConnection(for_pin.descriptor.affinityAndId,
+            controllersManager.checkConnection(for_pin.descriptor.affinityAndId.getPhysicalPinAffinityAndID(),
                                                measurementsHandler.boardsManager.pinConnectivityResultsCh)
             Log.d(Tag, "check connection succeeded")
             

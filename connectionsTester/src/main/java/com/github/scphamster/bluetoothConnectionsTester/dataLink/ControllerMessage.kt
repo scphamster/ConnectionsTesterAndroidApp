@@ -133,6 +133,14 @@ final class KeepAliveMessage: MasterToControllerMsg{
     }
 }
 
+final class SetVoltageAtPin(val pin: PinAffinityAndId): MasterToControllerMsg{
+    override val msgId = MasterToControllerMsg.MessageID.EnableOutputForPin.id
+    
+    override fun serialize(): Collection<Byte> {
+        return arrayListOf(msgId, pin.boardId.toByte(), pin.pinID.toByte())
+    }
+}
+
 sealed class MessageFromController {
     enum class Type(val id: Byte) {
         Connections(50),

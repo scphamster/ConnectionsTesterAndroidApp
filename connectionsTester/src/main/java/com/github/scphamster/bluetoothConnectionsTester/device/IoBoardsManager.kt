@@ -330,49 +330,6 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope)
         }
     }
     
-    //    fun setInternalParametersForBoard(board_addr: Int, board_internals: IoBoardInternalParameters) {
-    //        val boards = boards.value
-    //
-    //        if (boards == null) {
-    //            Log.e(Tag, "setInternalParametersForBoard::boards are null!")
-    //            return
-    //        }
-    //
-    //        for (board in boards) {
-    //            if (board.address == board_addr) {
-    //                board.internalParams = board_internals
-    //
-    //                for (pin in board.pins) {
-    //                    val logical_pin_num = pin.descriptor.getOnBoardPinNum()
-    //                    if (logical_pin_num == null) {
-    //                        Log.e(Tag, "logical pin num is null!")
-    //                        continue
-    //                    }
-    //
-    //                    val single_mux_pin_count = 16
-    //                    val is_of_second_mux = logical_pin_num >= single_mux_pin_count
-    //
-    //                    if (is_of_second_mux) {
-    //                        pin.inResistance = board_internals.inputResistance1
-    //                        pin.outResistance = board_internals.outputResistance1
-    //                    }
-    //                    else {
-    //                        pin.inResistance = board_internals.inputResistance0
-    //                        pin.outResistance = board_internals.outputResistance0
-    //                    }
-    //
-    //                    pin.outVoltage = if (board.voltageLevel == VoltageLevel.High) board_internals.outputVoltageHigh
-    //                    else board_internals.outputVoltageLow
-    //
-    //                    pin.shuntResistance = board_internals.shuntResistance
-    //                }
-    //
-    //                Log.d("Test",
-    //                      "Board ${board.address} internals set!: ${board_internals.inputResistance0},${board_internals.outputResistance0},${board_internals.outputVoltageHigh}")
-    //            }
-    //        }
-    //    }
-    
     fun getAllPins(): List<Pin> {
         val boards = boards.value
         
