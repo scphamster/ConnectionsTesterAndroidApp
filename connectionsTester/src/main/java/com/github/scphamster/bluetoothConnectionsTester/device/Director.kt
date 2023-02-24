@@ -4,6 +4,7 @@ import android.app.Application
 import android.util.Log
 import androidx.preference.PreferenceManager
 import com.github.scphamster.bluetoothConnectionsTester.circuit.IoBoard
+import com.github.scphamster.bluetoothConnectionsTester.circuit.PinAffinityAndId
 import com.github.scphamster.bluetoothConnectionsTester.circuit.SimpleConnectivityDescription
 import com.github.scphamster.bluetoothConnectionsTester.dataLink.*
 import kotlinx.coroutines.*
@@ -111,23 +112,23 @@ class Director(val app: Application,
         }
         
         suspend fun ReadAnswer(inStream: java.io.InputStream, timeout: Long = Long.MAX_VALUE) =
-                withContext<Msg?>(Dispatchers.IO) {
-                    val deadline = if (timeout == Long.MAX_VALUE) Long.MAX_VALUE
-                    else timeout
-                    
-                    while (inStream.available() == 0) {
-                        if (deadline < System.currentTimeMillis()) {
-                            Log.e(Tag, "Timeout of answer retrieval!")
-                            return@withContext null
-                        }
+            withContext<Msg?>(Dispatchers.IO) {
+                val deadline = if (timeout == Long.MAX_VALUE) Long.MAX_VALUE
+                else timeout
+                
+                while (inStream.available() == 0) {
+                    if (deadline < System.currentTimeMillis()) {
+                        Log.e(Tag, "Timeout of answer retrieval!")
+                        return@withContext null
                     }
-                    
-                    val buffer = ByteArray(inStream.available() + 64)
-                    inStream.read(buffer)
-                    val msg = Msg.deserialize(buffer)
-                    
-                    return@withContext msg
                 }
+                
+                val buffer = ByteArray(inStream.available() + 64)
+                inStream.read(buffer)
+                val msg = Msg.deserialize(buffer)
+                
+                return@withContext msg
+            }
     }
     
     enum class State {
@@ -193,24 +194,34 @@ class Director(val app: Application,
     
     //measurement functions
     suspend fun checkAllConnections(connectionsChannel: Channel<SimpleConnectivityDescription>) =
-            withContext(Dispatchers.Default) {
-                if (!machineState.allControllersInitialized) {
-                    Log.e(Tag, "Not all controllers are initialized, failed check!")
-                    return@withContext
-                }
-                
-                if (controllers.size == 0) {
-                    Log.e(Tag, "There are no controllers to operate with!")
-                }
-                else if (controllers.size == 1) {
-                    controllers.get(0)
-                        .checkConnectionsForLocalBoards(connectionsChannel)
-                }
-                else {
-                    Log.e(Tag,
-                          "Unimplemented check all connections with many controllers used! Controllers num = ${controllers.size}")
-                }
+        withContext(Dispatchers.Default) {
+            if (!machineState.allControllersInitialized) {
+                Log.e(Tag, "Not all controllers are initialized, failed check!")
+                return@withContext
             }
+            
+            if (controllers.size == 0) {
+                Log.e(Tag, "There are no controllers to operate with!")
+            }
+            else if (controllers.size == 1) {
+                controllers.get(0)
+                    .checkConnectionsForLocalBoards(connectionsChannel)
+            }
+            else {
+                Log.e(Tag,
+                      "Unimplemented check all connections with many controllers used! Controllers num = ${controllers.size}")
+            }
+        }
+    
+    suspend fun checkConnection(pinAffinityAndId: PinAffinityAndId,
+                                connectionsChannel: Channel<SimpleConnectivityDescription>) =
+        withContext(Dispatchers.Default) {
+            val boards = getAllBoards().find { b ->
+                b.address == pinAffinityAndId.boardId
+            }?.belongsToController?.get()
+                ?.checkSingleConnection(pinAffinityAndId, connectionsChannel)
+            
+        }
     
     suspend fun getAllBoards() = withContext<Array<IoBoard>>(Dispatchers.Default) {
         val mutableListOfBoards = mutableListOf<IoBoard>()

@@ -1,9 +1,12 @@
 package com.github.scphamster.bluetoothConnectionsTester.device
 
+import com.github.scphamster.bluetoothConnectionsTester.circuit.PinAffinityAndId
+import com.github.scphamster.bluetoothConnectionsTester.circuit.SimpleConnectivityDescription
 import com.github.scphamster.bluetoothConnectionsTester.dataLink.ControllerResponse
 import com.github.scphamster.bluetoothConnectionsTester.dataLink.DeviceLink
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 
 interface ControllerManagerI {
     abstract val dataLink: DeviceLink
@@ -13,4 +16,6 @@ interface ControllerManagerI {
     abstract fun updateAvailableBoards(): Deferred<ControllerResponse>
     abstract suspend fun runDataLink()
     abstract fun stop()
+    abstract suspend fun checkSingleConnection(pinAffinityAndId: PinAffinityAndId,
+                                               connectionsChannel: Channel<SimpleConnectivityDescription>)
 }

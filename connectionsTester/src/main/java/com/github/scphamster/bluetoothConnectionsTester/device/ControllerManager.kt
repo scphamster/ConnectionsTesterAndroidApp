@@ -1,10 +1,7 @@
 package com.github.scphamster.bluetoothConnectionsTester.device
 
 import android.util.Log
-import com.github.scphamster.bluetoothConnectionsTester.circuit.IoBoard
-import com.github.scphamster.bluetoothConnectionsTester.circuit.IoBoardInternalParameters
-import com.github.scphamster.bluetoothConnectionsTester.circuit.SimpleConnectivityDescription
-import com.github.scphamster.bluetoothConnectionsTester.circuit.SingleBoardVoltages
+import com.github.scphamster.bluetoothConnectionsTester.circuit.*
 import com.github.scphamster.bluetoothConnectionsTester.dataLink.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -207,6 +204,60 @@ class ControllerManager(override val dataLink: DeviceLink,
     suspend fun getBoards() = notReadyMtx.withLock<Array<IoBoard>> {
         return boards.toTypedArray()
     }
+    
+    override suspend fun checkSingleConnection(pinAffinityAndId: PinAffinityAndId,
+                                      connectionsChannel: Channel<SimpleConnectivityDescription>) =
+        withContext(Dispatchers.Default) {
+            outputMessagesChannel.send(FindConnection(pinAffinityAndId))
+            
+            val ack = checkAcknowledge().await()
+            
+            if (ack != ControllerResponse.CommandAcknowledge) {
+                Log.e(Tag, "Check single connection failed: no acknowledge $ack")
+                return@withContext
+            }
+            
+            inputMessagesChannelMutex.withLock {
+                val msg = try {
+                    withTimeout(FindConnection.SINGLE_PIN_RESULT_TIMEOUT_MS) {
+                        inputMessagesChannel.receiveCatching()
+                            .getOrNull()
+                    }
+                }
+                catch (e: TimeoutCancellationException) {
+                    Log.e(Tag, "Single pin results timeout!")
+                    return@withContext
+                }
+                catch (e: Exception) {
+                    Log.e(Tag, "Unexpected exception while waiting for single pin connectivity results: ${e.message}")
+                    return@withContext
+                }
+                
+                if (msg == null) {
+                    Log.e(Tag, "Msg is null while getting connectivity info!")
+                    return@withContext
+                }
+                
+                when (msg) {
+                    is MessageFromController.Connectivity -> {
+                        Log.d(Tag, "Connections for pin: ${msg.masterPin}")
+                        
+                        connectionsChannel.send(SimpleConnectivityDescription(msg.masterPin, msg.connections))
+                    }
+                    
+                    is MessageFromController.OperationStatus -> {
+                        Log.e(Tag, "Operation status message arrived while getting connectivity info: ${msg.response}")
+                        return@withContext
+                    }
+                    
+                    else -> {
+                        Log.e(Tag, "Unexpected message obtained while getting connectivity info")
+                        return@withContext
+                    }
+                }
+                
+            }
+        }
     
     override suspend fun initialize() = withContext(Dispatchers.Default) {
         while (isActive) {

@@ -43,7 +43,6 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
         measurementsHandler = MeasurementsHandler(errorHandler, bluetooth, app, viewModelScope)
         controllersManager =
             Director(app, viewModelScope, errorHandler, measurementsHandler.boardsManager.boardsArrayChannel)
-        
     }
     
     override fun onCleared() {
@@ -203,9 +202,16 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             else -> Commands.CheckConnectivity.AnswerDomain.Raw
         }
         
-        measurementsHandler.commander.sendCommand(Commands.CheckConnectivity(answer_domain,
-                                                                             for_pin.descriptor.pinAffinityAndId,
-                                                                             if_sequential))
+        //        measurementsHandler.commander.sendCommand(Commands.CheckConnectivity(answer_domain,
+        //                                                                             for_pin.descriptor.pinAffinityAndId,
+        //                                                                             if_sequential))
+        //
+        viewModelScope.launch {
+            controllersManager.checkConnection(for_pin.descriptor.affinityAndId,
+                                               measurementsHandler.boardsManager.pinConnectivityResultsCh)
+            Log.d(Tag, "check connection succeeded")
+            
+        }
     }
     
     fun setMinimumResistanceToBeRecognizedAsConnection(value_as_text: String) {
