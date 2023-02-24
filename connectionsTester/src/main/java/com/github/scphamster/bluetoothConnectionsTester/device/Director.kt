@@ -29,17 +29,36 @@ class Director(val app: Application,
     
     private inner class NewSocketRegistator(val socketChannel: Channel<DeviceLink>) {
         init {
-            scope.launch {
-                startEntrySocket()
+            scope.launch(Dispatchers.Default) {
+                while (isActive) {
+                    val entrySocketJob = async {
+                        run()
+                    }
+                    
+                    try {
+                        entrySocketJob.await()
+                    }
+                    catch (e: CancellationException) {
+                        Log.d(Tag, "cancelled due to: $e")
+                    }
+                    catch (e: Exception) {
+                        Log.e(Tag, "Unexpected exception: $e")
+                    } finally {
+                        if (::serverSocket.isInitialized && !serverSocket.isClosed) {
+                            withContext(Dispatchers.IO) {
+                                serverSocket.close()
+                            }
+                        }
+                    }
+                }
             }
         }
         
-        var socket = Socket()
+        lateinit var socket: Socket
         lateinit var serverSocket: ServerSocket
         
-        suspend fun startEntrySocket() = withContext(Dispatchers.IO) {
+        suspend fun run() = withContext(Dispatchers.IO) {
             val Tag = Tag + ":EntrySocket"
-            
             val keepAliveMessage = WorkSocket.KeepAliveMessage(KeepAliveMessage().serialize(), 1000)
             
             while (isActive) {
@@ -50,16 +69,14 @@ class Director(val app: Application,
                 }
                 catch (e: SocketTimeoutException) {
                     Log.d(Tag, "serverSocket timeout!")
-                    if (!serverSocket.isClosed) serverSocket.close()
+                    if (::serverSocket.isInitialized && !serverSocket.isClosed) serverSocket.close()
                     continue
                 }
                 catch (e: Exception) {
                     Log.e(Tag, "Unexpected error in server socket! ${e.message}")
-                    if (!serverSocket.isClosed) serverSocket.close()
-                    delay(500)
+                    if (::serverSocket.isInitialized && !serverSocket.isClosed) serverSocket.close()
                     continue
                 }
-                
                 
                 Log.d(Tag, "Someone connected: ${socket.remoteSocketAddress}")
                 
@@ -88,32 +105,28 @@ class Director(val app: Application,
                         }
                     }
                 }
-                
                 serverSocket.close()
             }
-            
-            serverSocket.close()
-            Log.e(Tag, "Entry socket is closed!")
         }
         
         suspend fun ReadAnswer(inStream: java.io.InputStream, timeout: Long = Long.MAX_VALUE) =
-            withContext<Msg?>(Dispatchers.IO) {
-                val deadline = if (timeout == Long.MAX_VALUE) Long.MAX_VALUE
-                else timeout
-                
-                while (inStream.available() == 0) {
-                    if (deadline < System.currentTimeMillis()) {
-                        Log.e(Tag, "Timeout of answer retrieval!")
-                        return@withContext null
+                withContext<Msg?>(Dispatchers.IO) {
+                    val deadline = if (timeout == Long.MAX_VALUE) Long.MAX_VALUE
+                    else timeout
+                    
+                    while (inStream.available() == 0) {
+                        if (deadline < System.currentTimeMillis()) {
+                            Log.e(Tag, "Timeout of answer retrieval!")
+                            return@withContext null
+                        }
                     }
+                    
+                    val buffer = ByteArray(inStream.available() + 64)
+                    inStream.read(buffer)
+                    val msg = Msg.deserialize(buffer)
+                    
+                    return@withContext msg
                 }
-                
-                val buffer = ByteArray(inStream.available() + 64)
-                inStream.read(buffer)
-                val msg = Msg.deserialize(buffer)
-                
-                return@withContext msg
-            }
     }
     
     enum class State {
@@ -165,13 +178,10 @@ class Director(val app: Application,
     }
     
     val controllers = CopyOnWriteArrayList<ControllerManager>()
-    val isReady: Boolean
-        get() = controllersNumberHasSettled.get()
     
     private val machineState = MachineState()
     private val newDeviceLinksChannel = Channel<DeviceLink>(CHANNEL_SIZE)
     private val newSocketRegistator = NewSocketRegistator(newDeviceLinksChannel)
-    private val controllersNumberHasSettled: AtomicBoolean = AtomicBoolean(false)
     private val controllersSettings = ControllersCommonSettings()
     
     init {
@@ -182,24 +192,24 @@ class Director(val app: Application,
     
     //measurement functions
     suspend fun checkAllConnections(connectionsChannel: Channel<SimpleConnectivityDescription>) =
-        withContext(Dispatchers.IO) {
-            if (!machineState.allControllersInitialized) {
-                Log.e(Tag, "Not all controllers are initialized, failed check!")
-                return@withContext
+            withContext(Dispatchers.IO) {
+                if (!machineState.allControllersInitialized) {
+                    Log.e(Tag, "Not all controllers are initialized, failed check!")
+                    return@withContext
+                }
+                
+                if (controllers.size == 0) {
+                    Log.e(Tag, "There are no controllers to operate with!")
+                }
+                else if (controllers.size == 1) {
+                    controllers.get(0)
+                        .checkConnectionsForLocalBoards(connectionsChannel)
+                }
+                else {
+                    Log.e(Tag,
+                          "Unimplemented check all connections with many controllers used! Controllers num = ${controllers.size}")
+                }
             }
-            
-            if (controllers.size == 0) {
-                Log.e(Tag, "There are no controllers to operate with!")
-            }
-            else if (controllers.size == 1) {
-                controllers.get(0)
-                    .checkConnectionsForLocalBoards(connectionsChannel)
-            }
-            else {
-                Log.e(Tag,
-                      "Unimplemented check all connections with many controllers used! Controllers num = ${controllers.size}")
-            }
-        }
     
     suspend fun getAllBoards() = withContext<Array<IoBoard>>(Dispatchers.Default) {
         val mutableListOfBoards = mutableListOf<IoBoard>()
@@ -298,7 +308,7 @@ class Director(val app: Application,
                     else false
                 }
                 
-                scope.launch{
+                scope.launch {
                     updateAllBoards()
                 }
             })
