@@ -141,14 +141,13 @@ final class SetVoltageAtPin(val pin: PinAffinityAndId): MasterToControllerMsg{
     }
 }
 
-sealed class MessageFromController {
+sealed interface MessageFromController {
     enum class Type(val id: Byte) {
         Connections(50),
         OperationConfirmation(51),
         BoardsInfo(52),
         AllBoardsVoltages(53),
     }
-    
     companion object {
         private const val Tag = "MsgFromController"
         fun deserialize(bytesIterator: Iterator<Byte>): MessageFromController? {
@@ -170,7 +169,7 @@ sealed class MessageFromController {
         }
     }
     
-    class Connectivity(byteIterator: Iterator<Byte>) : MessageFromController() {
+    class Connectivity(byteIterator: Iterator<Byte>) : MessageFromController {
         companion object {
             const val SIZE_BYTES = 3
         }
@@ -196,7 +195,7 @@ sealed class MessageFromController {
         }
     }
     
-    class OperationStatus() : MessageFromController() {
+    class OperationStatus() : MessageFromController {
         lateinit var response: ControllerResponse
             private set
         
@@ -213,7 +212,7 @@ sealed class MessageFromController {
         }
     }
     
-    class Boards(byteIterator: Iterator<Byte>) : MessageFromController() {
+    class Boards(byteIterator: Iterator<Byte>) : MessageFromController {
         class InternalParameters(byteIterator: Iterator<Byte>) {
             companion object {
                 const val RAW_VOLTAGE_TO_REAL_COEFF = 1.toFloat() / 1000.toFloat()
@@ -279,7 +278,7 @@ sealed class MessageFromController {
         }
     }
     
-    class Voltages(byteIterator: Iterator<Byte>) : MessageFromController() {
+    class Voltages(byteIterator: Iterator<Byte>) : MessageFromController {
         data class PinVoltage(val iterator: Iterator<Byte>) {
             val pin: Byte
             val voltage: UByte
