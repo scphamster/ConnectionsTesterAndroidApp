@@ -32,7 +32,9 @@ class Director(val app: Application,
     
     private inner class NewSocketRegistator(val socketChannel: Channel<DeviceLink>) {
         init {
-            scope.launch(Dispatchers.Default) {
+            scope.launch(Dispatchers.Default + CoroutineName("SocketRegistrator")) {
+                
+            
                 while (isActive) {
                     val entrySocketJob = async {
                         run()
