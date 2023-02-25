@@ -325,24 +325,32 @@ class Director(val app: Application,
             continue
         }
         
-        machineState.state.value = State.UpdatingBoards
+        withContext(Dispatchers.Main) {
+            machineState.state.value = State.UpdatingBoards
+        }
         
         Log.d(Tag, "All controllers initialized, sending boards to boards controller")
         
         val allBoards = getAllBoards()
         if (allBoards.isEmpty()) {
             Log.e(Tag, "No boards found!")
-            machineState.state.value = State.NoBoardsAvailable
+            withContext(Dispatchers.Main) {
+                machineState.state.value = State.NoBoardsAvailable
+            }
         }
         else {
             Log.d(Tag, "Found ${allBoards.size} boards!")
             boardsArrayChannel.send(allBoards)
-            machineState.state.value = State.Operating
+            withContext(Dispatchers.Main) {
+                machineState.state.value = State.Operating
+            }
         }
     }
     
     private suspend fun newDeviceLinksReceiverTask() = withContext(Dispatchers.Default) {
-        machineState.state.value = State.SearchingForControllers
+        withContext(Dispatchers.Main) {
+            machineState.state.value = State.SearchingForControllers
+        }
         
         while (isActive) {
             val waitForAllDevicesToConnectTimeoutJob = async {
@@ -378,10 +386,16 @@ class Director(val app: Application,
                     }
                     else false
                 }
-    
-                if (controllers.size == 0) machineState.state.value = State.SearchingForControllers
+                
+                if (controllers.size == 0) {
+                    scope.launch(Dispatchers.Main) {
+                        machineState.state.value = State.SearchingForControllers
+                    }
+                }
                 else {
-                    machineState.state.value = State.RecoveryFromFailure
+                    scope.launch(Dispatchers.Main) {
+                        machineState.state.value = State.RecoveryFromFailure
+                    }
                     scope.launch {
                         updateAllBoards()
                     }

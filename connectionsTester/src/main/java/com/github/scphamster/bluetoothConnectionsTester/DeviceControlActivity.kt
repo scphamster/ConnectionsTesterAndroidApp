@@ -253,7 +253,7 @@ class DeviceControlActivity : AppCompatActivity() {
                         controller_search_progress.visibility = View.INVISIBLE
                     }
                 }
-                
+
                 Director.State.SearchingForControllers -> {
                     val controller_search_progress = findViewById<ProgressBar>(R.id.searching_for_controller_progbar)
                     actionBarText?.text = "Connecting"
@@ -261,21 +261,21 @@ class DeviceControlActivity : AppCompatActivity() {
                         controller_search_progress.visibility = View.VISIBLE
                     }
                 }
-                
+
                 Director.State.InitializingDirector -> {
                     actionBarText?.text = "Initializing"
                 }
-                
+
                 Director.State.NoBoardsAvailable -> {
                     actionBarText?.text = "Controllers: ${model.controllersManager.controllers.size}, no boards found"
                     model.errorHandler.handleError("No boards found with connected controllers")
                 }
-                
+
                 Director.State.RecoveryFromFailure -> {
                     actionBarText?.text = "Reconnecting to controller"
                     model.errorHandler.handleError("One of controllers disconnected!")
                 }
-                
+
                 Director.State.UpdatingBoards -> {
                     actionBarText?.text = "Updating boards"
                 }
@@ -284,7 +284,6 @@ class DeviceControlActivity : AppCompatActivity() {
         
         model.errorHandler.errorMessages.observe(this) { warnings ->
             warningSign.visibility = View.VISIBLE
-            
         }
         
         warningSign.setOnClickListener() { sign ->
