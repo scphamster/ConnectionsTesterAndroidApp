@@ -67,6 +67,7 @@ data class PinAffinityAndId(val boardId: BoardAddrT, val pinID: PinNumT) : PinId
         }
     }
     
+    
     override fun getPrettyName(): String {
         return "$boardId:$pinID"
     }

@@ -112,7 +112,7 @@ final class FindConnection(val pin: PinAffinityAndId? = null) : MasterToControll
     
     override fun serialize(): Collection<Byte> {
         
-        val pinAsBytes = if(pin != null) {
+        val pinAsBytes = if (pin != null) {
             arrayOf(pin.boardId.toByte(), pin.pinID.toByte())
         }
         else {
@@ -125,7 +125,7 @@ final class FindConnection(val pin: PinAffinityAndId? = null) : MasterToControll
     override val msgId = MasterToControllerMsg.MessageID.CheckConnections.id
 }
 
-final class KeepAliveMessage: MasterToControllerMsg{
+final class KeepAliveMessage : MasterToControllerMsg {
     override val msgId = MasterToControllerMsg.MessageID.DataLinkKeepAlive.id
     
     override fun serialize(): Collection<Byte> {
@@ -133,7 +133,7 @@ final class KeepAliveMessage: MasterToControllerMsg{
     }
 }
 
-final class SetVoltageAtPin(val pin: PinAffinityAndId): MasterToControllerMsg{
+final class SetVoltageAtPin(val pin: PinAffinityAndId) : MasterToControllerMsg {
     override val msgId = MasterToControllerMsg.MessageID.EnableOutputForPin.id
     
     override fun serialize(): Collection<Byte> {
@@ -148,6 +148,7 @@ sealed interface MessageFromController {
         BoardsInfo(52),
         AllBoardsVoltages(53),
     }
+    
     companion object {
         private const val Tag = "MsgFromController"
         fun deserialize(bytesIterator: Iterator<Byte>): MessageFromController? {
@@ -279,29 +280,35 @@ sealed interface MessageFromController {
     }
     
     class Voltages(byteIterator: Iterator<Byte>) : MessageFromController {
+        companion object {
+            const val TIME_TO_WAIT_FOR_RESULT_MS = 2000.toLong()
+        }
+        
         data class PinVoltage(val iterator: Iterator<Byte>) {
-            val pin: Byte
-            val voltage: UByte
+            val pin: PinNumT
+            val voltage: RawVoltageADCValue
             
             init {
                 pin = iterator.next()
-                voltage = iterator.next()
                     .toUByte()
+                    .toInt()
+                voltage = RawVoltageADCValue.deserialize(iterator)
             }
         }
         
         data class BoardVoltages(val iterator: Iterator<Byte>) {
-            val boardId: UByte
-            val voltages: Array<PinVoltage>
+            val boardId: BoardAddrT
+            val pinsAndVoltages: Array<PinVoltage>
             
             init {
                 boardId = iterator.next()
                     .toUByte()
-                voltages = Array<PinVoltage>(IoBoard.PINS_COUNT_ON_SINGLE_BOARD) { PinVoltage(iterator) }
+                    .toInt()
+                pinsAndVoltages = Array<PinVoltage>(IoBoard.PINS_COUNT_ON_SINGLE_BOARD) { PinVoltage(iterator) }
             }
         }
         
-        val boardsVoltages: Array<BoardVoltages>
+        val boardsAndVoltages: Array<BoardVoltages>
         
         init {
             val _boardsVoltages = mutableListOf<BoardVoltages>()
@@ -310,7 +317,7 @@ sealed interface MessageFromController {
                 _boardsVoltages.add(BoardVoltages(byteIterator))
             }
             
-            boardsVoltages = _boardsVoltages.toTypedArray()
+            boardsAndVoltages = _boardsVoltages.toTypedArray()
         }
     }
 }

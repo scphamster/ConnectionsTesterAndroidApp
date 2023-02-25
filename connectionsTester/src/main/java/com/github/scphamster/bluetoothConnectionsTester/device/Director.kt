@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.preference.PreferenceManager
 import com.github.scphamster.bluetoothConnectionsTester.circuit.IoBoard
 import com.github.scphamster.bluetoothConnectionsTester.circuit.PinAffinityAndId
+import com.github.scphamster.bluetoothConnectionsTester.circuit.SimpleConnection
 import com.github.scphamster.bluetoothConnectionsTester.circuit.SimpleConnectivityDescription
 import com.github.scphamster.bluetoothConnectionsTester.dataLink.*
 import kotlinx.coroutines.*
@@ -204,13 +205,17 @@ class Director(val app: Application,
                 Log.e(Tag, "There are no controllers to operate with!")
             }
             else if (controllers.size == 1) {
-                controllers.get(0)
-                    .checkConnectionsForLocalBoards(connectionsChannel)
+                getAllBoards().forEach { b ->
+                    b.pins.forEach {
+                        checkConnection(it.descriptor.pinAffinityAndId, connectionsChannel)
+                    }
+                }
+                
+                //                controllers.get(0)
+                //                    .checkConnectionsForLocalBoards(connectionsChannel)
             }
-            else {
-                //for board in boards send SetVoltageAtPin .. MeasureAll || Verify connectivity
-         
-         
+            else { //for board in boards send SetVoltageAtPin .. MeasureAll || Verify connectivity
+                
                 Log.e(Tag,
                       "Unimplemented check all connections with many controllers used! Controllers num = ${controllers.size}")
             }
@@ -219,18 +224,51 @@ class Director(val app: Application,
     suspend fun checkConnection(pinAffinityAndId: PinAffinityAndId,
                                 connectionsChannel: Channel<SimpleConnectivityDescription>) =
         withContext(Dispatchers.Default) {
-            val boards = getAllBoards().find { b ->
-                b.address == pinAffinityAndId.boardId
-            }?.belongsToController?.get()
-                ?.checkSingleConnection(pinAffinityAndId, connectionsChannel)
+            val controller =
+                getAllBoards().find { b -> b.address == pinAffinityAndId.boardId }?.belongsToController?.get()
             
+            if (controller?.setVoltageAtPin(pinAffinityAndId.getPhysicalPinAffinityAndID()) != ControllerResponse.CommandAcknowledge) {
+                Log.e(Tag, "check connection failed due to failed set voltage!")
+                return@withContext
+            }
             
+            val allBoardsVoltages = controllers.map { c ->
+                val allVoltages = try {
+                    c.measureAllVoltages()
+                        .await()
+                }
+                catch (e: Exception) {
+                    Log.e(Tag, "Exception caught in check connection: $e")
+                    return@withContext
+                }
+                
+                if (allVoltages == null) {
+                    Log.e(Tag, "null instead of voltage table!")
+                    return@withContext
+                }
+                
+                allVoltages
+            }.flatMap{it.toList()}
             
+            Log.d(Tag, "Check connection succeeded")
             
+            allBoardsVoltages.forEach() {
+                Log.d(Tag, "Board: ${it.boardId}")
+                it.voltages.forEach { Log.d(Tag, "${it.first} : ${it.second.value}") }
+            }
             
+            val simpleConnections = allBoardsVoltages.map { boardAndVoltages ->
+                val boardId = boardAndVoltages.boardId
+                
+                boardAndVoltages.voltages.filter { it.second.value > 0 }
+                    .map { pinAndVoltage ->
+                        SimpleConnection(PinAffinityAndId(boardId, pinAndVoltage.first), pinAndVoltage.second)
+                    }
+            }
+                .flatMap { it }
+            
+            connectionsChannel.send(SimpleConnectivityDescription(pinAffinityAndId, simpleConnections.toTypedArray()))
         }
-    
-    
     
     suspend fun getAllBoards() = withContext<Array<IoBoard>>(Dispatchers.Default) {
         val mutableListOfBoards = mutableListOf<IoBoard>()

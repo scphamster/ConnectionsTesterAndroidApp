@@ -70,7 +70,7 @@ class ControllerManager(override val dataLink: DeviceLink,
         }
     }
     
-    fun cancelAllJobs() {
+    override fun cancelAllJobs() {
         initialized.set(false)
         
         try {
@@ -82,7 +82,7 @@ class ControllerManager(override val dataLink: DeviceLink,
         }
     }
     
-    fun measureAllVoltages() = async<SingleBoardVoltages?> {
+    override fun measureAllVoltages() = async<Array<SingleBoardVoltages>?> {
         if (!initialized.get()) {
             Log.e(Tag, "Sending commands before controller is ready is prohibited!")
             return@async null
@@ -97,8 +97,26 @@ class ControllerManager(override val dataLink: DeviceLink,
         }
         
         val result = try {
-            withTimeout(2000) {
-                inputMessagesChannel.receiveCatching()
+            withTimeout(MessageFromController.Voltages.TIME_TO_WAIT_FOR_RESULT_MS) {
+                val type = MessageFromController.Voltages::class
+                while (!inputChannels.containsKey(type)) continue
+                
+                val voltages = inputChannels[type]?.receiveCatching()
+                    ?.getOrNull() as MessageFromController.Voltages?
+                
+                if (voltages == null) {
+                    Log.e(Tag, "voltage table arrived as null")
+                    null
+                }
+                else {
+                    voltages.boardsAndVoltages.map { boardAndVoltages ->
+                        val pinsVoltages = boardAndVoltages.pinsAndVoltages.map { pinAndVoltage ->
+                            Pair(pinAndVoltage.pin.toInt(), pinAndVoltage.voltage)
+                        }
+                        
+                        SingleBoardVoltages(boardAndVoltages.boardId.toInt(), pinsVoltages.toTypedArray())
+                    }.toTypedArray()
+                }
             }
         }
         catch (e: TimeoutCancellationException) {
@@ -108,159 +126,20 @@ class ControllerManager(override val dataLink: DeviceLink,
         catch (e: Exception) {
             Log.e(Tag, "Unsuccessful retrieval of AllBoardsVoltages! E: ${e.message}")
             return@async null
-        }.getOrNull()
+        }
         
         if (result == null) {
             Log.e(Tag, "Voltages are null!")
             return@async null
         }
         
-        when (result) {
-            is MessageFromController.OperationStatus -> {
-                Log.e(Tag, "Unsuccessful measure all retrieval, operation result is ${result.response.name}");
-                return@async null
-            }
-            
-            is MessageFromController.Voltages -> {
-                Log.d(Tag,
-                      "Successful retrieval of all voltages!") //                for (board in result.boardsVoltages) {
-                //                    for (voltage in board.voltages) {
-                //                        Log.d(Tag, "${voltage.pin} : ${voltage.voltage}")
-                //                    }
-                //                }
-            }
-            
-            else -> {
-                Log.e(Tag, "Unexpected message arrived!")
-            }
+        if (result.size != boards.size) {
+            Log.e(Tag, "Not all boards voltages are available!")
         }
         
-        //test
-        return@async null
-    }
-    
-    /**
-     * @brief fast connections check method if there is only one ControllerManager connected
-     */
-    suspend fun checkConnectionsForLocalBoards(connectionsChannel: Channel<SimpleConnectivityDescription>) =
-        withContext(Dispatchers.Default) /* overall operation result */ {
-            outputMessagesChannel.send(FindConnection())
-            
-            val ack = checkAcknowledge().await()
-            
-            if (ack != ControllerResponse.CommandAcknowledge) {
-                Log.e(Tag, "No ack for find all connections command")
-                return@withContext
-            }
-            
-            var pinCounter = 0
-            repeat(boards.size * IoBoard.PINS_COUNT_ON_SINGLE_BOARD) {
-                val msg = catchConnectivityMsg()
-                
-                if (msg == null) {
-                    Log.e(Tag, "Check connections on single controller: msg is null")
-                    return@withContext
-                }
-                
-                Log.d(Tag, "Connections for pin: ${msg.masterPin}")
-                connectionsChannel.send(SimpleConnectivityDescription(msg.masterPin, msg.connections))
-                pinCounter++
-                
-                Log.d(Tag, "All pins connectivity info arrived!")
-            }
-        }
-    
-    suspend fun getBoards() = notReadyMtx.withLock<Array<IoBoard>> {
-        return boards.toTypedArray()
-    }
-    
-    override suspend fun checkSingleConnection(pinAffinityAndId: PinAffinityAndId,
-                                               connectionsChannel: Channel<SimpleConnectivityDescription>) =
-        withContext(Dispatchers.Default) {
-            outputMessagesChannel.send(FindConnection(pinAffinityAndId))
-            
-            val ack = checkAcknowledge().await()
-            
-            if (ack != ControllerResponse.CommandAcknowledge) {
-                Log.e(Tag, "Check single connection failed: no acknowledge $ack")
-                return@withContext
-            }
-            
-            val msg = catchConnectivityMsg()
-            
-            if (msg == null) {
-                Log.e(Tag, "Check connectivity failed: connectivity msg is null")
-                return@withContext
-            }
-            
-            Log.d(Tag,
-                  "Connections info arrived for pin: ${msg.masterPin}, connections number: ${msg.connections.size}")
-            connectionsChannel.send(SimpleConnectivityDescription(msg.masterPin, msg.connections))
-        }
-    
-    private suspend fun catchConnectivityMsg(): MessageFromController.Connectivity? {
-        val msg = try {
-            withTimeout(FindConnection.SINGLE_PIN_RESULT_TIMEOUT_MS) {
-                val type = MessageFromController.Connectivity::class
-                
-                while (!inputChannels.containsKey(type)) continue
-                
-                inputChannels[type]?.receiveCatching()
-                    ?.getOrNull() as MessageFromController.Connectivity?
-            }
-        }
-        catch (e: TimeoutCancellationException) {
-            Log.e(Tag, "Single pin results timeout!")
-            return null
-        }
-        catch (e: Exception) {
-            Log.e(Tag, "Unexpected exception while waiting for single pin connectivity results: ${e.message}")
-            return null
-        }
+        Log.d(Tag, "Successful retrieval of all voltages! Size: ${result.size}")
         
-        if (msg == null) Log.e(Tag, "Connectivity info msg is null")
-        
-        return msg
-    }
-    
-    override suspend fun initialize() = withContext(Dispatchers.Default) {
-        while (isActive) {
-            val response = updateAvailableBoards().await();
-            if (response == ControllerResponse.DeviceIsInitializing) {
-                delay(1000)
-                continue
-            }
-            else if (response != ControllerResponse.CommandPerformanceSuccess) {
-                Log.e(Tag, "boards update failed with result : $response")
-            }
-            else return@withContext
-        }
-    }
-    
-    override suspend fun runDataLink() = withContext(Dispatchers.Default) {
-        Log.d(Tag, "Starting new Controller DataLink: ${dataLink.id}")
-        
-        val dataLinkJob = async {
-            dataLink.run()
-        }
-        
-        try {
-            dataLinkJob.await()
-            Log.e(Tag, "DataLink ended its job!")
-        }
-        catch (e: SocketTimeoutException) {
-            Log.e(Tag, "socket connection timeout")
-        }
-        catch (e: CancellationException) {
-            Log.e(Tag, "DataLink task canceled due to: ${e.message} : ${e.cause}")
-        }
-        catch (e: Exception) {
-            Log.e(Tag, "Unexpected exception caught from DataLink: ${e.message}")
-        } finally {
-            onFatalErrorCallback()
-        }
-        return@withContext
-        
+        return@async result
     }
     
     override fun stop() {
@@ -320,23 +199,89 @@ class ControllerManager(override val dataLink: DeviceLink,
         return@async ControllerResponse.CommandPerformanceSuccess
     }
     
-    private suspend fun addNewBoards(newBoards: MessageFromController.Boards) = notReadyMtx.withLock {
-        boards.clear()
-        return@withLock boards.addAll(newBoards.boardsInfo.map { b ->
-            IoBoard(b.address.toInt(),
-                    internalParams = IoBoardInternalParameters(b.internals.inR1,
-                                                               b.internals.outR1,
-                                                               b.internals.inR2,
-                                                               b.internals.outR2,
-                                                               b.internals.shuntR,
-                                                               b.internals.outVLow,
-                                                               b.internals.outVHigh
-            
-                    ),
-                    voltageLevel = b.voltageLevel,
-                    belongsToController = WeakReference(this))
-        })
+    /**
+     * @brief fast connections check method if there is only one ControllerManager connected
+     */
+    
+    override suspend fun initialize() = withContext(Dispatchers.Default) {
+        while (isActive) {
+            val response = updateAvailableBoards().await();
+            if (response == ControllerResponse.DeviceIsInitializing) {
+                delay(1000)
+                continue
+            }
+            else if (response != ControllerResponse.CommandPerformanceSuccess) {
+                Log.e(Tag, "boards update failed with result : $response")
+            }
+            else return@withContext
+        }
     }
+    
+    override suspend fun getBoards() = notReadyMtx.withLock<Array<IoBoard>> {
+        return boards.toTypedArray()
+    }
+    
+    override suspend fun setVoltageAtPin(pinAffinityAndId: PinAffinityAndId): ControllerResponse {
+        outputMessagesChannel.send(SetVoltageAtPin(pinAffinityAndId))
+        val ack = checkAcknowledge().await()
+        
+        if (ack != ControllerResponse.CommandAcknowledge) Log.e(Tag,
+                                                                "Failed to set voltage at pin: ${pinAffinityAndId}")
+        
+        return ack
+    }
+    
+    override suspend fun checkSingleConnection(pinAffinityAndId: PinAffinityAndId,
+                                               connectionsChannel: Channel<SimpleConnectivityDescription>) =
+        withContext(Dispatchers.Default) {
+            outputMessagesChannel.send(FindConnection(pinAffinityAndId))
+            
+            val ack = checkAcknowledge().await()
+            
+            if (ack != ControllerResponse.CommandAcknowledge) {
+                Log.e(Tag, "Check single connection failed: no acknowledge $ack")
+                return@withContext
+            }
+            
+            val msg = catchConnectivityMsg()
+            
+            if (msg == null) {
+                Log.e(Tag, "Check connectivity failed: connectivity msg is null")
+                return@withContext
+            }
+            
+            Log.d(Tag,
+                  "Connections info arrived for pin: ${msg.masterPin}, connections number: ${msg.connections.size}")
+            connectionsChannel.send(SimpleConnectivityDescription(msg.masterPin, msg.connections))
+        }
+    
+    override suspend fun checkConnectionsForLocalBoards(connectionsChannel: Channel<SimpleConnectivityDescription>) =
+        withContext(Dispatchers.Default) /* overall operation result */ {
+            outputMessagesChannel.send(FindConnection())
+            
+            val ack = checkAcknowledge().await()
+            
+            if (ack != ControllerResponse.CommandAcknowledge) {
+                Log.e(Tag, "No ack for find all connections command")
+                return@withContext
+            }
+            
+            var pinCounter = 0
+            repeat(boards.size * IoBoard.PINS_COUNT_ON_SINGLE_BOARD) {
+                val msg = catchConnectivityMsg()
+                
+                if (msg == null) {
+                    Log.e(Tag, "Check connections on single controller: msg is null")
+                    return@withContext
+                }
+                
+                Log.d(Tag, "Connections for pin: ${msg.masterPin}")
+                connectionsChannel.send(SimpleConnectivityDescription(msg.masterPin, msg.connections))
+                pinCounter++
+                
+                Log.d(Tag, "All pins connectivity info arrived!")
+            }
+        }
     
     private fun testTask() = launch {
         while (isActive) {
@@ -506,5 +451,74 @@ class ControllerManager(override val dataLink: DeviceLink,
             
             outputDataCh.send(bytes)
         }
+    }
+    
+    private suspend fun runDataLink() = withContext(Dispatchers.Default) {
+        Log.d(Tag, "Starting new Controller DataLink: ${dataLink.id}")
+        
+        val dataLinkJob = async {
+            dataLink.run()
+        }
+        
+        try {
+            dataLinkJob.await()
+            Log.e(Tag, "DataLink ended its job!")
+        }
+        catch (e: SocketTimeoutException) {
+            Log.e(Tag, "socket connection timeout")
+        }
+        catch (e: CancellationException) {
+            Log.e(Tag, "DataLink task canceled due to: ${e.message} : ${e.cause}")
+        }
+        catch (e: Exception) {
+            Log.e(Tag, "Unexpected exception caught from DataLink: ${e.message}")
+        } finally {
+            onFatalErrorCallback()
+        }
+        return@withContext
+        
+    }
+    
+    private suspend fun addNewBoards(newBoards: MessageFromController.Boards) = notReadyMtx.withLock {
+        boards.clear()
+        return@withLock boards.addAll(newBoards.boardsInfo.map { b ->
+            IoBoard(b.address.toInt(),
+                    internalParams = IoBoardInternalParameters(b.internals.inR1,
+                                                               b.internals.outR1,
+                                                               b.internals.inR2,
+                                                               b.internals.outR2,
+                                                               b.internals.shuntR,
+                                                               b.internals.outVLow,
+                                                               b.internals.outVHigh
+            
+                    ),
+                    voltageLevel = b.voltageLevel,
+                    belongsToController = WeakReference(this))
+        })
+    }
+    
+    private suspend fun catchConnectivityMsg(): MessageFromController.Connectivity? {
+        val msg = try {
+            withTimeout(FindConnection.SINGLE_PIN_RESULT_TIMEOUT_MS) {
+                val type = MessageFromController.Connectivity::class
+                
+                while (!inputChannels.containsKey(type)) continue
+                
+                inputChannels[type]?.receiveCatching()
+                    ?.getOrNull() as MessageFromController.Connectivity?
+            }
+        }
+        catch (e: TimeoutCancellationException) {
+            Log.e(Tag, "Single pin results timeout!")
+            return null
+        }
+        catch (e: Exception) {
+            Log.e(Tag, "Unexpected exception while waiting for single pin connectivity results: ${e.message}")
+            return null
+        }
+        
+        if (msg == null) Log.e(Tag, "Connectivity info msg is null")
+        
+        return msg
     }
 }

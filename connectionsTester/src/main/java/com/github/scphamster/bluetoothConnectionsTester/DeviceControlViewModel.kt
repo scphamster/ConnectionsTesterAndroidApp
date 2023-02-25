@@ -198,7 +198,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
         //                                                                             if_sequential))
         //
         viewModelScope.launch {
-            controllersManager.checkConnection(for_pin.descriptor.affinityAndId.getPhysicalPinAffinityAndID(),
+            controllersManager.checkConnection(for_pin.descriptor.pinAffinityAndId,
                                                measurementsHandler.boardsManager.pinConnectivityResultsCh)
             Log.d(Tag, "check connection succeeded")
             
