@@ -28,11 +28,7 @@ class BluetoothBridge(val errorHandler: ErrorHandler) {
     private var deviceInterface: SimpleBluetoothDeviceInterface? = null
     var mac: String? = null
     var deviceName: String? = null
-    var deviceNameData = MutableLiveData<String>()
-        private set
-        get
-    var connectionStatus = MutableLiveData<ConnectionStatus>()
-        private set
+    val connectionStatus = MutableLiveData<ConnectionStatus>()
         get
     private var connectionAttemptedOrMade: Boolean = false
 

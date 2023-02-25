@@ -115,13 +115,33 @@ class ControllerManager(override val dataLink: DeviceLink,
                         }
                         
                         SingleBoardVoltages(boardAndVoltages.boardId.toInt(), pinsVoltages.toTypedArray())
-                    }.toTypedArray()
+                    }
+                        .toTypedArray()
                 }
             }
         }
         catch (e: TimeoutCancellationException) {
             Log.e(Tag, "Measure all voltages command timed out!")
-            return@async null
+            
+            val operationResult = withTimeout(MessageFromController.OperationStatus.MESSAGE_OBTAINMENT_TIMEOUT_MS) {
+                inputChannels[MessageFromController.OperationStatus::class]?.receiveCatching()
+                    ?.getOrNull() as MessageFromController.OperationStatus?
+            }
+            
+            if (operationResult != null) {
+                if (operationResult.response != ControllerResponse.CommandPerformanceFailure) {
+                    Log.e(Tag, "Measure all failed and unexpected operation result obtained!")
+                    return@async null
+                }
+                else {
+                    Log.e(Tag, "Measure all failed, fail confirmation arrived, fail is on controller side")
+                    return@async null
+                }
+            }
+            else {
+                Log.e(Tag, "Measure all failed but operation result obtainment timed out!")
+                return@async null
+            }
         }
         catch (e: Exception) {
             Log.e(Tag, "Unsuccessful retrieval of AllBoardsVoltages! E: ${e.message}")

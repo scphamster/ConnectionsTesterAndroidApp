@@ -197,6 +197,10 @@ sealed interface MessageFromController {
     }
     
     class OperationStatus() : MessageFromController {
+        companion object {
+            const val MESSAGE_OBTAINMENT_TIMEOUT_MS = 1000.toLong()
+        }
+        
         lateinit var response: ControllerResponse
             private set
         
