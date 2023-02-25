@@ -17,7 +17,6 @@ import org.apache.poi.ss.usermodel.*
 import org.apache.poi.xssf.usermodel.*
 
 class MeasurementsHandler(errorHandler: ErrorHandler,
-                          bluetoothBridge: BluetoothBridge,
                           private val context: Context,
                           val coroutineScope: CoroutineScope) {
     
@@ -297,8 +296,6 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
     val resultsSaver by lazy { MeasurementsToFileSaver() }
     private var connectionDescriptorMessageCounter = 0
     
-    val commander = Commander(bluetoothBridge, context)
-    
     init {
         responseInterpreter.onConnectionsDescriptionCallback = { new_connections ->
             coroutineScope.launch {
@@ -312,10 +309,10 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
                 
                 delay(200)
                 
-                for (board in message.boardsOnLine) {
-                    commander.sendCommand(ControllerResponseInterpreter.Commands.GetInternalParameters(board))
-                    delay(200)
-                }
+//                for (board in message.boardsOnLine) {
+//                    commander.sendCommand(ControllerResponseInterpreter.Commands.GetInternalParameters(board))
+//                    delay(200)
+//                }
             }
         }
         
@@ -326,41 +323,11 @@ class MeasurementsHandler(errorHandler: ErrorHandler,
         }
         
         
-        commander.dataLink.onMessageReceivedCallback = { msg ->
-            responseInterpreter.handleMessage(msg)
-        }
+//        commander.dataLink.onMessageReceivedCallback = { msg ->
+//            responseInterpreter.handleMessage(msg)
+//        }
     }
     
-    suspend fun calibrate(completion_callback: ((String) -> Unit)) {
-        val pin_count = boardsManager.getBoardsCount() * IoBoard.PINS_COUNT_ON_SINGLE_BOARD
-        if (pin_count == 0) completion_callback("Fail, no boards found yet")
-        
-        connectionDescriptorMessageCounter = 0
-        commander.sendCommand(Commands.CheckConnectivity(Commands.CheckConnectivity.AnswerDomain.Resistance))
-        val max_delay_for_result_arrival_ms = 1000
-        
-        withContext(Dispatchers.Default) {
-            var pin_descriptor_messages_count_last_check = connectionDescriptorMessageCounter
-            
-            while (true) {
-                delay(max_delay_for_result_arrival_ms.toLong())
-                
-                if (connectionDescriptorMessageCounter == pin_descriptor_messages_count_last_check) {
-                    if (connectionDescriptorMessageCounter == pin_count) { //                        boardsManager.calibrate()
-                        completion_callback("Success, calibrated!")
-                        return@withContext
-                    }
-                    else {
-                        completion_callback("Fail! Only $pin_descriptor_messages_count_last_check descriptors arrived!")
-                        return@withContext
-                    }
-                }
-                else {
-                    pin_descriptor_messages_count_last_check = connectionDescriptorMessageCounter
-                }
-            }
-        }
-    }
 }
 
 private fun xssfColorFromInt(color: Int): XSSFColor {

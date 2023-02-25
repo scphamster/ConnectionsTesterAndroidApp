@@ -2,6 +2,7 @@ package com.github.scphamster.bluetoothConnectionsTester.device
 
 import android.app.Application
 import android.util.Log
+import androidx.lifecycle.MutableLiveData
 import androidx.preference.PreferenceManager
 import com.github.scphamster.bluetoothConnectionsTester.circuit.IoBoard
 import com.github.scphamster.bluetoothConnectionsTester.circuit.PinAffinityAndId
@@ -68,6 +69,7 @@ class Director(val app: Application,
                 try {
                     serverSocket = ServerSocket(STD_ENTRY_SOCKET_PORT)
                     serverSocket.soTimeout = STD_ENTRY_SOCKET_TIMEOUT_MS
+                    Log.v(Tag, "Waiting for new client")
                     socket = serverSocket.accept()
                 }
                 catch (e: SocketTimeoutException) {
@@ -135,15 +137,15 @@ class Director(val app: Application,
     enum class State {
         InitializingDirector,
         SearchingForControllers,
-        InitializingControllers,
-        GettingBoards,
+        RecoveryFromFailure,
+        UpdatingBoards,
+        NoBoardsAvailable,
         Operating
     }
     
-    private inner class MachineState {
-        
+    inner class MachineState {
         val ready: Boolean
-            get() = state == State.Operating
+            get() = state.value == State.Operating
         
         val allControllersInitialized: Boolean
             get() {
@@ -157,12 +159,11 @@ class Director(val app: Application,
                 }
                 if (controllers.size == 0) someoneIsNotInitialized = true
                 
-                
                 return someoneIsNotInitialized == false
             }
         
         var controllersQuantitySettled = AtomicBoolean(false)
-        var state: State = State.InitializingDirector
+        val state = MutableLiveData<State>(State.InitializingDirector)
     }
     
     private class ControllersCommonSettings {
@@ -182,7 +183,7 @@ class Director(val app: Application,
     
     val controllers = CopyOnWriteArrayList<ControllerManager>()
     
-    private val machineState = MachineState()
+    val machineState = MachineState()
     private val newDeviceLinksChannel = Channel<DeviceLink>(CHANNEL_SIZE)
     private val newSocketRegistator = NewSocketRegistator(newDeviceLinksChannel)
     private val controllersSettings = ControllersCommonSettings()
@@ -191,6 +192,8 @@ class Director(val app: Application,
         scope.launch {
             newDeviceLinksReceiverTask()
         }
+        
+        Log.v(Tag, "Director init end")
     }
     
     //measurement functions
@@ -248,7 +251,8 @@ class Director(val app: Application,
                 }
                 
                 allVoltages
-            }.flatMap{it.toList()}
+            }
+                .flatMap { it.toList() }
             
             Log.d(Tag, "Check connection succeeded")
             
@@ -315,26 +319,34 @@ class Director(val app: Application,
     }
     
     private suspend fun updateAllBoards() = withContext(Dispatchers.Default) {
+        
         Log.d(Tag, "Updating all boards, waiting for all controllers to be initialized")
         while (!machineState.allControllersInitialized) {
             continue
         }
+        
+        machineState.state.value = State.UpdatingBoards
         
         Log.d(Tag, "All controllers initialized, sending boards to boards controller")
         
         val allBoards = getAllBoards()
         if (allBoards.isEmpty()) {
             Log.e(Tag, "No boards found!")
+            machineState.state.value = State.NoBoardsAvailable
         }
         else {
             Log.d(Tag, "Found ${allBoards.size} boards!")
             boardsArrayChannel.send(allBoards)
+            machineState.state.value = State.Operating
         }
     }
     
     private suspend fun newDeviceLinksReceiverTask() = withContext(Dispatchers.Default) {
+        machineState.state.value = State.SearchingForControllers
+        
         while (isActive) {
             val waitForAllDevicesToConnectTimeoutJob = async {
+                
                 delay(WAIT_FOR_NEW_SOCKETS_TIMEOUT)
                 if (isActive) {
                     if (controllers.size == 0) return@async
@@ -366,10 +378,15 @@ class Director(val app: Application,
                     }
                     else false
                 }
-                
-                scope.launch {
-                    updateAllBoards()
+    
+                if (controllers.size == 0) machineState.state.value = State.SearchingForControllers
+                else {
+                    machineState.state.value = State.RecoveryFromFailure
+                    scope.launch {
+                        updateAllBoards()
+                    }
                 }
+                
             })
         }
         

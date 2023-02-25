@@ -23,24 +23,18 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
     
     val errorHandler = ErrorHandler(app)
     val measurementsHandler: MeasurementsHandler
-    val controllerIsNotConfigured: Boolean
-        get() {
-            return measurementsHandler.boardsManager.boards.value?.isEmpty() ?: true
-        }
-    
+    val controllersManager: Director //    private val bluetooth: BluetoothBridge //    private val logger by lazy { ToFileLogger(app) }
+
     var maxDetectableResistance: Float = 0f
-    
-    private val controllersManager: Director
-    private val bluetooth: BluetoothBridge //    private val logger by lazy { ToFileLogger(app) }
     
     private var isInitialized: Boolean
     
     init {
-        isInitialized = false
-        bluetooth = BluetoothBridge(errorHandler)
-        measurementsHandler = MeasurementsHandler(errorHandler, bluetooth, app, viewModelScope)
+        isInitialized = false //        bluetooth = BluetoothBridge(errorHandler)
+        measurementsHandler = MeasurementsHandler(errorHandler, app, viewModelScope)
         controllersManager =
             Director(app, viewModelScope, errorHandler, measurementsHandler.boardsManager.boardsArrayChannel)
+        
     }
     
     override fun onCleared() {
@@ -52,36 +46,45 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
     
     fun setupViewModel(deviceName: String, mac: String?): Boolean {
         if (!isInitialized) {
-            bluetooth.deviceName = deviceName
-            bluetooth.mac = mac
-            bluetooth.connect()
-            
             getPinoutConfigFile()
             setupVoltageLevel()
-            
+            setupMinimumResistance()
+
             isInitialized = true
+            Log.v(Tag, "ViewModel set up")
         }
         return true
     }
     
-    fun setupVoltageLevel() {
-        val selected_voltage_level = PreferenceManager.getDefaultSharedPreferences(app)
-            .getString("output_voltage_level", "")
-        val voltage_level = when (selected_voltage_level) {
-            "Low(0.7V)" -> Commands.SetOutputVoltageLevel.VoltageLevel.Low
-            "High(1.0V)" -> Commands.SetOutputVoltageLevel.VoltageLevel.High
-            else -> Commands.SetOutputVoltageLevel.VoltageLevel.Low
+    fun setupMinimumResistance() {
+        val pref_manager = PreferenceManager.getDefaultSharedPreferences(app)
+        val max_resistance =
+            pref_manager.getString(PreferencesFragment.Companion.SharedPreferenceKey.MaximumResistance.text, "")
+        max_resistance?.let {
+            setMinimumResistanceToBeRecognizedAsConnection(it)
         }
+    }
+    
+    fun setupVoltageLevel() { //        val selected_voltage_level = PreferenceManager.getDefaultSharedPreferences(app)
+        //            .getString("output_voltage_level", "")
+        //        val voltage_level = when (selected_voltage_level) {
+        //            "Low(0.7V)" -> Commands.SetOutputVoltageLevel.VoltageLevel.Low
+        //            "High(1.0V)" -> Commands.SetOutputVoltageLevel.VoltageLevel.High
+        //            else -> Commands.SetOutputVoltageLevel.VoltageLevel.Low
+        //        }
         
-        when (voltage_level) {
-            Commands.SetOutputVoltageLevel.VoltageLevel.Low -> measurementsHandler.boardsManager.setOutputVoltageLevelForBoards(
-                IoBoardsManager.VoltageLevel.Low)
-            
-            Commands.SetOutputVoltageLevel.VoltageLevel.High -> measurementsHandler.boardsManager.setOutputVoltageLevelForBoards(
-                IoBoardsManager.VoltageLevel.High)
+        //        when (voltage_level) {
+        //            Commands.SetOutputVoltageLevel.VoltageLevel.Low -> measurementsHandler.boardsManager.setOutputVoltageLevelForBoards(
+        //                IoBoardsManager.VoltageLevel.Low)
+        //
+        //            Commands.SetOutputVoltageLevel.VoltageLevel.High -> measurementsHandler.boardsManager.setOutputVoltageLevelForBoards(
+        //                IoBoardsManager.VoltageLevel.High)
+        //        }
+        
+        //        measurementsHandler.commander.sendCommand(Commands.SetOutputVoltageLevel(voltage_level))
+        viewModelScope.launch {
+            controllersManager.setVoltageLevelAccordingToPreferences()
         }
-        
-        measurementsHandler.commander.sendCommand(Commands.SetOutputVoltageLevel(voltage_level))
     }
     
     fun getPinoutConfigFile() {
@@ -123,37 +126,6 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
         }
         catch (e: Throwable) {
             errorHandler.handleError(e.message)
-        }
-    }
-    
-    fun reconnectToController() {
-        if (isInitialized) {
-            bluetooth.connect()
-            toast("Reconnecting")
-        }
-        else {
-            toast("Error")
-        }
-    }
-    
-    fun initializeHardware() {
-        viewModelScope.launch(Dispatchers.IO) {
-            measurementsHandler.commander.sendCommand(ControllerResponseInterpreter.Commands.CheckHardware())
-            
-            delay(1000)
-            
-            setupVoltageLevel()
-        }
-    }
-    
-    fun calibrate() {
-        viewModelScope.launch {
-            measurementsHandler.calibrate { result_message ->
-                viewModelScope.launch(Dispatchers.Main) {
-                    toast(result_message)
-                }
-            }
-            
         }
     }
     
@@ -213,15 +185,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
             measurementsHandler.boardsManager.maxResistanceAsConnection = maxDetectableResistance
         }
     }
-    
-    fun disconnect() {
-        bluetooth.disconnect()
-    }
-    
-    fun refreshHardware() {
-        measurementsHandler.commander.sendCommand(Commands.CheckHardware())
-    }
-    
+
     private fun toast(msg: String?) {
         Toast.makeText(app, msg, Toast.LENGTH_LONG)
             .show()
