@@ -5,11 +5,12 @@ import kotlinx.coroutines.channels.Channel
 import java.util.concurrent.atomic.AtomicBoolean
 
 interface DeviceLink {
-    abstract val inputDataChannel: Channel<Collection<Byte>>
-    abstract val outputDataChannel: Channel<Collection<Byte>>
-    abstract val id: Int
-    abstract val isReady: AtomicBoolean
+    val inputDataChannel: Channel<Collection<Byte>>
+    val outputDataChannel: Channel<Collection<Byte>>
+    val id: Int
+    val isReady: AtomicBoolean
+    val lastIOOperationTimeStampMs: Long
     
-    abstract suspend fun run(): Unit
-    abstract fun stop()
+    suspend fun run(): Unit
+    fun stop()
 }

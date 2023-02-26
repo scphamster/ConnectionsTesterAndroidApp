@@ -5,6 +5,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import java.io.InputStream
 import java.io.OutputStream
+import java.lang.Long.max
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.CancellationException
@@ -32,6 +33,10 @@ class WorkSocket(val keepAliveMessage: KeepAliveMessage? = null) : DeviceLink {
         get() = port
     override val outputDataChannel = Channel<Collection<Byte>>(Channel.UNLIMITED)
     override val inputDataChannel = Channel<Collection<Byte>>(Channel.UNLIMITED)
+    override val lastIOOperationTimeStampMs: Long
+        get() {
+            return max(lastSendOperationTimeMs.get(), lastReadOperationTimeMs.get())
+        }
     
     private val lastSendOperationTimeMs = AtomicLong(0)
     private val lastReadOperationTimeMs = AtomicLong(0)
@@ -62,7 +67,7 @@ class WorkSocket(val keepAliveMessage: KeepAliveMessage? = null) : DeviceLink {
             
             outStream = socket.getOutputStream()
             inStream = socket.getInputStream()
-
+            
             inputJob = async {
                 inputChannelTask()
             }

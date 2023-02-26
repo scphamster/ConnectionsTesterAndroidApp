@@ -13,9 +13,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.reflect.KClass
 
-//todo: command: GetBoards should contain switch to inform controller to controllers rescan
 //todo: create command to check internals (e.g. controller fw version)
-//todo: add controller state: BoardLess to make operation possible
 //todo: retire from using other CoroutineScope than viewModelScope
 class ControllerManager(override val dataLink: DeviceLink,
                         val exHandler: CoroutineExceptionHandler = CoroutineExceptionHandler { _, ex ->
@@ -36,6 +34,8 @@ class ControllerManager(override val dataLink: DeviceLink,
     var state: ControllerManagerI.State = ControllerManagerI.State.Initializing
         private set(newState) {
             field = newState
+            Log.d(Tag, "Setting state to ${field.toString()}!")
+            
             stateChangeCallback(field)
         }
     
@@ -65,25 +65,19 @@ class ControllerManager(override val dataLink: DeviceLink,
             while (!dataLink.isReady.get()) continue
             
             Log.d(Tag, "Socket started, getting all boards!")
-            
-            //todo: add timeout
-            try {
-                initialize()
-            }
-            catch (e: Exception) {
-                Log.e(Tag, "Exception during controller boards obtainment! ${e.message}")
-                onFatalErrorCallback()
-            }
-            
-            checkLatency()
-            launch {
+            launch(Dispatchers.Default) {
                 keepAliveReceiver()
             }
+            
+            initialize()
+            Log.d(Tag, "Milestone")
+            checkLatency()
+            
             initialized.set(true);
+            
             state = ControllerManagerI.State.Operating
             
             Log.d(Tag, "Controller initialized!")
-            
         }
     }
     
@@ -235,7 +229,6 @@ class ControllerManager(override val dataLink: DeviceLink,
         
         if (newBoards.boardsInfo.size == 0) {
             Log.e(Tag, "Controller without boards!")
-            return@async ControllerResponse.DeviceIsInitializing
         }
         
         if (addNewBoards(newBoards)) {
@@ -250,15 +243,37 @@ class ControllerManager(override val dataLink: DeviceLink,
         while (isActive) {
             val response = updateAvailableBoards().await();
             if (response == ControllerResponse.DeviceIsInitializing) {
-                state = ControllerManagerI.State.NoBoardsFound
                 delay(1000)
                 continue
             }
-            else if (response != ControllerResponse.CommandPerformanceSuccess) {
-                Log.e(Tag, "boards update failed with result : $response")
-            }
             
-            else return@withContext
+            if (response != ControllerResponse.CommandPerformanceSuccess) {
+                onFatalErrorCallback
+                return@withContext
+            }
+            else break
+        }
+        
+       
+        
+        if (boards.size != 0) {
+            Log.d(Tag, "Exiting initialize0")
+            return@withContext
+        }
+        
+        while (isActive) {
+            val response = updateAvailableBoards().await();
+            
+            if (response != ControllerResponse.CommandPerformanceSuccess) {
+                Log.e(Tag, "boards update failed with result : $response")
+                onFatalErrorCallback()
+                return@withContext
+            }
+            else if (boards.size == 0) continue
+            else {
+                Log.d(Tag, "Exiting initialize!")
+                return@withContext
+            }
         }
     }
     
@@ -415,6 +430,8 @@ class ControllerManager(override val dataLink: DeviceLink,
     }
     
     private fun rawDataReceiverTask() = async {
+        val Tag = Tag + ":RDRT"
+        
         while (isActive) {
             val result = inputDataCh.receiveCatching()
             
@@ -500,7 +517,7 @@ class ControllerManager(override val dataLink: DeviceLink,
         val Tag = Tag + ":KAT"
         
         while (!inputChannels.containsKey(MessageFromController.KeepAlive::class)) {
-            yield()
+//            yield()
             continue
         }
         
@@ -522,13 +539,15 @@ class ControllerManager(override val dataLink: DeviceLink,
             catch (e: TimeoutCancellationException) {
                 Log.e(Tag,
                       "KeepAlive msg retrieval timed out(${MessageFromController.KeepAlive.KEEPALIVE_TIMEOUT_MS}ms)")
-                onFatalErrorCallback()
+                if (System.currentTimeMillis() - dataLink.lastIOOperationTimeStampMs > MessageFromController.KeepAlive.KEEPALIVE_TIMEOUT_MS) onFatalErrorCallback()
+                
                 return@withContext
             }
             catch (e: CancellationException) {
                 Log.d(Tag, "cancelled due to: $e")
                 return@withContext
             }
+//            yield()
         }
     }
     
