@@ -26,4 +26,5 @@ interface ControllerManagerI {
     suspend fun checkSingleConnection(pinAffinityAndId: PinAffinityAndId,
                                       connectionsChannel: Channel<SimpleConnectivityDescription>)
     suspend fun checkConnectionsForLocalBoards(connectionsChannel: Channel<SimpleConnectivityDescription>)
+    suspend fun disableOutput(): ControllerResponse
 }

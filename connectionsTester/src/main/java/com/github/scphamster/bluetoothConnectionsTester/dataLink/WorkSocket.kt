@@ -21,7 +21,7 @@ class WorkSocket(val keepAliveMessage: KeepAliveMessage? = null) : DeviceLink {
         private const val SOCKET_PERF_CONNECTION_TIME = 0
     }
     
-    data class KeepAliveMessage(val message: Collection<Byte>, val sendPeriodMs: Int)
+    data class KeepAliveMessage(val message: Collection<Byte>, val sendPeriodMs: Long)
     class SocketIsDeadException(val msg: String) : Exception(msg)
     
     var port: Int = -1
@@ -79,18 +79,10 @@ class WorkSocket(val keepAliveMessage: KeepAliveMessage? = null) : DeviceLink {
             }
             else null
             
-            val watchSocket = async {
-                while (isActive) {
-                    if (!socket.isBound) throw Exception("Socket has been closed")
-                    if (!socket.isConnected) throw Exception("Socket is not connected!")
-                }
-            }
-            
             isReady.set(true)
-            val jobs = arrayListOf(inputJob, outputJob, watchSocket)
+            val jobs = arrayListOf(inputJob, outputJob)
             
             if (keepAliveJob != null) jobs.add(keepAliveJob)
-            jobs.add(watchSocket)
             
             jobs.awaitAll()
         }
@@ -144,17 +136,12 @@ class WorkSocket(val keepAliveMessage: KeepAliveMessage? = null) : DeviceLink {
     private suspend fun keepAliveWriteTask() = withContext(Dispatchers.Default) {
         if (keepAliveMessage == null) return@withContext
         lastSendOperationTimeMs.set(System.currentTimeMillis())
+        val Tag = Tag + ":KAWT"
         
         while (isActive) {
-            if ((lastSendOperationTimeMs.get() + keepAliveMessage.sendPeriodMs) > System.currentTimeMillis() || (lastReadOperationTimeMs.get() + keepAliveMessage.sendPeriodMs) > System.currentTimeMillis())
-            {
-                delay(10)
-                continue
-            }
-            
-            Log.d(Tag, "KeepAlive send")
             outputDataChannel.send(keepAliveMessage.message)
-            lastSendOperationTimeMs.set(System.currentTimeMillis())
+            delay(keepAliveMessage.sendPeriodMs)
+            Log.v(Tag, "KeepAlive send")
         }
     }
     

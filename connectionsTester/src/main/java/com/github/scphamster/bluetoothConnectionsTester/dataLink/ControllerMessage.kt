@@ -61,6 +61,8 @@ interface MasterToControllerMsg {
         GetInternalParameters(112),
         Test(113),
         DataLinkKeepAlive(114),
+        DisableOutput(115),
+        Dummy(116),
     }
 }
 
@@ -100,7 +102,7 @@ final class GetBoardsOnline : MasterToControllerMsg {
     
     override val msgId = MasterToControllerMsg.MessageID.GetBoardsOnline.id
     override fun serialize(): Collection<Byte> {
-        return arrayListOf(msgId)
+        return listOf(msgId)
     }
 }
 
@@ -113,13 +115,13 @@ final class FindConnection(val pin: PinAffinityAndId? = null) : MasterToControll
     override fun serialize(): Collection<Byte> {
         
         val pinAsBytes = if (pin != null) {
-            arrayOf(pin.boardId.toByte(), pin.pinID.toByte())
+            listOf(pin.boardAddress.toByte(), pin.pinID.toByte())
         }
         else {
-            arrayOf(MEASURE_ALL_PIN_ID_FILLER.toByte(), MEASURE_ALL_PIN_ID_FILLER.toByte())
+            listOf(MEASURE_ALL_PIN_ID_FILLER.toByte(), MEASURE_ALL_PIN_ID_FILLER.toByte())
         }
         
-        return (arrayListOf(msgId) + pinAsBytes.toList())
+        return (listOf(msgId) + pinAsBytes)
     }
     
     override val msgId = MasterToControllerMsg.MessageID.CheckConnections.id
@@ -137,8 +139,24 @@ final class SetVoltageAtPin(val pin: PinAffinityAndId) : MasterToControllerMsg {
     override val msgId = MasterToControllerMsg.MessageID.EnableOutputForPin.id
     
     override fun serialize(): Collection<Byte> {
-        return arrayListOf(msgId, pin.boardId.toByte(), pin.pinID.toByte())
+        return listOf(msgId, pin.boardAddress.toByte(), pin.pinID.toByte())
     }
+}
+
+final class DisableOutput : MasterToControllerMsg {
+    override val msgId = MasterToControllerMsg.MessageID.DisableOutput.id
+    
+    override fun serialize(): Collection<Byte> {
+        return listOf(msgId)
+    }
+}
+
+final class EchoMessage : MasterToControllerMsg {
+    override fun serialize(): Collection<Byte> {
+        return listOf(msgId)
+    }
+    
+    override val msgId = MasterToControllerMsg.MessageID.Dummy.id
 }
 
 sealed interface MessageFromController {
@@ -147,6 +165,8 @@ sealed interface MessageFromController {
         OperationConfirmation(51),
         BoardsInfo(52),
         AllBoardsVoltages(53),
+        Dummy(54),
+        KeepAlive(55)
     }
     
     companion object {
@@ -164,7 +184,8 @@ sealed interface MessageFromController {
                 Type.OperationConfirmation.id -> OperationStatus(bytesIterator)
                 Type.BoardsInfo.id -> Boards(bytesIterator)
                 Type.AllBoardsVoltages.id -> Voltages(bytesIterator)
-                
+                Type.Dummy.id -> Dummy()
+                Type.KeepAlive.id -> KeepAlive()
                 else -> null
             }
         }
@@ -322,6 +343,14 @@ sealed interface MessageFromController {
             }
             
             boardsAndVoltages = _boardsVoltages.toTypedArray()
+        }
+    }
+    
+    class Dummy : MessageFromController
+    
+    class KeepAlive : MessageFromController {
+        companion object {
+            const val KEEPALIVE_TIMEOUT_MS = 1000.toLong()
         }
     }
 }

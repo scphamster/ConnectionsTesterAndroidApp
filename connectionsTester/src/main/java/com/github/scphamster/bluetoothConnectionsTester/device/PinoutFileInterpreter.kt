@@ -43,7 +43,7 @@ class PinoutFileInterpreter {
                                 |pin group: ${new_group.name}, 
                                 |logical pin: ${pin_name}, 
                                 |hw pin: ${affinity_and_id.pinID},
-                                |board: ${affinity_and_id.boardId}""".trimMargin())
+                                |board: ${affinity_and_id.boardAddress}""".trimMargin())
                 }
             }
 

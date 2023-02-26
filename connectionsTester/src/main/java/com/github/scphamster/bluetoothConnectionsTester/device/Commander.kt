@@ -32,7 +32,7 @@ class Commander(val dataLink: BluetoothBridge, val context: Context) {
             String()
         }
         else {
-            "${cmd.pinAffinityAndId.boardId} ${cmd.pinAffinityAndId.pinID}"
+            "${cmd.pinAffinityAndId.boardAddress} ${cmd.pinAffinityAndId.pinID}"
         }
 
         val if_sequential = if (cmd.sequential) "sequential"

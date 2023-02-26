@@ -192,7 +192,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope)
             val connected_to_pin = findPinRefByAffinityAndId(affinity_and_id)
             
             if (connected_to_pin == null) {
-                Log.e(Tag, "Pin not found! ${affinity_and_id.boardId}:${affinity_and_id.pinID}")
+                Log.e(Tag, "Pin not found! ${affinity_and_id.boardAddress}:${affinity_and_id.pinID}")
                 return
             }
             
@@ -215,7 +215,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope)
                                             first_occurrence)
             
             new_connections.add(new_connection)
-            Log.i(Tag, "Searched pin Found! ${affinity_and_id.boardId}:${affinity_and_id.pinID}")
+            Log.i(Tag, "Searched pin Found! ${affinity_and_id.boardAddress}:${affinity_and_id.pinID}")
         }
         
         updated_pin.connectionsListChangedFromPreviousCheck =
@@ -250,7 +250,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope)
         
         if (updated_pin_ref == null) {
             Log.e(Tag,
-                  "Pin with descriptor: ${connections_description.ofPin.boardId}:${connections_description.ofPin.pinID} is not found!")
+                  "Pin with descriptor: ${connections_description.ofPin.boardAddress}:${connections_description.ofPin.pinID} is not found!")
             
             return
         }
@@ -270,7 +270,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope)
         if (available_boards == null) return null
         
         for (board in available_boards) {
-            if (board.address != affinityAndId.boardId) continue
+            if (board.address != affinityAndId.boardAddress) continue
             
             if (board.pins.isEmpty()) {
                 Log.e(Tag, "board with id:${board.address} has empty set of pins!")

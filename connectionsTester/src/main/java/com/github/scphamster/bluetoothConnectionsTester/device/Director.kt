@@ -17,6 +17,7 @@ import java.net.SocketTimeoutException
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 
+//todo: when all controllers disconnects give IoBoardsManager empty list of controllers
 class Director(val app: Application,
                val scope: CoroutineScope,
                val errorHandler: ErrorHandler,
@@ -34,7 +35,6 @@ class Director(val app: Application,
         init {
             scope.launch(Dispatchers.Default + CoroutineName("SocketRegistrator")) {
                 
-            
                 while (isActive) {
                     val entrySocketJob = async {
                         run()
@@ -64,7 +64,7 @@ class Director(val app: Application,
         
         suspend fun run() = withContext(Dispatchers.IO) {
             val Tag = Tag + ":EntrySocket"
-            val keepAliveMessage = WorkSocket.KeepAliveMessage(KeepAliveMessage().serialize(), 1000)
+            val keepAliveMessage = WorkSocket.KeepAliveMessage(KeepAliveMessage().serialize(), MessageFromController.KeepAlive.KEEPALIVE_TIMEOUT_MS / 2)
             
             while (isActive) {
                 Log.w(Tag, "Restart")
@@ -77,11 +77,13 @@ class Director(val app: Application,
                 catch (e: SocketTimeoutException) {
                     Log.d(Tag, "serverSocket timeout!")
                     if (::serverSocket.isInitialized && !serverSocket.isClosed) serverSocket.close()
+                    yield()
                     continue
                 }
                 catch (e: Exception) {
                     Log.e(Tag, "Unexpected error in server socket! ${e.message}")
                     if (::serverSocket.isInitialized && !serverSocket.isClosed) serverSocket.close()
+                    yield()
                     continue
                 }
                 
@@ -94,6 +96,7 @@ class Director(val app: Application,
                 socketChannel.send(newSocket)
                 
                 while (newSocket.port == -1) {
+                    yield()
                     continue
                 }
                 
@@ -203,34 +206,33 @@ class Director(val app: Application,
         withContext(Dispatchers.Default) {
             if (!machineState.allControllersInitialized) {
                 Log.e(Tag, "Not all controllers are initialized, failed check!")
+                
                 return@withContext
             }
             
             if (controllers.size == 0) {
-                Log.e(Tag, "There are no controllers to operate with!")
+                Log.e(Tag, "Check all connections command invoked with no controllers available")
+                errorHandler.handleError("No controllers to operate with!")
             }
             else if (controllers.size == 1) {
+                controllers.get(0)
+                    .checkConnectionsForLocalBoards(connectionsChannel)
+            }
+            else {
                 getAllBoards().forEach { b ->
                     b.pins.forEach {
                         checkConnection(it.descriptor.pinAffinityAndId, connectionsChannel)
                     }
                 }
-                
-                //                controllers.get(0)
-                //                    .checkConnectionsForLocalBoards(connectionsChannel)
-            }
-            else { //for board in boards send SetVoltageAtPin .. MeasureAll || Verify connectivity
-                
-                Log.e(Tag,
-                      "Unimplemented check all connections with many controllers used! Controllers num = ${controllers.size}")
             }
         }
     
     suspend fun checkConnection(pinAffinityAndId: PinAffinityAndId,
                                 connectionsChannel: Channel<SimpleConnectivityDescription>) =
         withContext(Dispatchers.Default) {
+            
             val controller =
-                getAllBoards().find { b -> b.address == pinAffinityAndId.boardId }?.belongsToController?.get()
+                getAllBoards().find { b -> b.address == pinAffinityAndId.boardAddress }?.belongsToController?.get()
             
             if (controller?.setVoltageAtPin(pinAffinityAndId.getPhysicalPinAffinityAndID()) != ControllerResponse.CommandAcknowledge) {
                 Log.e(Tag, "check connection failed due to failed set voltage!")
@@ -256,22 +258,31 @@ class Director(val app: Application,
             }
                 .flatMap { it.toList() }
             
-            Log.d(Tag, "Check connection succeeded")
+            val disableResult = controller.disableOutput()
+            if (disableResult!= ControllerResponse.CommandAcknowledge) {
+                Log.e(Tag, "Disable output command failed with result: $disableResult")
+                errorHandler.handleError("Failed to disable output for controller: $controller")
+                return@withContext
+            }
+            
+            Log.v(Tag, "Check connection succeeded")
             
             allBoardsVoltages.forEach() {
-                Log.d(Tag, "Board: ${it.boardId}")
-                it.voltages.forEach { Log.d(Tag, "${it.first} : ${it.second.value}") }
+                Log.v(Tag, "Board: ${it.boardAddress}")
+                it.voltages.forEach { Log.v(Tag, "${it.first} : ${it.second.value}") }
             }
             
             val simpleConnections = allBoardsVoltages.map { boardAndVoltages ->
-                val boardId = boardAndVoltages.boardId
+                val boardAddress = boardAndVoltages.boardAddress
                 
                 boardAndVoltages.voltages.filter { it.second.value > 0 }
                     .map { pinAndVoltage ->
-                        SimpleConnection(PinAffinityAndId(boardId, pinAndVoltage.first), pinAndVoltage.second)
+                        SimpleConnection(PinAffinityAndId(boardAddress, pinAndVoltage.first), pinAndVoltage.second)
                     }
             }
                 .flatMap { it }
+            
+            
             
             connectionsChannel.send(SimpleConnectivityDescription(pinAffinityAndId, simpleConnections.toTypedArray()))
         }

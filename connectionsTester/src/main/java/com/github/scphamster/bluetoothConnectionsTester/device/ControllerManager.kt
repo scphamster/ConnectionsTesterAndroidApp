@@ -13,6 +13,11 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.reflect.KClass
 
+//todo: create keepAlive task to listen to keepAlive responses
+//todo: command: GetBoards should contain switch to inform controller to controllers rescan
+//todo: create command to check internals (e.g. controller fw version)
+//todo: add controller state: BoardLess to make operation possible
+//todo: retire from using other CoroutineScope than viewModelScope
 class ControllerManager(override val dataLink: DeviceLink,
                         val exHandler: CoroutineExceptionHandler = CoroutineExceptionHandler { _, ex ->
                             Log.e("CM", "Exception : $ex")
@@ -26,8 +31,8 @@ class ControllerManager(override val dataLink: DeviceLink,
     }
     
     val initialized = AtomicBoolean(false)
-    
     val notReadyMtx = Mutex()
+    
     private var boards = CopyOnWriteArrayList<IoBoard>()
     private var voltageLevel = IoBoardsManager.VoltageLevel.Low
     
@@ -64,6 +69,10 @@ class ControllerManager(override val dataLink: DeviceLink,
                 onFatalErrorCallback()
             }
             
+            checkLatency()
+            launch{
+                keepAliveReceiver()
+            }
             initialized.set(true);
             Log.d(Tag, "Controller initialized!")
             
@@ -219,10 +228,7 @@ class ControllerManager(override val dataLink: DeviceLink,
         return@async ControllerResponse.CommandPerformanceSuccess
     }
     
-    /**
-     * @brief fast connections check method if there is only one ControllerManager connected
-     */
-    
+    //todo: add settings dispatch
     override suspend fun initialize() = withContext(Dispatchers.Default) {
         while (isActive) {
             val response = updateAvailableBoards().await();
@@ -303,11 +309,9 @@ class ControllerManager(override val dataLink: DeviceLink,
             }
         }
     
-    private fun testTask() = launch {
-        while (isActive) {
-            measureAllVoltages()
-            delay(1000)
-        }
+    override suspend fun disableOutput(): ControllerResponse {
+        outputMessagesChannel.send(DisableOutput())
+        return checkAcknowledge().await()
     }
     
     private fun checkAcknowledge() = async<ControllerResponse> {
@@ -473,6 +477,73 @@ class ControllerManager(override val dataLink: DeviceLink,
         }
     }
     
+    private suspend fun keepAliveReceiver() = withContext(Dispatchers.Default) {
+        val Tag = Tag + ":KAT"
+     
+        while (!inputChannels.containsKey(MessageFromController.KeepAlive::class)) {
+            yield()
+            continue
+        }
+    
+        while (isActive) {
+            try {
+                withTimeout(MessageFromController.KeepAlive.KEEPALIVE_TIMEOUT_MS) {
+                    val msg = inputChannels[MessageFromController.KeepAlive::class]?.receiveCatching()
+                        ?.getOrNull()
+            
+                    if (msg != null) {
+                        Log.v(Tag, "KeepAlive received")
+                    }
+                    else {
+                        Log.e(Tag, "KeepAlive msg is null! Terminating!")
+                        onFatalErrorCallback()
+                    }
+                }
+            }
+            catch (e: TimeoutCancellationException) {
+                Log.e(Tag,
+                      "KeepAlive msg retrieval timed out(${MessageFromController.KeepAlive.KEEPALIVE_TIMEOUT_MS}ms)")
+                onFatalErrorCallback()
+                return@withContext
+            }
+            catch (e: CancellationException) {
+                Log.d(Tag, "cancelled due to: $e")
+                return@withContext
+            }
+            
+        }
+    }
+    
+    private suspend fun checkLatency() = withContext(Dispatchers.Default) {
+        Log.d(Tag, "Checking link latency")
+        
+        repeat(10) {
+            val sendTimeStamp = System.currentTimeMillis()
+            outputMessagesChannel.send(EchoMessage())
+            
+            try {
+                withTimeout(1000) {
+                    while (!inputChannels.containsKey(MessageFromController.Dummy::class)) {
+                        yield()
+                        continue
+                    }
+                    
+                    val response = inputChannels[MessageFromController.Dummy::class]?.receiveCatching()
+                        ?.getOrNull() as MessageFromController.Dummy?
+                    
+                    if (response != null) Log.d(Tag,
+                                                "Echo obtained, latency: ${System.currentTimeMillis() - sendTimeStamp}ms")
+                }
+            }
+            catch (e: TimeoutCancellationException) {
+                Log.e(Tag, "latency check failed because of timeout 1s")
+            }
+            catch (e: Exception) {
+                Log.e(Tag, "Latency check failed: unexpected exception: $e")
+            }
+        }
+    }
+    
     private suspend fun runDataLink() = withContext(Dispatchers.Default) {
         Log.d(Tag, "Starting new Controller DataLink: ${dataLink.id}")
         
@@ -522,7 +593,10 @@ class ControllerManager(override val dataLink: DeviceLink,
             withTimeout(FindConnection.SINGLE_PIN_RESULT_TIMEOUT_MS) {
                 val type = MessageFromController.Connectivity::class
                 
-                while (!inputChannels.containsKey(type)) continue
+                while (!inputChannels.containsKey(type)) {
+                    yield()
+                    continue
+                }
                 
                 inputChannels[type]?.receiveCatching()
                     ?.getOrNull() as MessageFromController.Connectivity?

@@ -11,12 +11,12 @@ interface PinIdentifier {
     public val pinAffinityAndId: PinAffinityAndId
 }
 
-data class PinAffinityAndId(val boardId: BoardAddrT, val pinID: PinNumT) : PinIdentifier {
+data class PinAffinityAndId(val boardAddress: BoardAddrT, val pinID: PinNumT) : PinIdentifier {
     companion object {
-        const val MIN_BOARD_ID = 1
-        const val MAX_BOARD_ID = 127
-        const val MIN_IDX_ON_BOARD = 0
-        const val MAX_IDX_ON_BOARD = 31
+        const val MIN_BOARD_ADDRESS = 1
+        const val MAX_BOARD_ADDRESS = 127
+        const val PIN_ID_MIN = 0
+        const val PIN_ID_MAX = 31
         const val SIZE_BYTES = 2
         private val harnessToLogicalPinMap = arrayOf(6,
                                                      4,
@@ -59,38 +59,35 @@ data class PinAffinityAndId(val boardId: BoardAddrT, val pinID: PinNumT) : PinId
                 .toUByte()
                 .toInt()
             
-            if ((board < MIN_BOARD_ID) || (board > MAX_BOARD_ID)) throw (IllegalArgumentException("board number($board) is out of range!"))
+            if ((board < MIN_BOARD_ADDRESS) || (board > MAX_BOARD_ADDRESS)) throw (IllegalArgumentException("board number($board) is out of range!"))
             
-            if ((id < MIN_IDX_ON_BOARD) || (id > MAX_IDX_ON_BOARD)) throw (IllegalArgumentException("idx($id) is out of range!"))
+            if ((id < PIN_ID_MIN) || (id > PIN_ID_MAX)) throw (IllegalArgumentException("idx($id) is out of range!"))
             
             return PinAffinityAndId(board, id)
         }
     }
     
-    
     override fun getPrettyName(): String {
-        return "$boardId:$pinID"
+        return "$boardAddress:$pinID"
     }
     
     override val pinAffinityAndId: PinAffinityAndId
-        get() = PinAffinityAndId(boardId, pinID)
+        get() = PinAffinityAndId(boardAddress, pinID)
     
     fun getPhysicalOnBoardPinNum(): PinNumT {
-        if (pinID >= IoBoard.PINS_COUNT_ON_SINGLE_BOARD)
-            throw IllegalArgumentException("Pin number is higher than pin count on board: ${pinID}")
+        if (pinID >= IoBoard.PINS_COUNT_ON_SINGLE_BOARD) throw IllegalArgumentException("Pin number is higher than pin count on board: ${pinID}")
         
         return harnessToLogicalPinMap.get(pinID)
     }
     
     fun getPhysicalPinAffinityAndID(): PinAffinityAndId {
-        return PinAffinityAndId(boardId, harnessToLogicalPinMap.get(pinID))
+        return PinAffinityAndId(boardAddress, harnessToLogicalPinMap.get(pinID))
     }
 }
 
 data class PinDescriptor(val affinityAndId: PinAffinityAndId, var name: String? = null, var group: PinGroup? = null) :
     PinIdentifier {
     val UID: UUID = UUID.randomUUID()
-    
     
     override val pinAffinityAndId: PinAffinityAndId
         get() = affinityAndId
@@ -115,7 +112,7 @@ data class PinDescriptor(val affinityAndId: PinAffinityAndId, var name: String? 
             string_builder.append(group?.getPrettyName())
         }
         else {
-            string_builder.append(affinityAndId.boardId.toString())
+            string_builder.append(affinityAndId.boardAddress.toString())
         }
         
         string_builder.append(":")

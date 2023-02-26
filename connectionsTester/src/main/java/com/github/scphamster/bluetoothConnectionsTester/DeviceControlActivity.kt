@@ -18,12 +18,10 @@ import androidx.appcompat.app.ActionBar
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
-import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.github.scphamster.bluetoothConnectionsTester.circuit.IoBoard
 import com.github.scphamster.bluetoothConnectionsTester.circuit.Pin
-import com.github.scphamster.bluetoothConnectionsTester.dataLink.BluetoothBridge
 import com.github.scphamster.bluetoothConnectionsTester.device.Director
 import com.github.scphamster.bluetoothConnectionsTester.device.HardwareMonitorActty
 
@@ -144,7 +142,7 @@ class DeviceControlActivity : AppCompatActivity() {
                 counter++
             }
             
-            Log.e(Tag, """Pin ${pin_to_update.descriptor.affinityAndId.boardId}:
+            Log.e(Tag, """Pin ${pin_to_update.descriptor.affinityAndId.boardAddress}:
                       |${pin_to_update.descriptor.affinityAndId.pinID}
                       |is not found in stored pins list!""".trimMargin())
         }

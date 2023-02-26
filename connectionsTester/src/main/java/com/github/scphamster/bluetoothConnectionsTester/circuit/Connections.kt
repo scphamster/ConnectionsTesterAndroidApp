@@ -82,7 +82,7 @@ data class Voltage(override val value: CircuitParamT, override val precision: In
     }
 }
 
-data class SingleBoardVoltages(val boardId: BoardAddrT, val voltages: Array<Pair<PinNumT, RawVoltageADCValue>>)
+data class SingleBoardVoltages(val boardAddress: BoardAddrT, val voltages: Array<Pair<PinNumT, RawVoltageADCValue>>)
 
 data class SimpleConnection(val toPin: PinAffinityAndId, val voltage: RawVoltageADCValue) {
     companion object {
