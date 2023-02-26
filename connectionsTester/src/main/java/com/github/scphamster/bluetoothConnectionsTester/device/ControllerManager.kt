@@ -269,11 +269,15 @@ class ControllerManager(override val dataLink: DeviceLink,
                 onFatalErrorCallback()
                 return@withContext
             }
-            else if (boards.size == 0) continue
+            else if (boards.size == 0){
+                delay(1000)
+                continue
+            }
             else {
                 Log.d(Tag, "Exiting initialize!")
                 return@withContext
             }
+            
         }
     }
     

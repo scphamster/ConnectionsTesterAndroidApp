@@ -186,18 +186,18 @@ class WorkSocket(val keepAliveMessage: KeepAliveMessage? = null) : DeviceLink {
     }
     
     private suspend fun outputChannelTask() = withContext(Dispatchers.IO) {
+        val Tag = Tag + ":OCT"
+     
         while (isActive) {
             val result = outputDataChannel.receiveCatching()
             val data = result.getOrNull()
             if (data == null) {
-                if (!isActive) break
-                
-                Log.e("$Tag:OCT", "data is null!")
+                Log.e(Tag, "data is null!")
                 continue
             }
             
             if (data.size == 0) {
-                Log.e("$Tag:OCT", "data size is zero!")
+                Log.e(Tag, "data size is zero!")
                 continue
             }
             
@@ -205,11 +205,15 @@ class WorkSocket(val keepAliveMessage: KeepAliveMessage? = null) : DeviceLink {
                 .toMutableList()
             bytes.addAll(data.toList())
             
+            for((index, byte) in bytes.withIndex()) {
+                Log.v(Tag, "Byte $index : ${byte.toUByte()}")
+            }
+            
             try {
                 outStream.write(bytes.toByteArray())
             }
             catch (e: Exception) {
-                Log.e("$Tag:OCT", "Exception during output stream write: ${e.message}")
+                Log.e(Tag, "Exception during output stream write: ${e.message}")
                 return@withContext
             }
             
