@@ -13,7 +13,6 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.reflect.KClass
 
-//todo: create keepAlive task to listen to keepAlive responses
 //todo: command: GetBoards should contain switch to inform controller to controllers rescan
 //todo: create command to check internals (e.g. controller fw version)
 //todo: add controller state: BoardLess to make operation possible
@@ -22,6 +21,7 @@ class ControllerManager(override val dataLink: DeviceLink,
                         val exHandler: CoroutineExceptionHandler = CoroutineExceptionHandler { _, ex ->
                             Log.e("CM", "Exception : $ex")
                         },
+                        val stateChangeCallback: (s: ControllerManagerI.State) -> Unit,
                         val onFatalErrorCallback: () -> Unit) : ControllerManagerI,
                                                                 CoroutineScope by CoroutineScope(Dispatchers.Default + exHandler) {
     companion object {
@@ -32,6 +32,12 @@ class ControllerManager(override val dataLink: DeviceLink,
     
     val initialized = AtomicBoolean(false)
     val notReadyMtx = Mutex()
+    
+    var state: ControllerManagerI.State = ControllerManagerI.State.Initializing
+        private set(newState) {
+            field = newState
+            stateChangeCallback(field)
+        }
     
     private var boards = CopyOnWriteArrayList<IoBoard>()
     private var voltageLevel = IoBoardsManager.VoltageLevel.Low
@@ -70,10 +76,12 @@ class ControllerManager(override val dataLink: DeviceLink,
             }
             
             checkLatency()
-            launch{
+            launch {
                 keepAliveReceiver()
             }
             initialized.set(true);
+            state = ControllerManagerI.State.Operating
+            
             Log.d(Tag, "Controller initialized!")
             
         }
@@ -188,14 +196,23 @@ class ControllerManager(override val dataLink: DeviceLink,
     }
     
     override fun updateAvailableBoards() = async<ControllerResponse> {
-        outputMessagesChannel.send(GetBoardsOnline())
+        state = ControllerManagerI.State.GettingBoards
+        
+        val resultObtainmentTimeout = if (boards.size == 0) {
+            outputMessagesChannel.send(GetBoardsOnline(true))
+            GetBoardsOnline.RESULT_TIMEOUT_WITH_RESCAN_MS
+        }
+        else {
+            outputMessagesChannel.send(GetBoardsOnline(false))
+            GetBoardsOnline.RESULT_TIMEOUT_MS
+        }
         
         val command_status = checkAcknowledge().await()
         
         if (command_status != ControllerResponse.CommandAcknowledge) return@async command_status
         
         val newBoards = try {
-            withTimeout(GetBoardsOnline.RESULT_TIMEOUT_MS) {
+            withTimeout(resultObtainmentTimeout) {
                 while (!inputChannels.containsKey(MessageFromController.Boards::class)) continue
                 
                 inputChannels[MessageFromController.Boards::class]?.receiveCatching()
@@ -233,12 +250,14 @@ class ControllerManager(override val dataLink: DeviceLink,
         while (isActive) {
             val response = updateAvailableBoards().await();
             if (response == ControllerResponse.DeviceIsInitializing) {
+                state = ControllerManagerI.State.NoBoardsFound
                 delay(1000)
                 continue
             }
             else if (response != ControllerResponse.CommandPerformanceSuccess) {
                 Log.e(Tag, "boards update failed with result : $response")
             }
+            
             else return@withContext
         }
     }
@@ -479,18 +498,18 @@ class ControllerManager(override val dataLink: DeviceLink,
     
     private suspend fun keepAliveReceiver() = withContext(Dispatchers.Default) {
         val Tag = Tag + ":KAT"
-     
+        
         while (!inputChannels.containsKey(MessageFromController.KeepAlive::class)) {
             yield()
             continue
         }
-    
+        
         while (isActive) {
             try {
                 withTimeout(MessageFromController.KeepAlive.KEEPALIVE_TIMEOUT_MS) {
                     val msg = inputChannels[MessageFromController.KeepAlive::class]?.receiveCatching()
                         ?.getOrNull()
-            
+                    
                     if (msg != null) {
                         Log.v(Tag, "KeepAlive received")
                     }
@@ -510,7 +529,6 @@ class ControllerManager(override val dataLink: DeviceLink,
                 Log.d(Tag, "cancelled due to: $e")
                 return@withContext
             }
-            
         }
     }
     

@@ -95,14 +95,16 @@ final class SetOutputVoltageLevel(val level: IoBoardsManager.VoltageLevel) : Mas
     }
 }
 
-final class GetBoardsOnline : MasterToControllerMsg {
+final class GetBoardsOnline(val performRescanOnControllerSide: Boolean = false) : MasterToControllerMsg {
     companion object {
         const val RESULT_TIMEOUT_MS = 4000.toLong()
+        const val RESULT_TIMEOUT_WITH_RESCAN_MS = 10_000.toLong()
     }
     
     override val msgId = MasterToControllerMsg.MessageID.GetBoardsOnline.id
     override fun serialize(): Collection<Byte> {
-        return listOf(msgId)
+        val performRescan: Byte = if (performRescanOnControllerSide) 1.toByte() else 0.toByte()
+        return listOf(msgId, performRescan)
     }
 }
 

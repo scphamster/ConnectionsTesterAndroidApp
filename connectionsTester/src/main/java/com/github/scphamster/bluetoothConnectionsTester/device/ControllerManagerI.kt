@@ -12,6 +12,13 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 
 interface ControllerManagerI {
+    enum class State {
+        Initializing,
+        GettingBoards,
+        NoBoardsFound,
+        Operating
+    }
+    
     abstract val dataLink: DeviceLink
     
     fun setVoltageLevel(level: IoBoardsManager.VoltageLevel): Deferred<ControllerResponse>
