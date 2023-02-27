@@ -247,7 +247,6 @@ class Director(val app: Application,
             val allBoardsVoltages = operableControllers.map { c ->
                 val allVoltages = try {
                     c.measureAllVoltages()
-                        .await()
                 }
                 catch (e: Exception) {
                     Log.e(Tag, "Exception caught in check connection: $e")
@@ -322,10 +321,18 @@ class Director(val app: Application,
         
         val voltageChangeJobs = arrayListOf<Deferred<ControllerResponse>>()
         for (controller in operableControllers) {
-            voltageChangeJobs.add(controller.setVoltageLevel(new_voltage_level))
+            voltageChangeJobs.add(scope.async {
+                controller.setVoltageLevel(new_voltage_level)
+            })
         }
-        
-        val results = voltageChangeJobs.awaitAll()
+    
+        val results =try {
+             voltageChangeJobs.awaitAll()
+        }
+        catch(e: Exception) {
+            Log.e(Tag, "Exception caught in set voltage level according to preferences")
+            return@withContext
+        }
         for (result in results) {
             if (result != ControllerResponse.CommandPerformanceSuccess) {
                 Log.e(Tag, "Command not successful!")

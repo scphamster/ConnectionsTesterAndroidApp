@@ -18,12 +18,8 @@ import kotlin.reflect.KClass
 //todo: add permanent check of online boards
 class ControllerManager(override val dataLink: DeviceLink,
                         val scope: CoroutineScope,
-                        val exHandler: CoroutineExceptionHandler = CoroutineExceptionHandler { _, ex ->
-                            Log.e("CM", "Exception : $ex")
-                        },
                         val stateChangeCallback: (s: ControllerManagerI.State) -> Unit,
-                        val onFatalErrorCallback: () -> Unit) : ControllerManagerI,
-                                                                CoroutineScope by CoroutineScope(Dispatchers.Default + exHandler) {
+                        val onFatalErrorCallback: () -> Unit) : ControllerManagerI {
     companion object {
         private const val MESSAGES_CHANNEL_SIZE = 10
         private const val BaseTag = "ControllerManager"
@@ -53,33 +49,61 @@ class ControllerManager(override val dataLink: DeviceLink,
     private val outputMessagesChannel = Channel<MasterToControllerMsg>(MESSAGES_CHANNEL_SIZE)
     private val inputMessagesChannelMutex = Mutex()
     
+    private lateinit var allJobs: Deferred<Unit>
+    
     init {
-        launch { rawDataReceiverTask() }
-        launch { inputMessagesHandlerTask() }
-        launch { outputMessagesHandlerTask() }
-        launch {
-            Log.d(Tag, "Initialization controller manager")
+        allJobs = scope.async(Dispatchers.Default) {
+            val jobs = mutableListOf<Deferred<Unit>>()
             
-            launch {
+            jobs.add(scope.async {
+                rawDataReceiverTask()
+            })
+            jobs.add(scope.async {
+                inputMessagesHandlerTask()
+            })
+            jobs.add(scope.async {
+                outputMessagesHandlerTask()
+            })
+            jobs.add(scope.async {
                 runDataLink()
+            })
+            
+            
+            jobs.add(scope.async(Dispatchers.Default) {
+                Log.d(Tag, "Initialization controller manager")
+                
+                while (!dataLink.isReady.get()) {
+                    yield()
+                    continue
+                }
+                
+                Log.d(Tag, "Socket started, getting all boards!")
+                jobs.add(scope.async(Dispatchers.Default) {
+                    keepAliveReceiver()
+                })
+                
+                initialize()
+                Log.d(Tag, "Initialized!")
+                checkLatency()
+                
+                initialized.set(true);
+                state = ControllerManagerI.State.Operating
+                
+                return@async
+            })
+            
+            try {
+                jobs.awaitAll()
+            }
+            catch (e: CancellationException) {
+                Log.d(Tag, "Controllers jobs were cancelled due to: $e")
+            }
+            catch (e: Exception) {
+                Log.e(Tag, "Controllers jobs were cancelled due to unexpected exception: $e")
+            } finally {
+                onFatalErrorCallback()
             }
             
-            while (!dataLink.isReady.get()) continue
-            
-            Log.d(Tag, "Socket started, getting all boards!")
-            launch(Dispatchers.Default) {
-                keepAliveReceiver()
-            }
-            
-            initialize()
-            Log.d(Tag, "Milestone")
-            checkLatency()
-            
-            initialized.set(true);
-            
-            state = ControllerManagerI.State.Operating
-            
-            Log.d(Tag, "Controller initialized!")
         }
     }
     
@@ -88,25 +112,25 @@ class ControllerManager(override val dataLink: DeviceLink,
         
         try {
             dataLink.stop()
-            cancel("Object destructed")
+            allJobs.cancel("Cancel requested")
         }
         catch (e: Exception) {
             Log.e(Tag, "CancelAllJobs exception caught: ${e.message}")
         }
     }
     
-    override fun measureAllVoltages() = async<Array<SingleBoardVoltages>?> {
+    override suspend fun measureAllVoltages() = withContext<Array<SingleBoardVoltages>?>(Dispatchers.Default) {
         if (!initialized.get()) {
             Log.e(Tag, "Sending commands before controller is ready is prohibited!")
-            return@async null
+            return@withContext null
         }
         
         outputMessagesChannel.send(MeasureAllVoltages())
-        val cmdAck = checkAcknowledge().await()
+        val cmdAck = checkAcknowledge()
         
         if (cmdAck != ControllerResponse.CommandAcknowledge) {
             Log.e(Tag, "No ack for command: Measure all voltages! Received: ${cmdAck.name}")
-            return@async null
+            return@withContext null
         }
         
         val result = try {
@@ -144,26 +168,26 @@ class ControllerManager(override val dataLink: DeviceLink,
             if (operationResult != null) {
                 if (operationResult.response != ControllerResponse.CommandPerformanceFailure) {
                     Log.e(Tag, "Measure all failed and unexpected operation result obtained!")
-                    return@async null
+                    return@withContext null
                 }
                 else {
                     Log.e(Tag, "Measure all failed, fail confirmation arrived, fail is on controller side")
-                    return@async null
+                    return@withContext null
                 }
             }
             else {
                 Log.e(Tag, "Measure all failed but operation result obtainment timed out!")
-                return@async null
+                return@withContext null
             }
         }
         catch (e: Exception) {
             Log.e(Tag, "Unsuccessful retrieval of AllBoardsVoltages! E: ${e.message}")
-            return@async null
+            return@withContext null
         }
         
         if (result == null) {
             Log.e(Tag, "Voltages are null!")
-            return@async null
+            return@withContext null
         }
         
         if (result.size != boards.size) {
@@ -172,26 +196,25 @@ class ControllerManager(override val dataLink: DeviceLink,
         
         Log.d(Tag, "Successful retrieval of all voltages! Size: ${result.size}")
         
-        return@async result
+        return@withContext result
     }
     
     override fun stop() {
         cancelAllJobs()
     }
     
-    override fun setVoltageLevel(level: IoBoardsManager.VoltageLevel): Deferred<ControllerResponse> = async {
-        launch(Dispatchers.Default) {
+    override suspend fun setVoltageLevel(level: IoBoardsManager.VoltageLevel) =
+        withContext<ControllerResponse>(Dispatchers.Default) {
             outputMessagesChannel.send(SetOutputVoltageLevel(level))
+            val ackResult = checkAcknowledge()
+            if (ackResult != ControllerResponse.CommandAcknowledge) {
+                Log.e(Tag, "No ack for set voltage level command! Got: $ackResult")
+                return@withContext ControllerResponse.CommandNoAcknowledge
+            }
+            return@withContext checkCommandSuccess(300)
         }
-        val ackResult = checkAcknowledge().await()
-        if (ackResult != ControllerResponse.CommandAcknowledge) {
-            Log.e(Tag, "No ack for set voltage level command! Got: $ackResult")
-            return@async ControllerResponse.CommandNoAcknowledge
-        }
-        return@async checkCommandSuccess(300).await()
-    }
     
-    override fun updateAvailableBoards() = async<ControllerResponse> {
+    override suspend fun updateAvailableBoards() = withContext<ControllerResponse>(Dispatchers.Default) {
         state = ControllerManagerI.State.GettingBoards
         
         val resultObtainmentTimeout = if (boards.size == 0) {
@@ -203,9 +226,9 @@ class ControllerManager(override val dataLink: DeviceLink,
             GetBoardsOnline.RESULT_TIMEOUT_MS
         }
         
-        val command_status = checkAcknowledge().await()
+        val command_status = checkAcknowledge()
         
-        if (command_status != ControllerResponse.CommandAcknowledge) return@async command_status
+        if (command_status != ControllerResponse.CommandAcknowledge) return@withContext command_status
         
         val newBoards = try {
             withTimeout(resultObtainmentTimeout) {
@@ -217,16 +240,16 @@ class ControllerManager(override val dataLink: DeviceLink,
         }
         catch (e: TimeoutCancellationException) {
             Log.e(Tag, "Timeout while getting all boards! $e")
-            return@async ControllerResponse.CommandPerformanceTimeout
+            return@withContext ControllerResponse.CommandPerformanceTimeout
         }
         catch (e: Exception) {
             Log.e(Tag, "Unexpected error occurred while getting all boards! $e")
-            return@async ControllerResponse.CommandPerformanceFailure
+            return@withContext ControllerResponse.CommandPerformanceFailure
         }
         
         if (newBoards == null) {
             Log.e(Tag, "New boards are null!")
-            return@async ControllerResponse.CommandPerformanceFailure
+            return@withContext ControllerResponse.CommandPerformanceFailure
         }
         
         if (newBoards.boardsInfo.size == 0) {
@@ -237,13 +260,13 @@ class ControllerManager(override val dataLink: DeviceLink,
             Log.d(Tag, "New boards obtained! Boards count :${boards.size}")
         }
         
-        return@async ControllerResponse.CommandPerformanceSuccess
+        return@withContext ControllerResponse.CommandPerformanceSuccess
     }
     
     //todo: add settings dispatch
     override suspend fun initialize() = withContext(Dispatchers.Default) {
         while (isActive) {
-            val response = updateAvailableBoards().await();
+            val response = updateAvailableBoards()
             if (response == ControllerResponse.DeviceIsInitializing) {
                 delay(1000)
                 continue
@@ -264,7 +287,7 @@ class ControllerManager(override val dataLink: DeviceLink,
         }
         
         while (isActive) {
-            val response = updateAvailableBoards().await();
+            val response = updateAvailableBoards()
             
             if (response != ControllerResponse.CommandPerformanceSuccess) {
                 Log.e(Tag, "boards update failed with result : $response")
@@ -288,7 +311,7 @@ class ControllerManager(override val dataLink: DeviceLink,
     
     override suspend fun setVoltageAtPin(pinAffinityAndId: PinAffinityAndId): ControllerResponse {
         outputMessagesChannel.send(SetVoltageAtPin(pinAffinityAndId))
-        val ack = checkAcknowledge().await()
+        val ack = checkAcknowledge()
         
         if (ack != ControllerResponse.CommandAcknowledge) Log.e(Tag,
                                                                 "Failed to set voltage at pin: ${pinAffinityAndId}")
@@ -301,7 +324,7 @@ class ControllerManager(override val dataLink: DeviceLink,
         withContext(Dispatchers.Default) {
             outputMessagesChannel.send(FindConnection(pinAffinityAndId))
             
-            val ack = checkAcknowledge().await()
+            val ack = checkAcknowledge()
             
             if (ack != ControllerResponse.CommandAcknowledge) {
                 Log.e(Tag, "Check single connection failed: no acknowledge $ack")
@@ -324,7 +347,7 @@ class ControllerManager(override val dataLink: DeviceLink,
         withContext(Dispatchers.Default) /* overall operation result */ {
             outputMessagesChannel.send(FindConnection())
             
-            val ack = checkAcknowledge().await()
+            val ack = checkAcknowledge()
             
             if (ack != ControllerResponse.CommandAcknowledge) {
                 Log.e(Tag, "No ack for find all connections command")
@@ -350,91 +373,87 @@ class ControllerManager(override val dataLink: DeviceLink,
     
     override suspend fun disableOutput(): ControllerResponse {
         outputMessagesChannel.send(DisableOutput())
-        return checkAcknowledge().await()
+        return checkAcknowledge()
     }
     
-    private fun checkAcknowledge() = async<ControllerResponse> {
+    private suspend fun checkAcknowledge() = withContext<ControllerResponse>(Dispatchers.Default) {
         val ackResult = try {
             withTimeout(COMMAND_ACK_TIMEOUT_MS.toLong()) {
-                async<ControllerResponse>(Dispatchers.Default) {
-                    while (!inputChannels.containsKey(MessageFromController.OperationStatus::class)) continue
-                    val msg = inputChannels[MessageFromController.OperationStatus::class]?.receiveCatching()
-                        ?.getOrNull()
-                    
-                    if (msg == null) {
-                        Log.e(Tag, "Was waiting for acknowledge but got NULL msg!");
-                        return@async ControllerResponse.CommunicationFailure
-                    }
-                    else {
-                        return@async (msg as MessageFromController.OperationStatus).response
-                    }
-                }.await()
+                while (!inputChannels.containsKey(MessageFromController.OperationStatus::class)) continue
+                val msg = inputChannels[MessageFromController.OperationStatus::class]?.receiveCatching()
+                    ?.getOrNull()
+                
+                if (msg == null) {
+                    Log.e(Tag, "Was waiting for acknowledge but got NULL msg!");
+                    return@withTimeout ControllerResponse.CommunicationFailure
+                }
+                else {
+                    return@withTimeout (msg as MessageFromController.OperationStatus).response
+                }
             }
         }
         catch (e: TimeoutCancellationException) {
             Log.e(Tag, "Acknowledge timeout! E: ${e.message}")
-            return@async ControllerResponse.CommandAcknowledgeTimeout
+            return@withContext ControllerResponse.CommandAcknowledgeTimeout
         }
         catch (e: Exception) {
             Log.e(Tag, "Acknowledge failure, exception: $e")
-            return@async ControllerResponse.CommunicationFailure
+            return@withContext ControllerResponse.CommunicationFailure
         }
         
-        if (ackResult == ControllerResponse.CommandAcknowledge) return@async ackResult
+        if (ackResult == ControllerResponse.CommandAcknowledge) return@withContext ackResult
         
         Log.e(Tag, "expected Command Acknowledge but got: ${ackResult}")
         when (ackResult) {
-            ControllerResponse.CommandNoAcknowledge -> return@async ackResult
-            ControllerResponse.CommandAcknowledgeTimeout -> return@async ackResult
-            ControllerResponse.CommunicationFailure -> return@async ackResult
-            ControllerResponse.DeviceIsInitializing -> return@async ackResult
-            else -> return@async ControllerResponse.CommunicationFailure
+            ControllerResponse.CommandNoAcknowledge -> return@withContext ackResult
+            ControllerResponse.CommandAcknowledgeTimeout -> return@withContext ackResult
+            ControllerResponse.CommunicationFailure -> return@withContext ackResult
+            ControllerResponse.DeviceIsInitializing -> return@withContext ackResult
+            else -> return@withContext ControllerResponse.CommunicationFailure
         }
     }
     
-    private fun checkCommandSuccess(delayToCheck: Long) = async(Dispatchers.Default) {
+    private suspend fun checkCommandSuccess(delayToCheck: Long) = withContext(Dispatchers.Default) {
         val commandResult = try {
             withTimeout(delayToCheck.toLong()) {
-                async<ControllerResponse>(Dispatchers.Default) {
-                    val msg = inputMessagesChannelMutex.withLock {
-                        inputMessagesChannel.receiveCatching()
-                            .getOrNull()
-                    }
-                    
-                    if (msg == null) {
-                        Log.e(Tag, "MSG is null, waiting for response on setVoltageLevel");
-                        return@async ControllerResponse.CommunicationFailure
-                    }
-                    else {
-                        return@async (msg as MessageFromController.OperationStatus).response
-                    }
-                }.await()
+                val msg = inputMessagesChannelMutex.withLock {
+                    inputMessagesChannel.receiveCatching()
+                        .getOrNull()
+                }
+                
+                if (msg == null) {
+                    Log.e(Tag, "MSG is null, waiting for response on setVoltageLevel");
+                    return@withTimeout ControllerResponse.CommunicationFailure
+                }
+                else {
+                    return@withTimeout (msg as MessageFromController.OperationStatus).response
+                }
             }
         }
         catch (e: Exception) {
             Log.e(Tag, "Timeout while getting command result. E: ${e.message}")
-            return@async ControllerResponse.CommandPerformanceTimeout
+            return@withContext ControllerResponse.CommandPerformanceTimeout
         }
         
         when (commandResult) {
             ControllerResponse.CommandPerformanceSuccess -> {
                 Log.d(Tag, "Command success!")
-                return@async commandResult
+                return@withContext commandResult
             }
             
             ControllerResponse.CommandPerformanceFailure -> {
                 Log.e(Tag, "Command performance Failure!")
-                return@async commandResult
+                return@withContext commandResult
             }
             
             else -> {
                 Log.e(Tag, "Unexpected response! Result: $commandResult")
-                return@async ControllerResponse.CommunicationFailure
+                return@withContext ControllerResponse.CommunicationFailure
             }
         }
     }
     
-    private fun rawDataReceiverTask() = async {
+    private suspend fun rawDataReceiverTask() = withContext(Dispatchers.Default) {
         val Tag = Tag + ":RDRT"
         
         while (isActive) {
@@ -473,7 +492,7 @@ class ControllerManager(override val dataLink: DeviceLink,
         }
     }
     
-    private fun inputMessagesHandlerTask() = async {
+    private suspend fun inputMessagesHandlerTask() = withContext(Dispatchers.Default) {
         while (isActive) {
             val Tag = Tag + ":IMHT"
             
@@ -498,7 +517,7 @@ class ControllerManager(override val dataLink: DeviceLink,
         }
     }
     
-    private fun outputMessagesHandlerTask() = async {
+    private suspend fun outputMessagesHandlerTask() = withContext(Dispatchers.Default) {
         while (isActive) {
             val result = outputMessagesChannel.receiveCatching()
             val newMsg = result.getOrNull()
@@ -522,6 +541,7 @@ class ControllerManager(override val dataLink: DeviceLink,
         val Tag = Tag + ":KAT"
         
         while (!inputChannels.containsKey(MessageFromController.KeepAlive::class)) { //            yield()
+            yield()
             continue
         }
         
@@ -584,10 +604,11 @@ class ControllerManager(override val dataLink: DeviceLink,
         }
     }
     
+    //todo: refactor this method
     private suspend fun runDataLink() = withContext(Dispatchers.Default) {
         Log.d(Tag, "Starting new Controller DataLink: ${dataLink.id}")
         
-        val dataLinkJob = async {
+        val dataLinkJob = scope.async {
             dataLink.run()
         }
         

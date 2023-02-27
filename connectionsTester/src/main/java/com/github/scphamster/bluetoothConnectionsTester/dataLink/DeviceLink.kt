@@ -11,6 +11,6 @@ interface DeviceLink {
     val isReady: AtomicBoolean
     val lastIOOperationTimeStampMs: Long
     
-    suspend fun run(): Unit
+    suspend fun run()
     fun stop()
 }

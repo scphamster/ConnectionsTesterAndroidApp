@@ -21,10 +21,10 @@ interface ControllerManagerI {
     
     abstract val dataLink: DeviceLink
     
-    fun setVoltageLevel(level: IoBoardsManager.VoltageLevel): Deferred<ControllerResponse>
-    fun updateAvailableBoards(): Deferred<ControllerResponse>
+    suspend fun setVoltageLevel(level: IoBoardsManager.VoltageLevel): ControllerResponse
+    suspend fun updateAvailableBoards(): ControllerResponse
     fun stop()
-    fun measureAllVoltages(): Deferred<Array<SingleBoardVoltages>?>
+    suspend fun measureAllVoltages(): Array<SingleBoardVoltages>?
     fun cancelAllJobs()
 
     suspend fun initialize()

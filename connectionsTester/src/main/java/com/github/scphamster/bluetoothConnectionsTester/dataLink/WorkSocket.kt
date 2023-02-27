@@ -50,7 +50,7 @@ class WorkSocket(val keepAliveMessage: KeepAliveMessage? = null) : DeviceLink {
     lateinit private var inputJob: Deferred<Unit>
     lateinit private var outputJob: Deferred<Unit>
     
-    override suspend fun run() = withContext<Unit>(Dispatchers.IO) {
+    override suspend fun run() = withContext(Dispatchers.IO) {
         val Tag = Tag + ":MAIN"
         
         Log.d(Tag, "Starting new working socket")
@@ -100,6 +100,8 @@ class WorkSocket(val keepAliveMessage: KeepAliveMessage? = null) : DeviceLink {
             Log.d(Tag, "Returning from worksocket")
             stop()
         }
+        
+        return@withContext
     }
     
     override fun stop() {
