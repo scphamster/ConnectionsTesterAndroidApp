@@ -84,6 +84,7 @@ final class SetOutputVoltageLevel(val level: IoBoardsManager.VoltageLevel) : Mas
     companion object {
         private val CMD_ID = MasterToControllerMsg.MessageID.SetOutputVoltageLevel.id
         private const val SIZE_BYTES = Byte.SIZE_BYTES * 2
+        const val RESULT_OBTAINMENT_TIMEOUT_MS = 400.toLong()
     }
     
     override val msgId = MasterToControllerMsg.MessageID.SetOutputVoltageLevel.id

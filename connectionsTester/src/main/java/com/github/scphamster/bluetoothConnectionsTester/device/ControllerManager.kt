@@ -14,10 +14,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.reflect.KClass
 
 //todo: create command to check internals (e.g. controller fw version)
-//todo: retire from using other CoroutineScope than viewModelScope
 //todo: add permanent check of online boards
 class ControllerManager(override val dataLink: DeviceLink,
                         val scope: CoroutineScope,
+                        val outputVoltageLevel: IoBoardsManager.VoltageLevel,
                         val stateChangeCallback: (s: ControllerManagerI.State) -> Unit,
                         val onFatalErrorCallback: () -> Unit) : ControllerManagerI {
     companion object {
@@ -36,9 +36,10 @@ class ControllerManager(override val dataLink: DeviceLink,
             
             stateChangeCallback(field)
         }
+    var voltageLevel = IoBoardsManager.VoltageLevel.Low
+        private set
     
     private var boards = CopyOnWriteArrayList<IoBoard>()
-    private var voltageLevel = IoBoardsManager.VoltageLevel.Low
     
     private val Tag: String
         get() = BaseTag + ":${dataLink.id}"
@@ -107,6 +108,10 @@ class ControllerManager(override val dataLink: DeviceLink,
         }
     }
     
+    override fun stop() {
+        cancelAllJobs()
+    }
+    
     override fun cancelAllJobs() {
         initialized.set(false)
         
@@ -116,6 +121,44 @@ class ControllerManager(override val dataLink: DeviceLink,
         }
         catch (e: Exception) {
             Log.e(Tag, "CancelAllJobs exception caught: ${e.message}")
+        }
+    }
+    
+    override suspend fun initialize() = withContext(Dispatchers.Default) {
+        while (isActive) {
+            val response = updateAvailableBoards()
+            if (response == ControllerResponse.DeviceIsInitializing) {
+                delay(1000)
+                continue
+            }
+            
+            if (response != ControllerResponse.CommandPerformanceSuccess) {
+                onFatalErrorCallback
+                return@withContext
+            }
+            else break
+        }
+        
+        if (boards.size != 0) return@withContext
+        
+        while (isActive) {
+            val response = updateAvailableBoards()
+            
+            if (response != ControllerResponse.CommandPerformanceSuccess) {
+                Log.e(Tag, "boards update failed with result : $response")
+                onFatalErrorCallback()
+                return@withContext
+            }
+            else if (boards.size == 0) {
+                delay(1000)
+                continue
+            }
+            else break
+        }
+        
+        if (setVoltageLevel(outputVoltageLevel) != ControllerResponse.CommandPerformanceSuccess) {
+            Log.e(Tag, "Set voltage failed in initialization of controller! Deleting controller!")
+            onFatalErrorCallback()
         }
     }
     
@@ -199,10 +242,6 @@ class ControllerManager(override val dataLink: DeviceLink,
         return@withContext result
     }
     
-    override fun stop() {
-        cancelAllJobs()
-    }
-    
     override suspend fun setVoltageLevel(level: IoBoardsManager.VoltageLevel) =
         withContext<ControllerResponse>(Dispatchers.Default) {
             outputMessagesChannel.send(SetOutputVoltageLevel(level))
@@ -211,7 +250,16 @@ class ControllerManager(override val dataLink: DeviceLink,
                 Log.e(Tag, "No ack for set voltage level command! Got: $ackResult")
                 return@withContext ControllerResponse.CommandNoAcknowledge
             }
-            return@withContext checkCommandSuccess(300)
+            
+            val response = checkCommandSuccess(SetOutputVoltageLevel.RESULT_OBTAINMENT_TIMEOUT_MS)
+            
+            if (response == ControllerResponse.CommandPerformanceSuccess) {
+                voltageLevel = level
+                return@withContext ControllerResponse.CommandPerformanceSuccess
+            }
+            else {
+                return@withContext response
+            }
         }
     
     override suspend fun updateAvailableBoards() = withContext<ControllerResponse>(Dispatchers.Default) {
@@ -261,48 +309,6 @@ class ControllerManager(override val dataLink: DeviceLink,
         }
         
         return@withContext ControllerResponse.CommandPerformanceSuccess
-    }
-    
-    //todo: add settings dispatch
-    override suspend fun initialize() = withContext(Dispatchers.Default) {
-        while (isActive) {
-            val response = updateAvailableBoards()
-            if (response == ControllerResponse.DeviceIsInitializing) {
-                delay(1000)
-                continue
-            }
-            
-            if (response != ControllerResponse.CommandPerformanceSuccess) {
-                onFatalErrorCallback
-                return@withContext
-            }
-            else break
-        }
-        
-        
-        
-        if (boards.size != 0) {
-            Log.d(Tag, "Exiting initialize0")
-            return@withContext
-        }
-        
-        while (isActive) {
-            val response = updateAvailableBoards()
-            
-            if (response != ControllerResponse.CommandPerformanceSuccess) {
-                Log.e(Tag, "boards update failed with result : $response")
-                onFatalErrorCallback()
-                return@withContext
-            }
-            else if (boards.size == 0) {
-                delay(1000)
-                continue
-            }
-            else {
-                Log.d(Tag, "Exiting initialize!")
-                return@withContext
-            }
-        }
     }
     
     override suspend fun getBoards() = notReadyMtx.withLock<Array<IoBoard>> {

@@ -325,11 +325,11 @@ class Director(val app: Application,
                 controller.setVoltageLevel(new_voltage_level)
             })
         }
-    
-        val results =try {
-             voltageChangeJobs.awaitAll()
+        
+        val results = try {
+            voltageChangeJobs.awaitAll()
         }
-        catch(e: Exception) {
+        catch (e: Exception) {
             Log.e(Tag, "Exception caught in set voltage level according to preferences")
             return@withContext
         }
@@ -397,7 +397,17 @@ class Director(val app: Application,
             }
             
             Log.d(Tag, "New socket arrived!")
-            stbyControllers.add(ControllerManager(newLink, scope, stateChangeCallback = { state ->
+            
+            val selectedVoltageLevel = PreferenceManager.getDefaultSharedPreferences(app)
+                .getString("output_voltage_level", "")
+            
+            val newVoltageLevel = when (selectedVoltageLevel) {
+                "Low(0.7V)" -> IoBoardsManager.VoltageLevel.Low
+                "High(1.0V)" -> IoBoardsManager.VoltageLevel.High
+                else -> IoBoardsManager.VoltageLevel.Low
+            }
+            
+            stbyControllers.add(ControllerManager(newLink, scope, newVoltageLevel, stateChangeCallback = { state ->
                 when (state) {
                     ControllerManagerI.State.Initializing -> return@ControllerManager
                     ControllerManagerI.State.NoBoardsFound, ControllerManagerI.State.GettingBoards -> {
