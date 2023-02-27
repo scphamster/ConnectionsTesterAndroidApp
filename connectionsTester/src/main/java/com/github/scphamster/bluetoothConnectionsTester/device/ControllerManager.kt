@@ -9,16 +9,17 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.lang.ref.WeakReference
 import java.net.SocketTimeoutException
+import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.reflect.KClass
 
 //todo: create command to check internals (e.g. controller fw version)
 //todo: add permanent check of online boards
-class ControllerManager(override val dataLink: DeviceLink,
+class ControllerManager(val uuid: UUID,
+                        override val dataLink: DeviceLink,
                         val scope: CoroutineScope,
                         val outputVoltageLevel: IoBoardsManager.VoltageLevel,
-                        val stateChangeCallback: (s: ControllerManagerI.State) -> Unit,
+                        val stateChangeCallback: (prevState: ControllerManagerI.State, s: ControllerManagerI.State) -> Unit,
                         val onFatalErrorCallback: () -> Unit) : ControllerManagerI {
     companion object {
         private const val MESSAGES_CHANNEL_SIZE = 10
@@ -26,15 +27,14 @@ class ControllerManager(override val dataLink: DeviceLink,
         private const val COMMAND_ACK_TIMEOUT_MS = 1000.toLong()
     }
     
-    val initialized = AtomicBoolean(false)
     val notReadyMtx = Mutex()
     
     var state: ControllerManagerI.State = ControllerManagerI.State.Initializing
         private set(newState) {
+            val prevState = field
             field = newState
+            stateChangeCallback(prevState, newState)
             Log.d(Tag, "Setting state to ${field.toString()}!")
-            
-            stateChangeCallback(field)
         }
     var voltageLevel = IoBoardsManager.VoltageLevel.Low
         private set
@@ -68,7 +68,9 @@ class ControllerManager(override val dataLink: DeviceLink,
             jobs.add(scope.async {
                 runDataLink()
             })
-            
+            jobs.add(scope.async(Dispatchers.Default) {
+                keepAliveReceiver()
+            })
             
             jobs.add(scope.async(Dispatchers.Default) {
                 Log.d(Tag, "Initialization controller manager")
@@ -78,16 +80,10 @@ class ControllerManager(override val dataLink: DeviceLink,
                     continue
                 }
                 
-                Log.d(Tag, "Socket started, getting all boards!")
-                jobs.add(scope.async(Dispatchers.Default) {
-                    keepAliveReceiver()
-                })
-                
                 initialize()
                 Log.d(Tag, "Initialized!")
                 checkLatency()
                 
-                initialized.set(true);
                 state = ControllerManagerI.State.Operating
                 
                 return@async
@@ -113,7 +109,7 @@ class ControllerManager(override val dataLink: DeviceLink,
     }
     
     override fun cancelAllJobs() {
-        initialized.set(false)
+        state = ControllerManagerI.State.Failed
         
         try {
             dataLink.stop()
@@ -163,7 +159,7 @@ class ControllerManager(override val dataLink: DeviceLink,
     }
     
     override suspend fun measureAllVoltages() = withContext<Array<SingleBoardVoltages>?>(Dispatchers.Default) {
-        if (!initialized.get()) {
+        if (state != ControllerManagerI.State.Operating) {
             Log.e(Tag, "Sending commands before controller is ready is prohibited!")
             return@withContext null
         }
@@ -255,9 +251,11 @@ class ControllerManager(override val dataLink: DeviceLink,
             
             if (response == ControllerResponse.CommandPerformanceSuccess) {
                 voltageLevel = level
+                Log.d(Tag, "Voltage setting to $level succeeded")
                 return@withContext ControllerResponse.CommandPerformanceSuccess
             }
             else {
+                Log.e(Tag, "Votlage setting to $level failed")
                 return@withContext response
             }
         }
@@ -265,7 +263,7 @@ class ControllerManager(override val dataLink: DeviceLink,
     override suspend fun updateAvailableBoards() = withContext<ControllerResponse>(Dispatchers.Default) {
         state = ControllerManagerI.State.GettingBoards
         
-        val resultObtainmentTimeout = if (boards.size == 0) {
+        val resultObtainmentTimeoutValue = if (boards.size == 0) {
             outputMessagesChannel.send(GetBoardsOnline(true))
             GetBoardsOnline.RESULT_TIMEOUT_WITH_RESCAN_MS
         }
@@ -276,11 +274,17 @@ class ControllerManager(override val dataLink: DeviceLink,
         
         val command_status = checkAcknowledge()
         
-        if (command_status != ControllerResponse.CommandAcknowledge) return@withContext command_status
+        if (command_status != ControllerResponse.CommandAcknowledge) {
+            Log.e(Tag, "No ack for GetBoards command: $command_status")
+            return@withContext command_status
+        }
         
         val newBoards = try {
-            withTimeout(resultObtainmentTimeout) {
-                while (!inputChannels.containsKey(MessageFromController.Boards::class)) continue
+            withTimeout(resultObtainmentTimeoutValue) {
+                while (!inputChannels.containsKey(MessageFromController.Boards::class)) {
+                    yield()
+                    continue
+                }
                 
                 inputChannels[MessageFromController.Boards::class]?.receiveCatching()
                     ?.getOrNull() as MessageFromController.Boards?
@@ -316,6 +320,12 @@ class ControllerManager(override val dataLink: DeviceLink,
     }
     
     override suspend fun setVoltageAtPin(pinAffinityAndId: PinAffinityAndId): ControllerResponse {
+        if (state != ControllerManagerI.State.Operating) {
+            Log.e(Tag,
+                  "Command setVoltageAtPin invoked while controller is not in Operating state, current state: $state")
+            return ControllerResponse.CommandPerformanceFailure
+        }
+        
         outputMessagesChannel.send(SetVoltageAtPin(pinAffinityAndId))
         val ack = checkAcknowledge()
         
@@ -328,6 +338,12 @@ class ControllerManager(override val dataLink: DeviceLink,
     override suspend fun checkSingleConnection(pinAffinityAndId: PinAffinityAndId,
                                                connectionsChannel: Channel<SimpleConnectivityDescription>) =
         withContext(Dispatchers.Default) {
+            if (state != ControllerManagerI.State.Operating) {
+                Log.e(Tag,
+                      "Command ${object {}.javaClass.enclosingMethod?.name} invoked while controller is not in Operating state, current state: $state")
+                return@withContext
+            }
+            
             outputMessagesChannel.send(FindConnection(pinAffinityAndId))
             
             val ack = checkAcknowledge()
@@ -351,6 +367,12 @@ class ControllerManager(override val dataLink: DeviceLink,
     
     override suspend fun checkConnectionsForLocalBoards(connectionsChannel: Channel<SimpleConnectivityDescription>) =
         withContext(Dispatchers.Default) /* overall operation result */ {
+            if (state != ControllerManagerI.State.Operating) {
+                Log.e(Tag,
+                      "Command ${object {}.javaClass.enclosingMethod?.name} invoked while controller is not in Operating state, current state: $state")
+                return@withContext
+            }
+            
             outputMessagesChannel.send(FindConnection())
             
             val ack = checkAcknowledge()
@@ -378,6 +400,12 @@ class ControllerManager(override val dataLink: DeviceLink,
         }
     
     override suspend fun disableOutput(): ControllerResponse {
+        if (state != ControllerManagerI.State.Operating) {
+            Log.e(Tag,
+                  "Command ${object {}.javaClass.enclosingMethod?.name} invoked while controller is not in Operating state, current state: $state")
+            return ControllerResponse.CommandPerformanceFailure
+        }
+        
         outputMessagesChannel.send(DisableOutput())
         return checkAcknowledge()
     }

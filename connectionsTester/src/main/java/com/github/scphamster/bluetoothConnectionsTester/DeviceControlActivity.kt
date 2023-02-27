@@ -246,7 +246,7 @@ class DeviceControlActivity : AppCompatActivity() {
             when (state) {
                 Director.State.Operating -> {
                     val controller_search_progress = findViewById<ProgressBar>(R.id.searching_for_controller_progbar)
-                    actionBarText?.text = "Controlers found: ${model.controllersManager.operableControllers.size}"
+                    actionBarText?.text = "Controlers found: ${model.controllersManager.controllers.size}"
                     if (controller_search_progress.visibility == View.VISIBLE) {
                         controller_search_progress.visibility = View.INVISIBLE
                     }
@@ -265,7 +265,7 @@ class DeviceControlActivity : AppCompatActivity() {
                 }
 
                 Director.State.NoBoardsAvailable -> {
-                    actionBarText?.text = "Controllers: ${model.controllersManager.operableControllers.size}, no boards found"
+                    actionBarText?.text = "Controllers: ${model.controllersManager.controllers.size}, no boards found"
                     model.errorHandler.handleError("No boards found with connected controllers")
                 }
 

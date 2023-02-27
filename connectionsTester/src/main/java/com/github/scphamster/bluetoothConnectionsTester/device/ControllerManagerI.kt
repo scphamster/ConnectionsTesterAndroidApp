@@ -16,7 +16,8 @@ interface ControllerManagerI {
         Initializing,
         GettingBoards,
         NoBoardsFound,
-        Operating
+        Operating,
+        Failed
     }
     
     abstract val dataLink: DeviceLink

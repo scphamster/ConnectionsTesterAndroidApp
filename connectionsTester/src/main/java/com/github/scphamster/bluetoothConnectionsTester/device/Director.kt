@@ -14,6 +14,7 @@ import kotlinx.coroutines.channels.Channel
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketTimeoutException
+import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -154,22 +155,6 @@ class Director(val app: Application,
         val ready: Boolean
             get() = state.value == State.Operating
         
-        val allControllersInitialized: Boolean
-            get() {
-                var someoneIsNotInitialized = false
-                
-                operableControllers.forEach() {
-                    if (!it.initialized.get()) {
-                        someoneIsNotInitialized = true
-                        return@forEach
-                    }
-                }
-                if (operableControllers.size == 0) someoneIsNotInitialized = true
-                
-                return someoneIsNotInitialized == false
-            }
-        
-        var controllersQuantitySettled = AtomicBoolean(false)
         val state = MutableLiveData<State>(State.InitializingDirector)
     }
     
@@ -188,8 +173,7 @@ class Director(val app: Application,
             }
     }
     
-    val stbyControllers = CopyOnWriteArrayList<ControllerManager>()
-    val operableControllers = CopyOnWriteArrayList<ControllerManager>()
+    val controllers = CopyOnWriteArrayList<ControllerManager>()
     val machineState = MachineState()
     
     lateinit var refreshJob: Job
@@ -209,18 +193,15 @@ class Director(val app: Application,
     //measurement functions
     suspend fun checkAllConnections(connectionsChannel: Channel<SimpleConnectivityDescription>) =
         withContext(Dispatchers.Default) {
-            if (!machineState.allControllersInitialized) {
-                Log.e(Tag, "Not all controllers are initialized, failed check!")
-                
-                return@withContext
-            }
+            val operableControllers = getAllOperableControllers()
             
             if (operableControllers.size == 0) {
                 Log.e(Tag, "Check all connections command invoked with no controllers available")
                 errorHandler.handleError("No controllers to operate with!")
             }
             else if (operableControllers.size == 1) {
-                operableControllers.get(0)
+                operableControllers.iterator()
+                    .next()
                     .checkConnectionsForLocalBoards(connectionsChannel)
             }
             else {
@@ -235,7 +216,6 @@ class Director(val app: Application,
     suspend fun checkConnection(pinAffinityAndId: PinAffinityAndId,
                                 connectionsChannel: Channel<SimpleConnectivityDescription>) =
         withContext(Dispatchers.Default) {
-            
             val controller =
                 getAllBoards().find { b -> b.address == pinAffinityAndId.boardAddress }?.belongsToController?.get()
             
@@ -244,7 +224,7 @@ class Director(val app: Application,
                 return@withContext
             }
             
-            val allBoardsVoltages = operableControllers.map { c ->
+            val allBoardsVoltages = controllers.map { c ->
                 val allVoltages = try {
                     c.measureAllVoltages()
                 }
@@ -286,18 +266,16 @@ class Director(val app: Application,
             }
                 .flatMap { it }
             
-            
-            
             connectionsChannel.send(SimpleConnectivityDescription(pinAffinityAndId, simpleConnections.toTypedArray()))
         }
     
     suspend fun getAllBoards() = withContext<Array<IoBoard>>(Dispatchers.Default) {
         val mutableListOfBoards = mutableListOf<IoBoard>()
         
-        val deferreds = operableControllers.map { c -> async { c.getBoards() } }
+        val deferred = getAllOperableControllers().map { c -> async { c.getBoards() } }
         
         val boardsArrays = try {
-            deferreds.awaitAll()
+            deferred.awaitAll()
         }
         catch (e: Exception) {
             Log.e(Tag, "get all boards command failed with exception: ${e.message}")
@@ -320,7 +298,7 @@ class Director(val app: Application,
         }
         
         val voltageChangeJobs = arrayListOf<Deferred<ControllerResponse>>()
-        for (controller in operableControllers) {
+        for (controller in controllers) {
             voltageChangeJobs.add(scope.async {
                 controller.setVoltageLevel(new_voltage_level)
             })
@@ -378,16 +356,12 @@ class Director(val app: Application,
                 delay(WAIT_FOR_NEW_SOCKETS_TIMEOUT)
                 
                 if (isActive) {
-                    if (operableControllers.size == 0) return@async
-                    
-                    machineState.controllersQuantitySettled.set(true)
+                    if (controllers.size == 0) return@async
                 }
             }
             
             val result = newDeviceLinksChannel.receiveCatching()
             waitForAllDevicesToConnectTimeoutJob.cancel()
-            
-            machineState.controllersQuantitySettled.set(false)
             
             val newLink = result.getOrNull()
             if (newLink == null) {
@@ -407,64 +381,45 @@ class Director(val app: Application,
                 else -> IoBoardsManager.VoltageLevel.Low
             }
             
-            stbyControllers.add(ControllerManager(newLink, scope, newVoltageLevel, stateChangeCallback = { state ->
-                when (state) {
-                    ControllerManagerI.State.Initializing -> return@ControllerManager
-                    ControllerManagerI.State.NoBoardsFound, ControllerManagerI.State.GettingBoards -> {
-                        val thisController = operableControllers.find {
-                            it.dataLink.hashCode() == newLink.hashCode()
+            val uuid = UUID.randomUUID()
+            val controller =
+                ControllerManager(uuid, newLink, scope, newVoltageLevel, stateChangeCallback = { prevState, state ->
+                    when (state) {
+                        ControllerManagerI.State.Operating -> {
+                            startUpdateBoardsJob()
                         }
                         
-                        if (thisController == null) return@ControllerManager
-                        
-                        operableControllers.remove(thisController)
-                        stbyControllers.add(thisController)
-                        
-                        Log.d(Tag, "Controller was moved to stby controllers!")
+                        else -> {
+                            if (prevState == ControllerManagerI.State.Operating) startUpdateBoardsJob()
+                        }
+                    }
+                }) {
+                    controllers.removeIf() {
+                        if (it.uuid == uuid) {
+                            Log.e(Tag, "Controller is removed due to fatal error")
+                            it.cancelAllJobs()
+                            true
+                        }
+                        else false
                     }
                     
-                    ControllerManagerI.State.Operating -> {
-                        val thisController = stbyControllers.find {
-                            it.dataLink.hashCode() == newLink.hashCode()
+                    if (controllers.size == 0) {
+                        scope.launch(Dispatchers.Main) {
+                            machineState.state.value = State.SearchingForControllers
                         }
-                        
-                        if (thisController == null) {
-                            Log.e(Tag, "No controller was found in stbyControllers!")
-                            return@ControllerManager
+                    }
+                    else {
+                        scope.launch(Dispatchers.Main) {
+                            machineState.state.value = State.RecoveryFromFailure
                         }
-                        
-                        stbyControllers.remove(thisController)
-                        operableControllers.add(thisController)
-                        
-                        startUpdateBoardsJob()
-                        Log.d(Tag, "Controller was moved to operableControllers!")
+                        scope.launch {
+                            updateAllBoards()
+                        }
                     }
+                    
                 }
-            }) {
-                operableControllers.removeIf() {
-                    if (it.dataLink.hashCode() == newLink.hashCode()) {
-                        Log.e(Tag, "Controller is removed due to fatal error")
-                        it.cancelAllJobs()
-                        true
-                    }
-                    else false
-                }
-                
-                if (operableControllers.size == 0) {
-                    scope.launch(Dispatchers.Main) {
-                        machineState.state.value = State.SearchingForControllers
-                    }
-                }
-                else {
-                    scope.launch(Dispatchers.Main) {
-                        machineState.state.value = State.RecoveryFromFailure
-                    }
-                    scope.launch {
-                        updateAllBoards()
-                    }
-                }
-                
-            })
+            
+            controllers.add(controller)
         }
         
         Log.e(Tag, "New sockets receiver task ended!")
@@ -481,6 +436,12 @@ class Director(val app: Application,
                 Log.d(Tag, "Updating all boards!")
                 updateAllBoards()
             }
+        }
+    }
+    
+    private fun getAllOperableControllers(): Collection<ControllerManagerI> {
+        return controllers.filter() {
+            it.state == ControllerManagerI.State.Operating
         }
     }
 }
