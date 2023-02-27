@@ -17,6 +17,7 @@ import java.net.SocketTimeoutException
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 
+//todo: add check for duplicate board addresses with multiple controllers
 //todo: when all controllers disconnects give IoBoardsManager empty list of controllers
 class Director(val app: Application,
                val scope: CoroutineScope,
@@ -368,12 +369,11 @@ class Director(val app: Application,
         while (isActive) {
             val waitForAllDevicesToConnectTimeoutJob = async {
                 delay(WAIT_FOR_NEW_SOCKETS_TIMEOUT)
-
+                
                 if (isActive) {
                     if (operableControllers.size == 0) return@async
                     
                     machineState.controllersQuantitySettled.set(true)
-//                    updateAllBoards()
                 }
             }
             
@@ -390,7 +390,7 @@ class Director(val app: Application,
             }
             
             Log.d(Tag, "New socket arrived!")
-            stbyControllers.add(ControllerManager(newLink, stateChangeCallback = { state ->
+            stbyControllers.add(ControllerManager(newLink, scope, stateChangeCallback = { state ->
                 when (state) {
                     ControllerManagerI.State.Initializing -> return@ControllerManager
                     ControllerManagerI.State.NoBoardsFound, ControllerManagerI.State.GettingBoards -> {

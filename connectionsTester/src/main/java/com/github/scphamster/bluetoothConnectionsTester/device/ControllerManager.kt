@@ -15,7 +15,9 @@ import kotlin.reflect.KClass
 
 //todo: create command to check internals (e.g. controller fw version)
 //todo: retire from using other CoroutineScope than viewModelScope
+//todo: add permanent check of online boards
 class ControllerManager(override val dataLink: DeviceLink,
+                        val scope: CoroutineScope,
                         val exHandler: CoroutineExceptionHandler = CoroutineExceptionHandler { _, ex ->
                             Log.e("CM", "Exception : $ex")
                         },
@@ -254,7 +256,7 @@ class ControllerManager(override val dataLink: DeviceLink,
             else break
         }
         
-       
+        
         
         if (boards.size != 0) {
             Log.d(Tag, "Exiting initialize0")
@@ -269,7 +271,7 @@ class ControllerManager(override val dataLink: DeviceLink,
                 onFatalErrorCallback()
                 return@withContext
             }
-            else if (boards.size == 0){
+            else if (boards.size == 0) {
                 delay(1000)
                 continue
             }
@@ -277,7 +279,6 @@ class ControllerManager(override val dataLink: DeviceLink,
                 Log.d(Tag, "Exiting initialize!")
                 return@withContext
             }
-            
         }
     }
     
@@ -520,8 +521,7 @@ class ControllerManager(override val dataLink: DeviceLink,
     private suspend fun keepAliveReceiver() = withContext(Dispatchers.Default) {
         val Tag = Tag + ":KAT"
         
-        while (!inputChannels.containsKey(MessageFromController.KeepAlive::class)) {
-//            yield()
+        while (!inputChannels.containsKey(MessageFromController.KeepAlive::class)) { //            yield()
             continue
         }
         
@@ -550,8 +550,7 @@ class ControllerManager(override val dataLink: DeviceLink,
             catch (e: CancellationException) {
                 Log.d(Tag, "cancelled due to: $e")
                 return@withContext
-            }
-//            yield()
+            } //            yield()
         }
     }
     
