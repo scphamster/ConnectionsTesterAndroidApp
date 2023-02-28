@@ -33,9 +33,9 @@ class WorkSocket(val keepAliveMessage: KeepAliveMessage? = null) : DeviceLink {
         get() = port
     override val outputDataChannel = Channel<Collection<Byte>>(Channel.UNLIMITED)
     override val inputDataChannel = Channel<Collection<Byte>>(Channel.UNLIMITED)
-    override val lastIOOperationTimeStampMs: Long
+    override val lastInputOperationTimeStamp: Long
         get() {
-            return max(lastSendOperationTimeMs.get(), lastReadOperationTimeMs.get())
+            return lastReadOperationTimeMs.get()
         }
     
     private val lastSendOperationTimeMs = AtomicLong(0)

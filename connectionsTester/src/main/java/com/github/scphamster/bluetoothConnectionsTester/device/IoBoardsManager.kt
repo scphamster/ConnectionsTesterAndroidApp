@@ -482,7 +482,6 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope)
             
             updateIOBoards(boards)
         }
-        
     }
     
     suspend fun newPinConnectivityResultsReceiverTask() = withContext(Dispatchers.Default) {

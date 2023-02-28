@@ -65,23 +65,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
         }
     }
     
-    fun setupVoltageLevel() { //        val selected_voltage_level = PreferenceManager.getDefaultSharedPreferences(app)
-        //            .getString("output_voltage_level", "")
-        //        val voltage_level = when (selected_voltage_level) {
-        //            "Low(0.7V)" -> Commands.SetOutputVoltageLevel.VoltageLevel.Low
-        //            "High(1.0V)" -> Commands.SetOutputVoltageLevel.VoltageLevel.High
-        //            else -> Commands.SetOutputVoltageLevel.VoltageLevel.Low
-        //        }
-        
-        //        when (voltage_level) {
-        //            Commands.SetOutputVoltageLevel.VoltageLevel.Low -> measurementsHandler.boardsManager.setOutputVoltageLevelForBoards(
-        //                IoBoardsManager.VoltageLevel.Low)
-        //
-        //            Commands.SetOutputVoltageLevel.VoltageLevel.High -> measurementsHandler.boardsManager.setOutputVoltageLevelForBoards(
-        //                IoBoardsManager.VoltageLevel.High)
-        //        }
-        
-        //        measurementsHandler.commander.sendCommand(Commands.SetOutputVoltageLevel(voltage_level))
+    fun setupVoltageLevel() {
         viewModelScope.launch {
             controllersManager.setVoltageLevelAccordingToPreferences()
         }

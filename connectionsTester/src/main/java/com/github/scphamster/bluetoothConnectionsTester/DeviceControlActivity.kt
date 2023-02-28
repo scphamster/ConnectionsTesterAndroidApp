@@ -149,6 +149,10 @@ class DeviceControlActivity : AppCompatActivity() {
         
         fun updatePinSet(boards: MutableList<IoBoard>) {
             if (boards.isEmpty()) {
+                val pinsCount = pins.size
+                pins.clear()
+                notifyItemRangeRemoved(0, pinsCount)
+                
                 Log.e(Tag, "Boards are empty!")
                 return
             }
@@ -173,7 +177,7 @@ class DeviceControlActivity : AppCompatActivity() {
             }
             
             //todo: not sure if this is a good handling of notifications, make research
-            notifyItemRangeInserted(0, pins.size - 1)
+            notifyItemRangeInserted(0, pins.size)
             
             //test
             //            notifyDataSetChanged()

@@ -575,7 +575,7 @@ class ControllerManager(val uuid: UUID,
         val Tag = Tag + ":KAT"
         
         while (!inputChannels.containsKey(MessageFromController.KeepAlive::class)) { //            yield()
-            yield()
+            delay(100)
             continue
         }
         
@@ -595,11 +595,11 @@ class ControllerManager(val uuid: UUID,
                 }
             }
             catch (e: TimeoutCancellationException) {
-                Log.e(Tag,
-                      "KeepAlive msg retrieval timed out(${MessageFromController.KeepAlive.KEEPALIVE_TIMEOUT_MS}ms)")
-                if (System.currentTimeMillis() - dataLink.lastIOOperationTimeStampMs > MessageFromController.KeepAlive.KEEPALIVE_TIMEOUT_MS) onFatalErrorCallback()
-                
-                return@withContext
+                if (System.currentTimeMillis() - dataLink.lastInputOperationTimeStamp > MessageFromController.KeepAlive.KEEPALIVE_TIMEOUT_MS){
+                    Log.e(Tag, "KeepAlive timed out with timeout set to ${MessageFromController.KeepAlive.KEEPALIVE_TIMEOUT_MS}")
+                    onFatalErrorCallback()
+                    return@withContext
+                }
             }
             catch (e: CancellationException) {
                 Log.d(Tag, "cancelled due to: $e")

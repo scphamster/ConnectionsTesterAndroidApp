@@ -353,7 +353,7 @@ sealed interface MessageFromController {
     
     class KeepAlive : MessageFromController {
         companion object {
-            const val KEEPALIVE_TIMEOUT_MS = 1000.toLong()
+            const val KEEPALIVE_TIMEOUT_MS = 3000.toLong()
         }
     }
 }

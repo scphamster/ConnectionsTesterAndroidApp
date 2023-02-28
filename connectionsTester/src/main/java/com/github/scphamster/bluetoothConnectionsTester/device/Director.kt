@@ -67,7 +67,7 @@ class Director(val app: Application,
         suspend fun run() = withContext(Dispatchers.IO) {
             val Tag = Tag + ":EntrySocket"
             val keepAliveMessage = WorkSocket.KeepAliveMessage(KeepAliveMessage().serialize(),
-                                                               MessageFromController.KeepAlive.KEEPALIVE_TIMEOUT_MS / 2)
+                                                               MessageFromController.KeepAlive.KEEPALIVE_TIMEOUT_MS / 4)
             
             while (isActive) {
                 Log.w(Tag, "Restart")
@@ -331,6 +331,8 @@ class Director(val app: Application,
         Log.d(Tag, "All controllers initialized, sending boards to boards controller")
         
         val allBoards = getAllBoards()
+        boardsArrayChannel.send(allBoards)
+        
         if (allBoards.isEmpty()) {
             Log.e(Tag, "No boards found!")
             withContext(Dispatchers.Main) {
@@ -339,7 +341,6 @@ class Director(val app: Application,
         }
         else {
             Log.d(Tag, "Found ${allBoards.size} boards!")
-            boardsArrayChannel.send(allBoards)
             withContext(Dispatchers.Main) {
                 machineState.state.value = State.Operating
             }
@@ -412,10 +413,9 @@ class Director(val app: Application,
                         scope.launch(Dispatchers.Main) {
                             machineState.state.value = State.RecoveryFromFailure
                         }
-                        scope.launch {
-                            updateAllBoards()
-                        }
                     }
+
+                    startUpdateBoardsJob()
                     
                 }
             
