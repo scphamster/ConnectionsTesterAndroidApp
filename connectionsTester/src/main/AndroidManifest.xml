@@ -27,7 +27,7 @@
                     android:value=""/>
         </activity>
         <activity
-                android:name=".MainActivity"
+                android:name=".DeviceControlActivity"
                 android:exported="true"
                 android:label="@string/app_name">
             <intent-filter>
@@ -37,7 +37,6 @@
             </intent-filter>
         </activity>
         <activity android:name=".CommunicateActivity"/>
-        <activity android:name=".DeviceControlActivity"/>
         <activity android:name=".PreferencesActty"/>
     </application>
 
