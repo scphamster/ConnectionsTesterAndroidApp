@@ -193,7 +193,7 @@ class DeviceControlActivity : AppCompatActivity() {
         setupObservers()
         setupClickListeners()
         
-        if (!model.setupViewModel(intent.getStringExtra("name")!!, intent.getStringExtra("mac"))) {
+        if (!model.setupViewModel()) {
             Log.e(Tag, "No arguments obtained in DeviceControlActivity onCreate method!")
             
             finish()

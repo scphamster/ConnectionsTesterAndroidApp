@@ -44,7 +44,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
         super.onCleared()
     }
     
-    fun setupViewModel(deviceName: String, mac: String?): Boolean {
+    fun setupViewModel(): Boolean {
         if (!isInitialized) {
             getPinoutConfigFile()
             setupVoltageLevel()
