@@ -27,7 +27,7 @@ class ControllerManager(val uuid: UUID,
         private const val COMMAND_ACK_TIMEOUT_MS = 1000.toLong()
     }
     
-    val notReadyMtx = Mutex()
+    val boardsMutex = Mutex()
     
     var state: ControllerManagerI.State = ControllerManagerI.State.Initializing
         private set(newState) {
@@ -315,7 +315,7 @@ class ControllerManager(val uuid: UUID,
         return@withContext ControllerResponse.CommandPerformanceSuccess
     }
     
-    override suspend fun getBoards() = notReadyMtx.withLock<Array<IoBoard>> {
+    override suspend fun getBoards() = boardsMutex.withLock<Array<IoBoard>> {
         return boards.toTypedArray()
     }
     
@@ -665,7 +665,7 @@ class ControllerManager(val uuid: UUID,
         
     }
     
-    private suspend fun addNewBoards(newBoards: MessageFromController.Boards) = notReadyMtx.withLock {
+    private suspend fun addNewBoards(newBoards: MessageFromController.Boards) = boardsMutex.withLock {
         boards.clear()
         return@withLock boards.addAll(newBoards.boardsInfo.map { b ->
             IoBoard(b.address.toInt(),
