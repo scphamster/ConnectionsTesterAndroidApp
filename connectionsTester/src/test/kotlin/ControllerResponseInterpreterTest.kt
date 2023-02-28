@@ -1,9 +1,7 @@
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ControllerResponseInterpreter
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.*
-import org.junit.Assert.assertFalse
+import com.github.scphamster.bluetoothConnectionsTester.device.ControllerResponseInterpreter
+import com.github.scphamster.bluetoothConnectionsTester.device.*
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.lang.reflect.Method
 
 private typealias Header = ControllerResponseInterpreter.MessageHeader
 

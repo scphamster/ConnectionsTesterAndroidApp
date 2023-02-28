@@ -3,8 +3,8 @@ package com.github.scphamster.bluetoothConnectionsTester.dataLink
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import com.github.scphamster.bluetoothConnectionsTester.R
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.ErrorHandler
-import com.github.scphamster.bluetoothConnectionsTester.deviceInterface.MeasurementsHandler
+import com.github.scphamster.bluetoothConnectionsTester.device.ErrorHandler
+import com.github.scphamster.bluetoothConnectionsTester.device.MeasurementsHandler
 import com.harrysoft.somedir.BluetoothManager
 import com.harrysoft.somedir.BluetoothSerialDevice
 import com.harrysoft.somedir.SimpleBluetoothDeviceInterface
@@ -28,11 +28,7 @@ class BluetoothBridge(val errorHandler: ErrorHandler) {
     private var deviceInterface: SimpleBluetoothDeviceInterface? = null
     var mac: String? = null
     var deviceName: String? = null
-    var deviceNameData = MutableLiveData<String>()
-        private set
-        get
-    var connectionStatus = MutableLiveData<ConnectionStatus>()
-        private set
+    val connectionStatus = MutableLiveData<ConnectionStatus>()
         get
     private var connectionAttemptedOrMade: Boolean = false
 

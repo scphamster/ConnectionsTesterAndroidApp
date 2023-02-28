@@ -1,4 +1,4 @@
-package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
+package com.github.scphamster.bluetoothConnectionsTester.device
 
 import android.util.Log
 import com.github.scphamster.bluetoothConnectionsTester.circuit.PinAffinityAndId
@@ -42,8 +42,8 @@ class PinoutFileInterpreter {
                     throw Exception("""Duplicate hardware pin usage for 
                                 |pin group: ${new_group.name}, 
                                 |logical pin: ${pin_name}, 
-                                |hw pin: ${affinity_and_id.idxOnBoard}, 
-                                |board: ${affinity_and_id.boardId}""".trimMargin())
+                                |hw pin: ${affinity_and_id.pinID},
+                                |board: ${affinity_and_id.boardAddress}""".trimMargin())
                 }
             }
 

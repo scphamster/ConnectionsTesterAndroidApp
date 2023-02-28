@@ -1,4 +1,4 @@
-package com.github.scphamster.bluetoothConnectionsTester.deviceInterface
+package com.github.scphamster.bluetoothConnectionsTester.device
 
 import android.content.Context
 import android.util.Log
@@ -32,7 +32,7 @@ class Commander(val dataLink: BluetoothBridge, val context: Context) {
             String()
         }
         else {
-            "${cmd.pinAffinityAndId.boardId} ${cmd.pinAffinityAndId.idxOnBoard}"
+            "${cmd.pinAffinityAndId.boardAddress} ${cmd.pinAffinityAndId.pinID}"
         }
 
         val if_sequential = if (cmd.sequential) "sequential"
