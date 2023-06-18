@@ -164,6 +164,7 @@ class WorkSocket(val keepAliveMessage: KeepAliveMessage? = null) : DeviceLink {
     
     private suspend fun inputChannelTask() = withContext(Dispatchers.IO) {
         while (isActive) {
+            // each message begins with message size in bytes
             val messageSizeBuffer = readN(Int.SIZE_BYTES)
             lastReadOperationTimeMs.set(System.currentTimeMillis())
             
@@ -171,7 +172,7 @@ class WorkSocket(val keepAliveMessage: KeepAliveMessage? = null) : DeviceLink {
                 Log.e(Tag, "Not obtained all requested bytes!")
                 continue
             }
-            
+
             val messageSize = Int(messageSizeBuffer.first.iterator())
             
             val messageBuffer = readN(messageSize)

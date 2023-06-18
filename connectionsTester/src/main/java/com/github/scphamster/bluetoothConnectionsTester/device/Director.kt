@@ -16,7 +16,6 @@ import java.net.Socket
 import java.net.SocketTimeoutException
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
-import java.util.concurrent.atomic.AtomicBoolean
 
 //todo: add check for duplicate board addresses with multiple controllers
 //todo: when all controllers disconnects give IoBoardsManager empty list of controllers
@@ -348,6 +347,7 @@ class Director(val app: Application,
     }
     
     private suspend fun newDeviceLinksReceiverTask() = withContext(Dispatchers.Default) {
+        // go to UI thread while changing the observed value
         withContext(Dispatchers.Main) {
             machineState.state.value = State.SearchingForControllers
         }

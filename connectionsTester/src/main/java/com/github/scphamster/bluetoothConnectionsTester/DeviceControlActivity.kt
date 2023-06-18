@@ -30,7 +30,7 @@ class DeviceControlActivity : AppCompatActivity() {
         private val Tag: String = "DeviceControl"
         private const val SETTINGS_REQUEST_CODE = 1
     }
-    
+
     private val model by lazy {
         ViewModelProvider(this).get(DeviceControlViewModel::class.java)
     }

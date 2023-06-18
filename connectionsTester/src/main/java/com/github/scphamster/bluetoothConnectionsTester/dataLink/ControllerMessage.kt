@@ -66,7 +66,7 @@ interface MasterToControllerMsg {
     }
 }
 
-final class MeasureAllVoltages : MasterToControllerMsg {
+class MeasureAllVoltages : MasterToControllerMsg {
     companion object {
         const val COMMAND_SIZE_BYTES = Byte.SIZE_BYTES.toByte()
         val CMD_ID: Byte = MasterToControllerMsg.MessageID.MeasureAllVoltages.id
@@ -80,7 +80,7 @@ final class MeasureAllVoltages : MasterToControllerMsg {
     }
 }
 
-final class SetOutputVoltageLevel(val level: IoBoardsManager.VoltageLevel) : MasterToControllerMsg {
+class SetOutputVoltageLevel(val level: IoBoardsManager.VoltageLevel) : MasterToControllerMsg {
     companion object {
         private val CMD_ID = MasterToControllerMsg.MessageID.SetOutputVoltageLevel.id
         private const val SIZE_BYTES = Byte.SIZE_BYTES * 2
@@ -96,7 +96,7 @@ final class SetOutputVoltageLevel(val level: IoBoardsManager.VoltageLevel) : Mas
     }
 }
 
-final class GetBoardsOnline(val performRescanOnControllerSide: Boolean = false) : MasterToControllerMsg {
+class GetBoardsOnline(val performRescanOnControllerSide: Boolean = false) : MasterToControllerMsg {
     companion object {
         const val RESULT_TIMEOUT_MS = 4000.toLong()
         const val RESULT_TIMEOUT_WITH_RESCAN_MS = 10_000.toLong()
@@ -109,7 +109,7 @@ final class GetBoardsOnline(val performRescanOnControllerSide: Boolean = false) 
     }
 }
 
-final class FindConnection(val pin: PinAffinityAndId? = null) : MasterToControllerMsg {
+class FindConnection(val pin: PinAffinityAndId? = null) : MasterToControllerMsg {
     companion object {
         const val SINGLE_PIN_RESULT_TIMEOUT_MS = 2000.toLong()
         const val MEASURE_ALL_PIN_ID_FILLER = UByte.MAX_VALUE
@@ -130,7 +130,7 @@ final class FindConnection(val pin: PinAffinityAndId? = null) : MasterToControll
     override val msgId = MasterToControllerMsg.MessageID.CheckConnections.id
 }
 
-final class KeepAliveMessage : MasterToControllerMsg {
+class KeepAliveMessage : MasterToControllerMsg {
     override val msgId = MasterToControllerMsg.MessageID.DataLinkKeepAlive.id
     
     override fun serialize(): Collection<Byte> {
@@ -138,7 +138,7 @@ final class KeepAliveMessage : MasterToControllerMsg {
     }
 }
 
-final class SetVoltageAtPin(val pin: PinAffinityAndId) : MasterToControllerMsg {
+class SetVoltageAtPin(val pin: PinAffinityAndId) : MasterToControllerMsg {
     override val msgId = MasterToControllerMsg.MessageID.EnableOutputForPin.id
     
     override fun serialize(): Collection<Byte> {
@@ -146,7 +146,7 @@ final class SetVoltageAtPin(val pin: PinAffinityAndId) : MasterToControllerMsg {
     }
 }
 
-final class DisableOutput : MasterToControllerMsg {
+class DisableOutput : MasterToControllerMsg {
     override val msgId = MasterToControllerMsg.MessageID.DisableOutput.id
     
     override fun serialize(): Collection<Byte> {
@@ -154,7 +154,7 @@ final class DisableOutput : MasterToControllerMsg {
     }
 }
 
-final class EchoMessage : MasterToControllerMsg {
+class EchoMessage : MasterToControllerMsg {
     override fun serialize(): Collection<Byte> {
         return listOf(msgId)
     }
@@ -353,7 +353,7 @@ sealed interface MessageFromController {
     
     class KeepAlive : MessageFromController {
         companion object {
-            const val KEEPALIVE_TIMEOUT_MS = 3000.toLong()
+            const val KEEPALIVE_TIMEOUT_MS = 10_000.toLong()
         }
     }
 }

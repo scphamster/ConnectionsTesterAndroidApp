@@ -30,7 +30,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
     private var isInitialized: Boolean
     
     init {
-        isInitialized = false //        bluetooth = BluetoothBridge(errorHandler)
+        isInitialized = false
         measurementsHandler = MeasurementsHandler(errorHandler, app, viewModelScope)
         controllersManager =
             Director(app, viewModelScope, errorHandler, measurementsHandler.boardsManager.boardsArrayChannel)

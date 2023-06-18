@@ -26,13 +26,10 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 
 import android.Manifest
 import androidx.preference.PreferenceManager
-import kotlinx.coroutines.coroutineScope
 
-import java.lang.Exception
-import kotlin.coroutines.coroutineContext
 
 class MainActivity : AppCompatActivity() {
-    private inner class DeviceViewHolder internal constructor(view: View) : ViewHolder(view) {
+    private inner class DeviceViewHolder(view: View) : ViewHolder(view) {
         private val single_device_item_layout: RelativeLayout by lazy { view.findViewById(R.id.single_bt_device) }
         private val deviceName: TextView by lazy { view.findViewById(R.id.bluetooth_item_Name) }
         private val deviceAddress: TextView by lazy { view.findViewById(R.id.bluetooth_item_Adress) }
@@ -101,7 +98,7 @@ class MainActivity : AppCompatActivity() {
 
     private var viewModel: MainActivityViewModel? = null
     private var lastUsedDeviceMacAddress: String? = null
-    private var csvList = mutableListOf<Array<String>>()
+//    private var csvList = mutableListOf<Array<String>>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -125,6 +122,7 @@ class MainActivity : AppCompatActivity() {
             .get(MainActivityViewModel::class.java)
 
         if (!(viewModel!!.setupViewModel())) {
+            Log.e(Tag, "View model setup failed! Terminating!")
             finish()
             return
         }
