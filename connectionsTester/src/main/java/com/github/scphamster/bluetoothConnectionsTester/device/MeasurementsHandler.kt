@@ -21,7 +21,6 @@ class MeasurementsHandler(
     private val context: Context,
     val coroutineScope: CoroutineScope
 ) {
-
     enum class PinConnectionsStatus {
         AlteredConnectionsList,
         DoubleChecked,
@@ -297,11 +296,12 @@ class MeasurementsHandler(
     }
 
     val boardsManager = IoBoardsManager(errorHandler, coroutineScope)
-    val responseInterpreter by lazy { ControllerResponseInterpreter() }
+    private val responseInterpreter by lazy { ControllerResponseInterpreter() } // Deprecated, was used with Bluetooth
     val resultsSaver by lazy { MeasurementsToFileSaver() }
     private var connectionDescriptorMessageCounter = 0
 
     init {
+        // Deprecated Bluetooth section start
         responseInterpreter.onConnectionsDescriptionCallback = { new_connections ->
             coroutineScope.launch {
                 boardsManager.updateConnectionsByControllerMsg(new_connections)
@@ -331,6 +331,8 @@ class MeasurementsHandler(
 //        commander.dataLink.onMessageReceivedCallback = { msg ->
 //            responseInterpreter.handleMessage(msg)
 //        }
+
+        // Deprecated Bluetooth section end
     }
 
 }

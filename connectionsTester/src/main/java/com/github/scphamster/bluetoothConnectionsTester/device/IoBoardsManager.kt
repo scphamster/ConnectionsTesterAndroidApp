@@ -8,9 +8,9 @@ import com.github.scphamster.bluetoothConnectionsTester.circuit.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
-class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope) {
+class IoBoardsManager(val errorHandler: ErrorHandler, scope: CoroutineScope) {
     companion object {
-        val Tag = "IoBoardsManagerLive"
+        const val Tag = "IoBoardsManagerLive"
         private const val STANDARD_INPUT_R: ResistanceT = 1100f
         private const val STANDARD_OUTPUT_R: ResistanceT = 210f
         private const val STANDARD_SHUNT_R: ResistanceT = 330f
@@ -20,13 +20,10 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope)
     
     data class SortedPins(val group: PinGroup? = null, val affinity: BoardAddrT? = null, val pins: Array<Pin>) {
         fun getCongregationName(): String {
-            if (group != null) return group.getPrettyName()
-            else if (affinity != null) return affinity.toString()
-            else return "FAILGROUP"
+            return group?.getPrettyName() ?: (affinity?.toString() ?: "FAILGROUP")
         }
         
         val isSortedByGroup: Boolean = group != null
-        val isSortedByAffinity: Boolean = affinity != null
     }
     
     enum class VoltageLevel(val byteValue: Byte) {
@@ -35,21 +32,13 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope)
     }
     
     val boards = MutableLiveData<MutableList<IoBoard>>()
-    val pinoutInterpreter: PinoutFileInterpreter
+    val pinoutInterpreter = PinoutFileInterpreter()
     val pinConnectivityResultsCh = Channel<SimpleConnectivityDescription>(Channel.UNLIMITED)
     val boardsArrayChannel = Channel<Array<IoBoard>>(10)
     
-    var voltageLevel: VoltageLevel = VoltageLevel.Low
+    private var voltageLevel: VoltageLevel = VoltageLevel.Low
     var pinChangeCallback: ((Pin) -> Unit)? = null
-    var nextUniqueBoardId = 0
-        private set
-        get() {
-            val id = field
-            field++
-            return id
-        }
-    var nextUniqueGroupId = 0
-        private set
+    private var nextUniqueGroupId = 0
         get() {
             val id = field
             field++
@@ -57,18 +46,8 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope)
         }
     
     var maxResistanceAsConnection = 0f
-    
-    private val boardsCount = MutableLiveData<Int>()
-    
-    private var nextUniquePinId = 0
-        get() {
-            val id = field
-            field++
-            return id
-        }
-    
+
     init {
-        pinoutInterpreter = PinoutFileInterpreter()
         scope.launch(Dispatchers.Default) {
             newPinConnectivityResultsReceiverTask()
         }
@@ -77,10 +56,9 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope)
         }
     }
     
-    fun getNamedPinGroups(): Array<PinGroup>? {
-        val boards = boards.value
-        
-        if (boards == null) return null
+    private fun getNamedPinGroups(): Array<PinGroup>? {
+        val boards = boards.value ?: return null
+
         if (boards.isEmpty()) return null
         
         val groups = mutableListOf<PinGroup>()
@@ -102,10 +80,9 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope)
         return groups.toTypedArray()
     }
     
-    fun getAllPinsFromGroup(group: PinGroup): Array<Pin>? {
-        val boards = boards.value
-        
-        if (boards == null) return null
+    private fun getAllPinsFromGroup(group: PinGroup): Array<Pin>? {
+        val boards = boards.value ?: return null
+
         if (boards.isEmpty()) return null
         
         val pins = mutableListOf<Pin>()
@@ -122,18 +99,17 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope)
     }
     
     fun getPinsSortedByGroupOrAffinity(): Array<SortedPins>? {
-        val boards = boards.value
-        
-        if (boards == null) return null
+        val boards = boards.value ?: return null
+
         if (boards.isEmpty()) return null
         
         val groups = getNamedPinGroups()
         val pins_sorted_by_group = mutableListOf<SortedPins>()
-        groups?.let {
+        groups?.let { it ->
             for (group in it) {
                 val pins_from_this_group = getAllPinsFromGroup(group)
-                pins_from_this_group?.let {
-                    val sorted_pins = SortedPins(group, pins = it)
+                pins_from_this_group?.let {pins ->
+                    val sorted_pins = SortedPins(group, pins = pins)
                     pins_sorted_by_group.add(sorted_pins)
                 }
             }
@@ -159,28 +135,9 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope)
         
         return pins_sorted_by_group.toTypedArray()
     }
-    
-    fun setOutputVoltageLevelForBoards(level: VoltageLevel) {
-        voltageLevel = level
-        
-        val boards = boards.value
-        if (boards == null) return
-        
-        for (board in boards) {
-            board.voltageLevel = level
-            val internals = board.internalParams
-            
-            if (internals != null) {
-                for (pin in board.pins) {
-                    pin.outVoltage = if (level == VoltageLevel.High) internals.outputVoltageHigh
-                    else internals.outputVoltageLow
-                }
-            }
-        }
-    }
-    
-    suspend fun updateConnectionsForPin(updated_pin: Pin, connections: Array<Connection>) {
-        val Tag = Tag + ":PCU"
+
+    private suspend fun updateConnectionsForPin(updated_pin: Pin, connections: Array<Connection>) {
+        val Tag = "$Tag:PCU"
         
         val new_connections = mutableListOf<Connection>()
         
@@ -205,8 +162,8 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope)
             val previous_connection_to_this_pin = updated_pin.getConnection(affinity_and_id)
             
             val differs_from_previous = connection.checkIfDifferent(previous_connection_to_this_pin) ?: false
-            val first_occurrence = previous_connection_to_this_pin == null;
-            
+            val first_occurrence = previous_connection_to_this_pin == null
+
             val new_connection = Connection(descriptor_of_connected_pin,
                                             connection.voltage,
                                             connection.resistance,
@@ -235,9 +192,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope)
             Log.e(Tag, "Pin not found in UpdateConnectionsForPin")
             return
         }
-        
-        val mutableConnections = mutableListOf<Connection>()
-        
+
         val newConnections =
             connections.map { connection -> (Connection(connection.toPin, raw = connection.voltage.value.toInt())) }
                 .toTypedArray()
@@ -295,8 +250,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope)
         }
         
         var pin_with_board_id_same_as_group_name: Pin? = null
-        var pin_with_group_and_name_as_requested: Pin? = null
-        
+
         for (board in current_boards) {
             for (pin in board.pins) {
                 if (pin.descriptor.pinAffinityAndId.pinID.toString() == name && board.address.toString() == group) {
@@ -319,17 +273,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope)
         
         return null
     }
-    
-    fun calibrate() {
-        val boards = boards.value
-        boards?.let {
-            for (board in boards) {
-                for (pin in board.pins) { //todo: implement
-                }
-            }
-        }
-    }
-    
+
     fun getAllPins(): List<Pin> {
         val boards = boards.value
         
@@ -379,12 +323,12 @@ class IoBoardsManager(val errorHandler: ErrorHandler, val scope: CoroutineScope)
         }
         catch (e: PinoutFileInterpreter.BadFileException) {
             errorHandler.handleError("Error ${e.message}")
-            Log.e(Tag, "${e.message}");
+            Log.e(Tag, "${e.message}")
             return@withContext
         }
         catch (e: Throwable) {
             errorHandler.handleError("Unknown error: ${e.message}")
-            Log.e(Tag, "${e.message}");
+            Log.e(Tag, "${e.message}")
             return@withContext
         }
         
