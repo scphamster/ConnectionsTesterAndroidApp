@@ -20,7 +20,7 @@ class ControllerManager(
     override val dataLink: DeviceLink,
     val scope: CoroutineScope,
     val outputVoltageLevel: IoBoardsManager.VoltageLevel,
-    val stateChangeCallback: (prevState: ControllerManagerI.State, s: ControllerManagerI.State) -> Unit,
+    val onStateChangeCallback: (prevState: ControllerManagerI.State, s: ControllerManagerI.State) -> Unit,
     val onFatalErrorCallback: () -> Unit
 ) : ControllerManagerI {
     companion object {
@@ -35,7 +35,7 @@ class ControllerManager(
         private set(newState) {
             val prevState = field
             field = newState
-            stateChangeCallback(prevState, newState)
+            onStateChangeCallback(prevState, newState)
             Log.d(Tag, "Setting state to ${field.toString()}!")
         }
     var voltageLevel = IoBoardsManager.VoltageLevel.Low
