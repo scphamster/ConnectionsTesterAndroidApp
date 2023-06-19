@@ -59,18 +59,23 @@ class ControllerManager(
             val jobs = mutableListOf<Deferred<Unit>>()
 
             jobs.add(scope.async {
+                // task to receive data in form of bytes from the controller, data is transferred through the Channel from WorkSocket
                 rawDataReceiverTask()
             })
             jobs.add(scope.async {
+                // messages deserialized from bytes in rawDataReceiverTask sent to Chanel received here
                 inputMessagesHandlerTask()
             })
             jobs.add(scope.async {
+                // messages to be sent to controller are sent to Chanel handled here
                 outputMessagesHandlerTask()
             })
             jobs.add(scope.async {
+                // handler of raw data flow (in and out)
                 runDataLink()
             })
             jobs.add(scope.async {
+                // receiver task solely for the KeepAlive type of messages
                 keepAliveReceiver()
             })
             jobs.add(scope.async {
@@ -488,15 +493,16 @@ class ControllerManager(
             val bytes = inputDataCh.receiveCatching().getOrNull() ?: continue
 
             for (byte in bytes) {
-                Log.d("$Tag:RWRT", "${byte.toUByte()}")
+                Log.v(Tag, "${byte.toUByte()}")
             }
 
             val msg = try {
                 MessageFromController.deserialize(bytes.iterator())
             } catch (e: Exception) {
-                Log.e("$Tag:RWRT", "Error while creating MessageFromController: ${e.message}")
+                Log.e(Tag, "Error while creating MessageFromController: ${e.message}")
+
                 for ((index, byte) in bytes.withIndex()) {
-                    Log.e("$Tag:RWRT", "$index:${byte.toUByte()}")
+                    Log.e(Tag, "$index:${byte.toUByte()}")
                 }
                 continue
             }
@@ -517,7 +523,7 @@ class ControllerManager(
             val Tag = Tag + ":IMHT"
 
             val msg = inputMessagesChannel.receiveCatching().getOrNull()
-            
+
             if (msg == null) {
                 Log.e(Tag, "Unhandled message is null!")
                 continue
@@ -538,8 +544,7 @@ class ControllerManager(
 
     private suspend fun outputMessagesHandlerTask() = withContext(Dispatchers.Default) {
         while (isActive) {
-            val result = outputMessagesChannel.receiveCatching()
-            val newMsg = result.getOrNull()
+            val newMsg = outputMessagesChannel.receiveCatching().getOrNull()
             if (newMsg == null) {
                 Log.e("$Tag:OMHT", "new msg is null!")
                 continue
