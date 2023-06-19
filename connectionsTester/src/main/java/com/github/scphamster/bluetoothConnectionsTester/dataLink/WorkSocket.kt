@@ -43,12 +43,12 @@ class WorkSocket(val keepAliveMessage: KeepAliveMessage? = null) : DeviceLink {
     private val Tag: String
         get() = Companion.Tag + "$port"
     
-    lateinit private var serverSocket: ServerSocket
-    lateinit private var socket: Socket
-    lateinit private var outStream: OutputStream
-    lateinit private var inStream: InputStream
-    lateinit private var inputJob: Deferred<Unit>
-    lateinit private var outputJob: Deferred<Unit>
+    private lateinit var serverSocket: ServerSocket
+    private lateinit var socket: Socket
+    private lateinit var outStream: OutputStream
+    private lateinit var inStream: InputStream
+    private lateinit var inputJob: Deferred<Unit>
+    private lateinit var outputJob: Deferred<Unit>
     
     override suspend fun run() = withContext(Dispatchers.IO) {
         val Tag = Tag + ":MAIN"

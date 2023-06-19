@@ -239,6 +239,10 @@ sealed interface MessageFromController {
             
             response = enumConstant
         }
+
+        override fun toString(): String {
+            return response.toString()
+        }
     }
     
     class Boards(byteIterator: Iterator<Byte>) : MessageFromController {

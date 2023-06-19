@@ -354,12 +354,11 @@ class Director(
                 }
             }
 
-            val result = newDeviceLinksChannel.receiveCatching()
+            val newLink = newDeviceLinksChannel.receiveCatching().getOrNull()
             waitForAllDevicesToConnectTimeoutJob.cancel()
 
-            val newLink = result.getOrNull()
             if (newLink == null) {
-                Log.e(Tag, "New WorkSocket arrived but it is NULL! ${result.toString()}")
+                Log.e(Tag, "New WorkSocket arrived but it is NULL!")
                 delay(500)
                 continue
             }

@@ -18,8 +18,8 @@ import kotlin.reflect.KClass
 class ControllerManager(
     val uuid: UUID,
     override val dataLink: DeviceLink,
-    val scope: CoroutineScope,
-    val outputVoltageLevel: IoBoardsManager.VoltageLevel,
+    private val scope: CoroutineScope,
+    private val outputVoltageLevel: IoBoardsManager.VoltageLevel,
     val onStateChangeCallback: (prevState: ControllerManagerI.State, s: ControllerManagerI.State) -> Unit,
     val onFatalErrorCallback: () -> Unit
 ) : ControllerManagerI {
@@ -29,7 +29,7 @@ class ControllerManager(
         private const val COMMAND_ACK_TIMEOUT_MS = 1000.toLong()
     }
 
-    val boardsMutex = Mutex()
+    private val boardsMutex = Mutex()
 
     var state: ControllerManagerI.State = ControllerManagerI.State.Initializing
         private set(newState) {
@@ -52,7 +52,7 @@ class ControllerManager(
     private val outputMessagesChannel = Channel<MasterToControllerMsg>(MESSAGES_CHANNEL_SIZE)
     private val inputMessagesChannelMutex = Mutex()
 
-    private lateinit var allJobs: Deferred<Unit>
+    private var allJobs: Deferred<Unit>
 
     init {
         allJobs = scope.async(Dispatchers.Default) {
@@ -70,11 +70,10 @@ class ControllerManager(
             jobs.add(scope.async {
                 runDataLink()
             })
-            jobs.add(scope.async(Dispatchers.Default) {
+            jobs.add(scope.async {
                 keepAliveReceiver()
             })
-
-            jobs.add(scope.async(Dispatchers.Default) {
+            jobs.add(scope.async {
                 Log.d(Tag, "Initialization controller manager")
 
                 while (!dataLink.isReady.get()) {
@@ -84,11 +83,10 @@ class ControllerManager(
 
                 initialize()
                 Log.d(Tag, "Initialized!")
-//                checkLatency()
+                // disabled until issue with this resolved
+                // checkLatency()
 
                 state = ControllerManagerI.State.Operating
-
-                return@async
             })
 
             try {
@@ -332,7 +330,8 @@ class ControllerManager(
     ) =
         withContext(Dispatchers.Default) {
             if (state != ControllerManagerI.State.Operating) {
-                Log.e(Tag,
+                Log.e(
+                    Tag,
                     "Command ${object {}.javaClass.enclosingMethod?.name} invoked while controller is not in Operating state, current state: $state"
                 )
                 return@withContext
@@ -364,7 +363,8 @@ class ControllerManager(
     override suspend fun checkConnectionsForLocalBoards(connectionsChannel: Channel<SimpleConnectivityDescription>) =
         withContext(Dispatchers.Default) /* overall operation result */ {
             if (state != ControllerManagerI.State.Operating) {
-                Log.e(Tag,
+                Log.e(
+                    Tag,
                     "Command ${object {}.javaClass.enclosingMethod?.name} invoked while controller is not in Operating state, current state: $state"
                 )
                 return@withContext
@@ -398,7 +398,8 @@ class ControllerManager(
 
     override suspend fun disableOutput(): ControllerResponse {
         if (state != ControllerManagerI.State.Operating) {
-            Log.e(Tag,
+            Log.e(
+                Tag,
                 "Command ${object {}.javaClass.enclosingMethod?.name} invoked while controller is not in Operating state, current state: $state"
             )
             return ControllerResponse.CommandPerformanceFailure
@@ -481,25 +482,19 @@ class ControllerManager(
     }
 
     private suspend fun rawDataReceiverTask() = withContext(Dispatchers.Default) {
-        val Tag = Tag + ":RDRT"
+        val Tag = "$Tag:RDRT"
 
         while (isActive) {
-            val result = inputDataCh.receiveCatching()
-
-            val bytes = result.getOrNull()
-            if (bytes == null) {
-                Log.e(Tag, "bytes are null!")
-                continue
-            }
+            val bytes = inputDataCh.receiveCatching().getOrNull() ?: continue
 
             for (byte in bytes) {
-                Log.d("$Tag:RWRT", "$byte")
+                Log.d("$Tag:RWRT", "${byte.toUByte()}")
             }
 
             val msg = try {
                 MessageFromController.deserialize(bytes.iterator())
             } catch (e: Exception) {
-                Log.e("$Tag:RWRT", "Error while creating fromControllerMessage: ${e.message}")
+                Log.e("$Tag:RWRT", "Error while creating MessageFromController: ${e.message}")
                 for ((index, byte) in bytes.withIndex()) {
                     Log.e("$Tag:RWRT", "$index:${byte.toUByte()}")
                 }
@@ -510,7 +505,7 @@ class ControllerManager(
                 Log.e(Tag, "Message is null")
                 continue
             } else {
-                Log.d(Tag, "New Msg: ${msg.toString()}")
+                Log.d(Tag, "New Msg: $msg")
             }
 
             inputMessagesChannel.send(msg)
@@ -521,8 +516,8 @@ class ControllerManager(
         while (isActive) {
             val Tag = Tag + ":IMHT"
 
-            val msg = inputMessagesChannel.receiveCatching()
-                .getOrNull()
+            val msg = inputMessagesChannel.receiveCatching().getOrNull()
+            
             if (msg == null) {
                 Log.e(Tag, "Unhandled message is null!")
                 continue
