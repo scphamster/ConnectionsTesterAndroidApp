@@ -246,11 +246,11 @@ class DeviceControlActivity : AppCompatActivity() {
             (measurementsView.adapter as ResultsAdapter).updatePinSet(it)
         }
         
-        model.controllersManager.machineState.state.observe(this) { state ->
+        model.measurementsDirector.machineState.state.observe(this) { state ->
             when (state) {
                 Director.State.Operating -> {
                     val controller_search_progress = findViewById<ProgressBar>(R.id.searching_for_controller_progbar)
-                    actionBarText?.text = "Controlers found: ${model.controllersManager.controllers.size}"
+                    actionBarText?.text = "Controlers found: ${model.measurementsDirector.controllers.size}"
                     if (controller_search_progress.visibility == View.VISIBLE) {
                         controller_search_progress.visibility = View.INVISIBLE
                     }
@@ -269,7 +269,7 @@ class DeviceControlActivity : AppCompatActivity() {
                 }
 
                 Director.State.NoBoardsAvailable -> {
-                    actionBarText?.text = "Controllers: ${model.controllersManager.controllers.size}, no boards found"
+                    actionBarText?.text = "Controllers: ${model.measurementsDirector.controllers.size}, no boards found"
                     model.errorHandler.handleError("No boards found with connected controllers")
                 }
 

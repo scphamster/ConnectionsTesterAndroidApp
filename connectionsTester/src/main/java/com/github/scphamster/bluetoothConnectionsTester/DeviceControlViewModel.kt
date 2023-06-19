@@ -9,7 +9,6 @@ import androidx.lifecycle.viewModelScope
 import androidx.preference.PreferenceManager
 import com.github.scphamster.bluetoothConnectionsTester.circuit.Pin
 import com.github.scphamster.bluetoothConnectionsTester.circuit.toResistance
-import com.github.scphamster.bluetoothConnectionsTester.dataLink.BluetoothBridge
 import com.github.scphamster.bluetoothConnectionsTester.device.Director
 
 import com.github.scphamster.bluetoothConnectionsTester.device.ControllerResponseInterpreter.Commands
@@ -23,7 +22,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
     
     val errorHandler = ErrorHandler(app)
     val measurementsHandler: MeasurementsHandler
-    val controllersManager: Director //    private val bluetooth: BluetoothBridge //    private val logger by lazy { ToFileLogger(app) }
+    val measurementsDirector: Director //    private val bluetooth: BluetoothBridge //    private val logger by lazy { ToFileLogger(app) }
 
     var maxDetectableResistance: Float = 0f
     
@@ -32,7 +31,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
     init {
         isInitialized = false
         measurementsHandler = MeasurementsHandler(errorHandler, app, viewModelScope)
-        controllersManager =
+        measurementsDirector =
             Director(app, viewModelScope, errorHandler, measurementsHandler.boardsManager.boardsArrayChannel)
         
     }
@@ -67,7 +66,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
     
     fun setupVoltageLevel() {
         viewModelScope.launch {
-            controllersManager.setVoltageLevelAccordingToPreferences()
+            measurementsDirector.setVoltageLevelAccordingToPreferences()
         }
     }
     
@@ -130,7 +129,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
         
         //        measurementsHandler.commander.sendCommand(Commands.CheckConnectivity(answer_domain, sequential = if_sequential))
         viewModelScope.launch {
-            controllersManager.checkAllConnections(measurementsHandler.boardsManager.pinConnectivityResultsCh)
+            measurementsDirector.checkAllConnections(measurementsHandler.boardsManager.pinConnectivityResultsCh)
         }
     }
     
@@ -154,7 +153,7 @@ class DeviceControlViewModel(val app: Application) : AndroidViewModel(app) {
         //                                                                             if_sequential))
         //
         viewModelScope.launch {
-            controllersManager.checkConnection(for_pin.descriptor.pinAffinityAndId,
+            measurementsDirector.checkConnection(for_pin.descriptor.pinAffinityAndId,
                                                measurementsHandler.boardsManager.pinConnectivityResultsCh)
             Log.d(Tag, "check connection succeeded")
             
