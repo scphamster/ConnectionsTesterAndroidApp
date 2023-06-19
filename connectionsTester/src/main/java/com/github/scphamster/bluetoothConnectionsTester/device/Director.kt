@@ -218,13 +218,19 @@ class Director(
         connectionsChannel: Channel<SimpleConnectivityDescription>
     ) =
         withContext(Dispatchers.Default) {
+            Log.v(Tag, "Checking single connection: $pinAffinityAndId")
+
             val controller =
                 getAllBoards().find { b -> b.address == pinAffinityAndId.boardAddress }?.belongsToController?.get()
+
+            Log.v(Tag, "Setting voltage")
 
             if (controller?.setVoltageAtPin(pinAffinityAndId.getPhysicalPinAffinityAndID()) != ControllerResponse.CommandAcknowledge) {
                 Log.e(Tag, "check connection failed due to failed set voltage!")
                 return@withContext
             }
+
+            Log.v(Tag, "Voltage setting successful, measuring all voltages")
 
             val allBoardsVoltages = controllers.map { c ->
                 val allVoltages = try {
