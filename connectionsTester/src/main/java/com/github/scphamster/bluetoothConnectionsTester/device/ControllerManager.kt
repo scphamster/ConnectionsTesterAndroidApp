@@ -491,7 +491,6 @@ class ControllerManager(
             "$Tag:RDRT"
         }
 
-
         while (isActive) {
             val bytes = inputDataCh.receiveCatching().getOrNull() ?: continue
 
@@ -523,22 +522,22 @@ class ControllerManager(
 
     private suspend fun inputMessagesHandlerTask() = withContext(Dispatchers.Default) {
         while (isActive) {
-            val Tag = Tag + ":IMHT"
+            val Tag = { "$Tag:IMHT" }
 
             val msg = inputMessagesChannel.receiveCatching().getOrNull()
 
             if (msg == null) {
-                Log.e(Tag, "Unhandled message is null!")
+                Log.e(Tag(), "Unhandled message is null!")
                 continue
             }
 
             val type = msg::class
 
             if (inputChannels.containsKey(type)) {
-                Log.d(Tag, "new msg sent to channel of type: ${type.simpleName}")
+                Log.d(Tag(), "new msg sent to channel of type: ${type.simpleName}")
                 inputChannels[type]?.send(msg)
             } else {
-                Log.d(Tag, "new channel created with class: ${type.simpleName}")
+                Log.d(Tag(), "new channel created with class: ${type.simpleName}")
                 inputChannels[type] = Channel<MessageFromController>(Channel.UNLIMITED)
                 inputChannels[type]?.send(msg)
             }
@@ -546,18 +545,20 @@ class ControllerManager(
     }
 
     private suspend fun outputMessagesHandlerTask() = withContext(Dispatchers.Default) {
+        val Tag = { "$Tag:OMHT" }
+
         while (isActive) {
             val newMsg = outputMessagesChannel.receiveCatching().getOrNull()
             if (newMsg == null) {
-                Log.e("$Tag:OMHT", "new msg is null!")
+                Log.e(Tag(), "new msg is null!")
                 continue
             }
 
-            Log.d("$Tag:OMHT", "sending new msg")
+            Log.d(Tag(), "sending new msg")
 
             val bytes = newMsg.serialize()
             bytes.forEach {
-                Log.d("$Tag:OMHT", "$it")
+                Log.d(Tag(), "$it")
             }
 
             outputDataCh.send(bytes)
@@ -565,7 +566,7 @@ class ControllerManager(
     }
 
     private suspend fun keepAliveReceiver() = withContext(Dispatchers.Default) {
-        val Tag = Tag + ":KAT"
+        val Tag = { "$Tag:KAT" }
 
         // keepalive timer should be started after first keepalive message arrival
         while (!inputChannels.containsKey(MessageFromController.KeepAlive::class)) {
@@ -580,23 +581,23 @@ class ControllerManager(
                         ?.getOrNull()
 
                     if (msg != null) {
-                        Log.v(Tag, "KeepAlive received")
+                        Log.v(Tag(), "KeepAlive received")
                     } else {
-                        Log.e(Tag, "KeepAlive msg is null! Terminating!")
+                        Log.e(Tag(), "KeepAlive msg is null! Terminating!")
                         onFatalErrorCallback()
                     }
                 }
             } catch (e: TimeoutCancellationException) {
                 if (System.currentTimeMillis() - dataLink.lastInputOperationTimeStamp > MessageFromController.KeepAlive.KEEPALIVE_TIMEOUT_MS) {
                     Log.e(
-                        Tag,
+                        Tag(),
                         "KeepAlive timed out with timeout set to ${MessageFromController.KeepAlive.KEEPALIVE_TIMEOUT_MS}"
                     )
                     onFatalErrorCallback()
                     return@withContext
                 }
             } catch (e: CancellationException) {
-                Log.d(Tag, "cancelled due to: $e")
+                Log.d(Tag(), "cancelled due to: $e")
                 return@withContext
             } //            yield()
         }
