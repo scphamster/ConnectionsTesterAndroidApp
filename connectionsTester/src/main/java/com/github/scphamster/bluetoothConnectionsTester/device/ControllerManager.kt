@@ -487,31 +487,34 @@ class ControllerManager(
     }
 
     private suspend fun rawDataReceiverTask() = withContext(Dispatchers.Default) {
-        val Tag = "$Tag:RDRT"
+        val Tag = {
+            "$Tag:RDRT"
+        }
+
 
         while (isActive) {
             val bytes = inputDataCh.receiveCatching().getOrNull() ?: continue
 
             for (byte in bytes) {
-                Log.v(Tag, "${byte.toUByte()}")
+                Log.v(Tag(), "${byte.toUByte()}")
             }
 
             val msg = try {
                 MessageFromController.deserialize(bytes.iterator())
             } catch (e: Exception) {
-                Log.e(Tag, "Error while creating MessageFromController: ${e.message}")
+                Log.e(Tag(), "Error while creating MessageFromController: ${e.message}")
 
                 for ((index, byte) in bytes.withIndex()) {
-                    Log.e(Tag, "$index:${byte.toUByte()}")
+                    Log.e(Tag(), "$index:${byte.toUByte()}")
                 }
                 continue
             }
 
             if (msg == null) {
-                Log.e(Tag, "Message is null")
+                Log.e(Tag(), "Message is null")
                 continue
             } else {
-                Log.d(Tag, "New Msg: $msg")
+                Log.d(Tag(), "New Msg: $msg")
             }
 
             inputMessagesChannel.send(msg)
@@ -633,7 +636,7 @@ class ControllerManager(
     private suspend fun runDataLink() = withContext(Dispatchers.Default) {
         Log.d(Tag, "Starting new Controller DataLink: ${dataLink.id}")
 
-        val dataLinkJob = scope.async {
+        val dataLinkJob = async {
             dataLink.run()
         }
 
