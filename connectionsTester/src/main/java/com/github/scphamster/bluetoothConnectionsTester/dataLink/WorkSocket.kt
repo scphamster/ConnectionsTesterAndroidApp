@@ -148,7 +148,7 @@ class WorkSocket(val keepAliveMessage: KeepAliveMessage? = null) : DeviceLink {
         while (isActive) {
             outputDataChannel.send(keepAliveMessage.message)
             delay(keepAliveMessage.sendPeriodMs)
-            Log.v(Tag, "KeepAlive send")
+            Log.v(Tag, "KeepAlive sent")
         }
     }
 
