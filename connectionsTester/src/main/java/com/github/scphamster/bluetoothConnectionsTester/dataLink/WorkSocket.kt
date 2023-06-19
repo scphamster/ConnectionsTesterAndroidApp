@@ -151,17 +151,7 @@ class WorkSocket(val keepAliveMessage: KeepAliveMessage? = null) : DeviceLink {
             Log.v(Tag, "KeepAlive send")
         }
     }
-    
-    private suspend fun keepAliveReadTask() = withContext(Dispatchers.Default) {
-        if (keepAliveMessage == null) return@withContext
-        lastReadOperationTimeMs.set(System.currentTimeMillis())
-        
-        while (isActive) {
-            if (System.currentTimeMillis() > lastReadOperationTimeMs.get() + System.currentTimeMillis()) throw SocketIsDeadException(
-                "timeout at keepAlive reading task, period is : ${keepAliveMessage.sendPeriodMs}ms")
-        }
-    }
-    
+
     private suspend fun inputChannelTask() = withContext(Dispatchers.IO) {
         while (isActive) {
             // each message begins with message size in bytes
