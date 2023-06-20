@@ -29,7 +29,7 @@
     <!--    activity deviceControl-->
     <string name="ctl_actty_tittle_connecting">Connecting to device: %s</string>
     <string name="ctl_actty_tittle_connected">Connected to %s</string>
-    <string name="ctl_actty_number_of_connected_boards">Number of connected boards: %s</string>
+    <string name="ctl_actty_number_of_connected_boards">IO boards: %s</string>
 
 
     <string name="cmd2_button_name">check all</string>

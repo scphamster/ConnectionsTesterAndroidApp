@@ -6,11 +6,8 @@ import android.util.Log
 import androidx.preference.PreferenceManager
 import com.github.scphamster.bluetoothConnectionsTester.R
 import com.github.scphamster.bluetoothConnectionsTester.Storage
-import com.github.scphamster.bluetoothConnectionsTester.circuit.IoBoard
 import com.github.scphamster.bluetoothConnectionsTester.circuit.Pin
-import com.github.scphamster.bluetoothConnectionsTester.dataLink.BluetoothBridge
 
-import com.github.scphamster.bluetoothConnectionsTester.device.ControllerResponseInterpreter.Commands
 import kotlinx.coroutines.*
 
 import org.apache.poi.ss.usermodel.*
@@ -146,7 +143,7 @@ class MeasurementsHandler(
                     else ""
                 } else connection.toString()
 
-                if (connection.value_changed_from_previous_check) {
+                if (connection.valueChangedFromPreviousCheck) {
                     rich_text.append(connection_as_string, font_for_connection_with_changes)
                 } else {
                     rich_text.append(connection_as_string, font_normal)

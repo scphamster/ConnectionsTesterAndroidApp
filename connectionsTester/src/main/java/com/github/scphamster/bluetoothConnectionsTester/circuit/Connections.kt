@@ -103,9 +103,9 @@ class Connection(val toPin: PinIdentifier,
                  val voltage: Voltage? = null,
                  val resistance: Resistance? = null,
                  val raw: Int? = null,
-                 val value_changed_from_previous_check: Boolean = false,
-                 val first_occurrence: Boolean = true,
-                 val is_of_diode_type: Boolean = false) {
+                 val valueChangedFromPreviousCheck: Boolean = false,
+                 val firstOccurrence: Boolean = true,
+                 val isOfDiodeType: Boolean = false) {
     override fun toString(): String {
         val electrical = if (resistance != null) "(${resistance.toString()})"
         else if (voltage != null) "(${voltage.toString()})"
