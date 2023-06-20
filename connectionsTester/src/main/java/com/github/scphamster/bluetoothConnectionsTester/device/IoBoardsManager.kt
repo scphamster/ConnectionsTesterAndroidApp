@@ -311,8 +311,9 @@ class IoBoardsManager(val errorHandler: ErrorHandler, scope: CoroutineScope) {
     }
     
     suspend fun fetchPinsInfoFromExcelToPins() = withContext(Dispatchers.Default) {
-        val boards = boards.value
-        if (boards == null) return@withContext
+        val Tag = "$Tag:FIFE"
+
+        val boards = boards.value ?: return@withContext
         if (boards.isEmpty()) return@withContext
         
         Log.d(Tag, "entering fetch procedure")
@@ -337,18 +338,16 @@ class IoBoardsManager(val errorHandler: ErrorHandler, scope: CoroutineScope) {
         
         if (pinout_interpretation == null) return@withContext
         
-        cleanAllPinsAndGroupsNaming_silently()
+        cleanAllPinsAndGroupsNamingSilently()
         Log.d(Tag, "all pins names and groups names cleared")
         
         for (group in pinout_interpretation.pinGroups) {
             val logicPinGroup = PinGroup(nextUniqueGroupId, group.name)
             
             for (pin_mapping in group.pinsMap) {
-                val pin_ref = findPinRefByAffinityAndId(pin_mapping.value)
-                
-                
-                if (pin_ref == null) continue
-                val pin = pin_ref.get()
+                val pinRef = findPinRefByAffinityAndId(pin_mapping.value) ?: continue
+
+                val pin = pinRef.get()
                 if (pin == null) {
                     Log.e(Tag, "Pin is null!")
                     return@withContext
@@ -367,7 +366,9 @@ class IoBoardsManager(val errorHandler: ErrorHandler, scope: CoroutineScope) {
         fetchExpectedConnectionsToPinsFromFile()
     }
     
-    suspend fun fetchExpectedConnectionsToPinsFromFile() = withContext(Dispatchers.Default) {
+    private suspend fun fetchExpectedConnectionsToPinsFromFile() = withContext(Dispatchers.Default) {
+        val Tag = "$Tag:FEC"
+
         getAllPins().forEach() { pin ->
             pin.expectedConnections = null
             pin.unexpectedConnections = null
@@ -411,8 +412,9 @@ class IoBoardsManager(val errorHandler: ErrorHandler, scope: CoroutineScope) {
             }
         }
     }
+
     //tasks
-    suspend fun boardsReceiverTask() = withContext(Dispatchers.Default) {
+    private suspend fun boardsReceiverTask() = withContext(Dispatchers.Default) {
         val Tag = Tag + ":BRT"
         
         while (isActive) {
@@ -428,7 +430,7 @@ class IoBoardsManager(val errorHandler: ErrorHandler, scope: CoroutineScope) {
         }
     }
     
-    suspend fun newPinConnectivityResultsReceiverTask() = withContext(Dispatchers.Default) {
+    private suspend fun newPinConnectivityResultsReceiverTask() = withContext(Dispatchers.Default) {
         val Tag = Tag + ":PCT"
         
         while (isActive) {
@@ -478,10 +480,9 @@ class IoBoardsManager(val errorHandler: ErrorHandler, scope: CoroutineScope) {
         return Connection(connection.toPin, Voltage(sensed_voltage), Resistance(sensed_resistance), connection.raw)
     }
     
-    private fun cleanAllPinsAndGroupsNaming_silently() {
-        val boards = boards.value
-        if (boards == null) return
-        
+    private fun cleanAllPinsAndGroupsNamingSilently() {
+        val boards = boards.value ?: return
+
         for (board in boards) {
             if (board.pins.isEmpty()) continue
             

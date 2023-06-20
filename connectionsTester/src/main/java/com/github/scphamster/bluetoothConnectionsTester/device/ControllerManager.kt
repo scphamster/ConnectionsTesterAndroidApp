@@ -179,6 +179,7 @@ class ControllerManager(
                 val voltages = inputChannels[type]?.receiveCatching()
                     ?.getOrNull() as MessageFromController.Voltages?
 
+
                 if (voltages == null) {
                     Log.e(Tag, "voltage table arrived as null")
                     null

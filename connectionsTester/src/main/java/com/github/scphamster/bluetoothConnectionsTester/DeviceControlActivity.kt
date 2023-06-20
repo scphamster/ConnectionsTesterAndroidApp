@@ -47,19 +47,18 @@ class DeviceControlActivity : AppCompatActivity() {
         private val layout: RelativeLayout by lazy { view.findViewById(R.id.single_check_result) }
         private val pinNumber: TextView by lazy { view.findViewById(R.id.pin_description) }
         private val foundConnections: TextView by lazy { view.findViewById(R.id.connections) }
-        private var results_are_for_pin: Pin? = null
+        private var resultsAreForPin: Pin? = null
         
         init {
             layout.setOnClickListener {
-                val my_pin = results_are_for_pin
-                if (my_pin == null) return@setOnClickListener
-                
+                val my_pin = resultsAreForPin ?: return@setOnClickListener
+
                 model.checkConnections(my_pin)
             }
         }
         
         fun setup(pin: Pin) {
-            results_are_for_pin = pin
+            resultsAreForPin = pin
             pinNumber.text = pin.descriptor.getPrettyName()
             val RMax = model.maxDetectableResistance
             
@@ -177,7 +176,7 @@ class DeviceControlActivity : AppCompatActivity() {
             }
             
             //todo: not sure if this is a good handling of notifications, make research
-            notifyItemRangeInserted(0, pins.size)
+            notifyItemRangeInserted(0, pins.size - 1)
             
             //test
             //            notifyDataSetChanged()

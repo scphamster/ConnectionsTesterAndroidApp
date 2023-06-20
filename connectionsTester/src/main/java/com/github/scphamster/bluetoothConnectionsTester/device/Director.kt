@@ -232,9 +232,9 @@ class Director(
 
             Log.v(Tag, "Voltage setting successful, measuring all voltages")
 
-            val allBoardsVoltages = controllers.map { c ->
+            val allBoardsVoltages = controllers.map { controller ->
                 val allVoltages = try {
-                    c.measureAllVoltages()
+                    controller.measureAllVoltages()
                 } catch (e: Exception) {
                     Log.e(Tag, "Exception caught in check connection: $e")
                     return@withContext
