@@ -31,73 +31,67 @@ class DeviceControlActivity : AppCompatActivity() {
         private const val SETTINGS_REQUEST_CODE = 1
     }
 
-    private val model by lazy {
-        ViewModelProvider(this).get(DeviceControlViewModel::class.java)
-    }
+    private val model by lazy { ViewModelProvider(this).get(DeviceControlViewModel::class.java) }
     private val measurementsView by lazy { findViewById<RecyclerView>(R.id.measurements_results) }
-    private val actionBarText by lazy {
-        supportActionBar?.customView?.findViewById<TextView>(R.id.ctl_actty_actionBar_text)
-    }
-    private val menu by lazy {
-        PopupMenu(this, supportActionBar?.customView?.findViewById(R.id.button_at_custom_action_bar))
-    }
+    private val actionBarText by lazy { supportActionBar?.customView?.findViewById<TextView>(R.id.ctl_actty_actionBar_text) }
+    private val menu by lazy{ PopupMenu(this, supportActionBar?.customView?.findViewById(R.id.button_at_custom_action_bar)) }
     private val warningSign by lazy { findViewById<ImageView>(R.id.ctl_actty_warning_sign) }
 
     private inner class MeasResultViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        private val layout: RelativeLayout by lazy { view.findViewById(R.id.single_check_result) }
-        private val pinNumber: TextView by lazy { view.findViewById(R.id.pin_description) }
-        private val foundConnections: TextView by lazy { view.findViewById(R.id.connections) }
-        private var resultsAreForPin: Pin? = null
+        private val relLayout: RelativeLayout by lazy { view.findViewById(R.id.single_check_result) }
+        private val pinNumberView: TextView by lazy { view.findViewById(R.id.pin_description) }
+        private val connectionsView: TextView by lazy { view.findViewById(R.id.connections) }
+        private lateinit var pin: Pin
 
         init {
-            layout.setOnClickListener {
-                val my_pin = resultsAreForPin ?: return@setOnClickListener
-
-                model.checkConnections(my_pin)
+            relLayout.setOnClickListener {
+                model.checkConnections(pin)
             }
         }
 
-        fun setup(pin: Pin) {
-            resultsAreForPin = pin
-            pinNumber.text = pin.descriptor.getPrettyName()
-            val RMax = model.maxDetectableResistance
+        fun setup(pinToBeHandled: Pin) {
+            pin = pinToBeHandled
+            pinNumberView.text = pinToBeHandled.descriptor.getPrettyName()
 
-            val span_text_builder = SpannableStringBuilder()
-            val normal_color = Color.GREEN
-            val difference_color = Color.YELLOW
-            for (connection in pin.connections) {
-                if (connection.toPin.pinAffinityAndId == pin.descriptor.pinAffinityAndId) continue
+            // RMax is used to differentiate connections with their visibility
+            val rMax = model.maxDetectableResistance
 
-                val text_color = if (connection.value_changed_from_previous_check) ForegroundColorSpan(difference_color)
-                else if (connection.first_occurrence) ForegroundColorSpan(Color.MAGENTA)
-                else ForegroundColorSpan(normal_color)
+            val spanTextBuilder = SpannableStringBuilder()
+            val stableCol = Color.GREEN
+            val differentFromPrevCol = Color.YELLOW
+            for (connection in pinToBeHandled.connections) {
+                if (connection.toPin.pinAffinityAndId == pinToBeHandled.descriptor.pinAffinityAndId) continue
+
+                val textColor = if (connection.valueChangedFromPreviousCheck) ForegroundColorSpan(differentFromPrevCol)
+                else if (connection.firstOccurrence) ForegroundColorSpan(Color.MAGENTA)
+                else ForegroundColorSpan(stableCol)
 
                 if (connection.resistance != null) {
-                    if (connection.resistance.value < RMax) span_text_builder.append(
+                    if (connection.resistance.value < rMax) spanTextBuilder.append(
                         connection.toString(),
-                        text_color,
+                        textColor,
                         SPAN_EXCLUSIVE_EXCLUSIVE
                     )
-                } else span_text_builder.append(connection.toString(), text_color, SPAN_EXCLUSIVE_EXCLUSIVE)
+                } else spanTextBuilder.append(connection.toString(), textColor, SPAN_EXCLUSIVE_EXCLUSIVE)
             }
 
-            if (!pin.isHealthy) {
-                foundConnections.text = "Unhealthy!"
-                pinNumber.setTextColor(resources.getColor(R.color.unhealthy_pin))
-                foundConnections.setTextColor(resources.getColor(R.color.unhealthy_pin))
+            if (!pinToBeHandled.isHealthy) {
+                connectionsView.text = "Unhealthy!"
+                pinNumberView.setTextColor(resources.getColor(R.color.unhealthy_pin))
+                connectionsView.setTextColor(resources.getColor(R.color.unhealthy_pin))
             } else {
-                if (pin.connections.size == 1) {
-                    foundConnections.text = "Not connected";
-                    foundConnections.setTextColor(Color.GRAY)
-                } else if (span_text_builder.isEmpty()) {
-                    foundConnections.text = "Not connected (High R connections not shown)"
-                    foundConnections.setTextColor(Color.GRAY)
-                } else foundConnections.text = span_text_builder
+                if (pinToBeHandled.connections.size == 1) {
+                    connectionsView.text = "Not connected";
+                    connectionsView.setTextColor(Color.GRAY)
+                } else if (spanTextBuilder.isEmpty()) {
+                    connectionsView.text = "Not connected (High R connections not shown)"
+                    connectionsView.setTextColor(Color.GRAY)
+                } else connectionsView.text = spanTextBuilder
 
-                if (pin.connectionsListChangedFromPreviousCheck) {
-                    pinNumber.setTextColor(resources.getColor(R.color.pin_with_altered_connections))
+                if (pinToBeHandled.connectionsListChangedFromPreviousCheck) {
+                    pinNumberView.setTextColor(resources.getColor(R.color.pin_with_altered_connections))
                 } else {
-                    pinNumber.setTextColor(resources.getColor(R.color.pin_with_unaltered_connections))
+                    pinNumberView.setTextColor(resources.getColor(R.color.pin_with_unaltered_connections))
                 }
             }
         }
@@ -126,7 +120,7 @@ class DeviceControlActivity : AppCompatActivity() {
                 )
                 return
             }
-            holder.setup(pins.get(position))
+            holder.setup(pins[position])
         }
 
         fun updateSingle(pin_to_update: Pin) {
