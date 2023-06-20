@@ -42,13 +42,13 @@ class DeviceControlActivity : AppCompatActivity() {
         PopupMenu(this, supportActionBar?.customView?.findViewById(R.id.button_at_custom_action_bar))
     }
     private val warningSign by lazy { findViewById<ImageView>(R.id.ctl_actty_warning_sign) }
-    
-    private inner class CheckResultViewHolder internal constructor(view: View) : RecyclerView.ViewHolder(view) {
+
+    private inner class MeasResultViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val layout: RelativeLayout by lazy { view.findViewById(R.id.single_check_result) }
         private val pinNumber: TextView by lazy { view.findViewById(R.id.pin_description) }
         private val foundConnections: TextView by lazy { view.findViewById(R.id.connections) }
         private var resultsAreForPin: Pin? = null
-        
+
         init {
             layout.setOnClickListener {
                 val my_pin = resultsAreForPin ?: return@setOnClickListener
@@ -56,78 +56,79 @@ class DeviceControlActivity : AppCompatActivity() {
                 model.checkConnections(my_pin)
             }
         }
-        
+
         fun setup(pin: Pin) {
             resultsAreForPin = pin
             pinNumber.text = pin.descriptor.getPrettyName()
             val RMax = model.maxDetectableResistance
-            
+
             val span_text_builder = SpannableStringBuilder()
             val normal_color = Color.GREEN
             val difference_color = Color.YELLOW
             for (connection in pin.connections) {
                 if (connection.toPin.pinAffinityAndId == pin.descriptor.pinAffinityAndId) continue
-                
+
                 val text_color = if (connection.value_changed_from_previous_check) ForegroundColorSpan(difference_color)
                 else if (connection.first_occurrence) ForegroundColorSpan(Color.MAGENTA)
                 else ForegroundColorSpan(normal_color)
-                
+
                 if (connection.resistance != null) {
-                    if (connection.resistance.value < RMax) span_text_builder.append(connection.toString(),
-                                                                                     text_color,
-                                                                                     SPAN_EXCLUSIVE_EXCLUSIVE)
-                }
-                else span_text_builder.append(connection.toString(), text_color, SPAN_EXCLUSIVE_EXCLUSIVE)
+                    if (connection.resistance.value < RMax) span_text_builder.append(
+                        connection.toString(),
+                        text_color,
+                        SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                } else span_text_builder.append(connection.toString(), text_color, SPAN_EXCLUSIVE_EXCLUSIVE)
             }
-            
+
             if (!pin.isHealthy) {
                 foundConnections.text = "Unhealthy!"
                 pinNumber.setTextColor(resources.getColor(R.color.unhealthy_pin))
                 foundConnections.setTextColor(resources.getColor(R.color.unhealthy_pin))
-            }
-            else {
+            } else {
                 if (pin.connections.size == 1) {
                     foundConnections.text = "Not connected";
                     foundConnections.setTextColor(Color.GRAY)
-                }
-                else if (span_text_builder.isEmpty()) {
+                } else if (span_text_builder.isEmpty()) {
                     foundConnections.text = "Not connected (High R connections not shown)"
                     foundConnections.setTextColor(Color.GRAY)
-                }
-                else foundConnections.text = span_text_builder
-                
+                } else foundConnections.text = span_text_builder
+
                 if (pin.connectionsListChangedFromPreviousCheck) {
                     pinNumber.setTextColor(resources.getColor(R.color.pin_with_altered_connections))
-                }
-                else {
+                } else {
                     pinNumber.setTextColor(resources.getColor(R.color.pin_with_unaltered_connections))
                 }
             }
         }
     }
-    
-    private inner class ResultsAdapter : RecyclerView.Adapter<CheckResultViewHolder>() {
+
+    private inner class ResultsAdapter : RecyclerView.Adapter<MeasResultViewHolder>() {
         val pins = mutableListOf<Pin>()
         val itemsCount
             get() = pins.size
-        
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CheckResultViewHolder {
-            val vh = CheckResultViewHolder(LayoutInflater.from(parent.context)
-                                               .inflate(R.layout.ctl_actty_recycler_view_item, parent, false))
-            
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MeasResultViewHolder {
+            val vh = MeasResultViewHolder(
+                LayoutInflater.from(parent.context)
+                    .inflate(R.layout.ctl_actty_recycler_view_item, parent, false)
+            )
+
             return vh
         }
-        
+
         override fun getItemCount() = itemsCount
-        override fun onBindViewHolder(holder: CheckResultViewHolder, position: Int) {
+        override fun onBindViewHolder(holder: MeasResultViewHolder, position: Int) {
             if (position >= itemsCount) {
-                Log.e(Tag,
-                      "in function onBindViewHolder pins number is lower than requested by position argument: $position")
+                Log.e(
+                    Tag,
+                    "in function onBindViewHolder pins number is lower than requested by position argument: $position"
+                )
                 return
             }
             holder.setup(pins.get(position))
         }
-        
+
         fun updateSingle(pin_to_update: Pin) {
             var counter = 0
             for (pin in pins) {
@@ -137,68 +138,70 @@ class DeviceControlActivity : AppCompatActivity() {
                     Log.d(Tag, "Pin connectivity updated: $pin")
                     return
                 }
-                
+
                 counter++
             }
-            
-            Log.e(Tag, """Pin ${pin_to_update.descriptor.affinityAndId.boardAddress}:
+
+            Log.e(
+                Tag, """Pin ${pin_to_update.descriptor.affinityAndId.boardAddress}:
                       |${pin_to_update.descriptor.affinityAndId.pinID}
-                      |is not found in stored pins list!""".trimMargin())
+                      |is not found in stored pins list!""".trimMargin()
+            )
         }
-        
+
         fun updatePinSet(boards: MutableList<IoBoard>) {
             if (boards.isEmpty()) {
                 val pinsCount = pins.size
                 pins.clear()
                 notifyItemRangeRemoved(0, pinsCount)
-                
+
                 Log.e(Tag, "Boards are empty!")
                 return
             }
-            
+
             //todo: check if smart addition of pins would not be better option
             if (!pins.isEmpty()) {
                 val size = pins.size
                 pins.clear()
-                
+
                 notifyItemRangeRemoved(0, size - 1)
             }
-            
+
             for (board in boards) {
                 if (board.pins.isEmpty()) {
                     Log.e(Tag, "supplied board with id ${board.address} has empty list of pins")
                     return
                 }
-                
+
                 for (pin in board.pins) {
                     pins.add(pin)
                 }
             }
-            
+
             //todo: not sure if this is a good handling of notifications, make research
             notifyItemRangeInserted(0, pins.size - 1)
-            
+
             //test
             //            notifyDataSetChanged()
         }
     }
-    
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.ctl_actty_device_controll)
-        
+
         setupEntryViewState()
         setupCallbacks()
         setupObservers()
         setupClickListeners()
-        
+
         if (!model.setupViewModel()) {
             Log.e(Tag, "No arguments obtained in DeviceControlActivity onCreate method!")
-            
+
             finish()
             return
         }
-        
+
         if (BuildConfig.DEBUG) {
             StrictMode.setThreadPolicy(
                 StrictMode.ThreadPolicy.Builder()
@@ -214,37 +217,37 @@ class DeviceControlActivity : AppCompatActivity() {
             )
         }
     }
-    
+
     private fun setupEntryViewState() {
         supportActionBar?.setCustomView(R.layout.ctl_actty_action_bar)
         supportActionBar?.setDisplayOptions(ActionBar.DISPLAY_SHOW_CUSTOM)
-        
+
         menu.inflate(R.menu.ctl_actty_popup)
-        
+
         actionBarText?.text =
             getString(R.string.ctl_actty_tittle_connecting).format(intent.getStringExtra("name") + "...")
-        
+
         //todo: use theme instead of manual setup
         window.statusBarColor = ContextCompat.getColor(this@DeviceControlActivity, R.color.ctl_actty_status_bar)
-        
+
         measurementsView.layoutManager = LinearLayoutManager(this)
         val adapter = ResultsAdapter()
         measurementsView.adapter = adapter
     }
-    
+
     private fun setupCallbacks() {
         model.measurementsHandler.boardsManager.pinChangeCallback = {
             (measurementsView.adapter as ResultsAdapter).updateSingle(it)
         }
     }
-    
+
     private fun setupObservers() {
         model.measurementsHandler.boardsManager.boards.observe(this) {
             actionBarText?.text =
                 getString(R.string.ctl_actty_number_of_connected_boards).format(model.measurementsHandler.boardsManager.getBoardsCount())
             (measurementsView.adapter as ResultsAdapter).updatePinSet(it)
         }
-        
+
         model.measurementsDirector.machineState.state.observe(this) { state ->
             when (state) {
                 Director.State.Operating -> {
@@ -282,11 +285,11 @@ class DeviceControlActivity : AppCompatActivity() {
                 }
             }
         }
-        
+
         model.errorHandler.errorMessages.observe(this) { warnings ->
             warningSign.visibility = View.VISIBLE
         }
-        
+
         warningSign.setOnClickListener() { sign ->
             AlertDialog.Builder(this)
                 .setTitle("Warning")
@@ -294,84 +297,86 @@ class DeviceControlActivity : AppCompatActivity() {
                 .create()
                 .show()
             sign.visibility = View.INVISIBLE
-            
+
             model.errorHandler.errorMessages.value?.clear()
         }
     }
-    
+
     private fun setupClickListeners() {
         val preferences_activity =
             registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { answer ->
                 if (answer.resultCode == Activity.RESULT_OK) {
                     val new_pinout_file_has_been_chosen =
-                        answer.data?.getBooleanExtra(PreferencesFragment.Companion.MessageToInvoker.NewPinoutConfigFileChosen.text,
-                                                     false)
-                    
+                        answer.data?.getBooleanExtra(
+                            PreferencesFragment.Companion.MessageToInvoker.NewPinoutConfigFileChosen.text,
+                            false
+                        )
+
                     if (new_pinout_file_has_been_chosen != null && new_pinout_file_has_been_chosen) {
                         model.getPinoutConfigFile()
                     }
                 }
-                
+
                 onPreferencesActivityClosed()
             }
-        
+
         menu.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.ctl_actty_menu_settings_button -> {
-                    
+
                     preferences_activity.launch(Intent(this, PreferencesActty::class.java))
-                    
+
                     return@setOnMenuItemClickListener true
                 }
-                
+
                 R.id.ctl_actty_menu_calibrate_button -> {
 //                    model.calibrate()
                     return@setOnMenuItemClickListener true
                 }
-                
+
                 R.id.ctl_actty_menu_disconnect_button -> {
 //                    model.disconnect()
                     return@setOnMenuItemClickListener true
                 }
-                
+
                 R.id.ctl_actty_menu_refresh_button -> {
 //                    model.refreshHardware()
                     return@setOnMenuItemClickListener true
                 }
-                
+
                 R.id.ctl_actty_menu_hardware_monitor_button -> {
                     Intent(this@DeviceControlActivity, HardwareMonitorActty::class.java).also {
                         startActivity(it)
                     }
                     false
                 }
-                
+
                 else -> {
                     return@setOnMenuItemClickListener true
                 }
             }
         }
-        
+
         supportActionBar?.customView?.findViewById<Button>(R.id.button_at_custom_action_bar)
             ?.setOnClickListener {
                 menu.show()
             }
-        
+
         findViewById<Button>(R.id.check_connections).setOnClickListener() {
             model.checkConnections()
             Log.d(Tag, "Command sent: ${getString(R.string.set_pin_cmd)}")
         }
-        
+
         findViewById<Button>(R.id.ctl_actty_save_results_button).setOnClickListener() {
             model.storeMeasurementsToFile()
         }
     }
-    
+
     private fun onPreferencesActivityClosed() {
         model.setupMinimumResistance()
         model.setupVoltageLevel()
     }
-    
+
     private fun toast(msg: String?) {
         Toast.makeText(this, msg, Toast.LENGTH_LONG)
             .show()
